@@ -1,0 +1,96 @@
+{
+  "timestamp": "2026-09-18T23:31:08.882Z",
+  "device": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+    "pixelRatio": 1,
+    "viewport": "1600x1000",
+    "gpuRenderer": "WebGL 2.0"
+  },
+  "telemetry": {
+    "baselineFrametime": 30.402500000037254,
+    "baselineP99": 33.29999999701977,
+    "baselineJitter": 1.0513057354387993,
+    "shadowRebakePenaltyMs": 0.015000000037250771,
+    "shadowJitterPenaltyMs": 0.1327313205428906,
+    "castShadowCostMs": -0.004166666480401204,
+    "envMapCostMs": 0.5891666667535915,
+    "dprCostMs": 71.36999999980131,
+    "entityDeltas": [
+      {
+        "name": "arch.shell.tokyo_apartment.001",
+        "delta": 14.972499999962748
+      },
+      {
+        "name": "prop.desk.tokyo_birch.001",
+        "delta": 4.827500000409781
+      },
+      {
+        "name": "prop.workstation.nintendo_rig.001",
+        "delta": 3.727500000037253
+      },
+      {
+        "name": "prop.chair.ergonomic.001",
+        "delta": 1.7674999998882406
+      },
+      {
+        "name": "prop.decor.bonsai.001",
+        "delta": 0.06749999988824129
+      },
+      {
+        "name": "prop.shelf.nintendo_games.001",
+        "delta": 0.14250000026077103
+      }
+    ]
+  },
+  "smokingGuns": [
+    {
+      "culprit": "High-DPI Fill Rate Saturation",
+      "severity": "MODERATE",
+      "impactMs": 71.36999999980131,
+      "rootCause": "Rendering at native Retina/HiDPI (1x) stresses fragment shading across fullscreen PBR passes.",
+      "actionTaken": "Enforced Math.min(window.devicePixelRatio, 2) in renderer init.",
+      "status": "MITIGATED"
+    }
+  ],
+  "verdict": "SMOKING GUNS DETECTED & ISOLATED WITH ZERO GUESSWORK",
+  "interactiveOrbit": {
+    "count": 67,
+    "avg": 28.480597014969856,
+    "min": 25.399999998509884,
+    "max": 32.400000005960464,
+    "p99": 32.400000005960464,
+    "spikesOver30ms": 12,
+    "samples": [
+      29.5,
+      29.30000000447035,
+      29.5,
+      29.600000001490116,
+      30.5,
+      29.899999998509884,
+      31.799999997019768,
+      28.5,
+      28.700000002980232,
+      31.100000001490116,
+      30.399999998509884,
+      32.399999998509884,
+      29,
+      32.399999998509884,
+      31.399999998509884,
+      28.5,
+      28.600000001490116,
+      30.5,
+      26.80000000447035,
+      29.799999997019768,
+      29.799999997019768,
+      31.100000001490116,
+      30.200000002980232,
+      26.899999998509884,
+      29.100000001490116,
+      28.69999999552965,
+      32.400000005960464,
+      26.799999997019768,
+      29.600000001490116,
+      30.100000001490116
+    ]
+  }
+}

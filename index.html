@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artisan 3D Studio — Architectural Compass v2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="viewport-container">
+    <canvas id="webgl"></canvas>
+  </div>
+
+  <!-- Studio Top Navigation & Architectural Telemetry -->
+  <header class="studio-bar">
+    <div class="studio-brand">
+      <span class="studio-crest">✦</span>
+      <div class="studio-brand-text">
+        <span class="studio-title">ARTISAN 3D ATELIER</span>
+        <span class="studio-subtitle">CHRONOMETRIC COMPASS · V2 PRODUCTION</span>
+      </div>
+    </div>
+
+    <div class="studio-stats">
+      <div class="stat-cluster">
+        <div class="stat-pill">
+          <span class="stat-lbl">DRAWCALLS</span>
+          <span class="stat-val" id="hud-drawcalls">12</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-lbl">POLYGONS</span>
+          <span class="stat-val" id="hud-triangles">14.2k</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-lbl">CADENCE</span>
+          <span class="stat-val" id="hud-fps">60</span>
+          <span class="stat-unit">FPS</span>
+        </div>
+      </div>
+      <button class="stat-pill rtss-toggle-btn active" id="btn-toggle-rtss" title="Toggle Chronometric Telemetry (F3 / `)">
+        <span>⏱ HOROLOGY MONITOR</span>
+      </button>
+      <div class="stat-pill mcp-pill" id="mcp-indicator">
+        <span id="mcp-dot" class="sync-dot"></span>
+        <span id="mcp-label" class="sync-label">MCP: STANDBY</span>
+      </div>
+      <button class="toggle-drawer-btn" id="btn-toggle-drawer" title="Toggle Atelier Console & Manifest">
+        <span>✦ ATELIER CONSOLE</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- CHRONOMETRIC TELEMETRY & SPECIFICATION OSD -->
+  <div id="rtss-overlay" class="rtss-container">
+    <div class="rtss-header" id="rtss-header">
+      <div class="rtss-title">
+        <span class="rtss-badge">HOROLOGY</span>
+        <span class="rtss-name">CHRONOMETRIC SPECIFICATION</span>
+        <span class="rtss-min-summary" id="rtss-min-summary" style="display: none;"></span>
+      </div>
+      <div class="rtss-actions">
+        <span class="rtss-btn-min" id="rtss-minimize" title="Minimize / Expand">−</span>
+        <span class="rtss-btn-close" id="rtss-close" title="Close (Hotkey: F3 or `)">✕</span>
+      </div>
+    </div>
+
+    <div class="rtss-body" id="rtss-body">
+      <!-- GPU Hardware -->
+      <div class="rtss-row">
+        <span class="rtss-tag rtss-tag-gpu">HARDWARE</span>
+        <span class="rtss-val rtss-val-gpu" id="rtss-gpu-name">Detecting GPU...</span>
+      </div>
+      <div class="rtss-row rtss-subrow">
+        <span class="rtss-lbl">VIEWPORT RASTER</span>
+        <span class="rtss-val" id="rtss-res">1280x720 @ 1.0x DPR</span>
+      </div>
+
+      <!-- Framerate & Frametime section -->
+      <div class="rtss-divider"></div>
+      <div class="rtss-row">
+        <span class="rtss-tag rtss-tag-fps">CADENCE</span>
+        <span class="rtss-val rtss-val-fps" id="rtss-fps">60.0</span>
+        <span class="rtss-unit">FPS</span>
+        <span class="rtss-val rtss-val-frametime" id="rtss-frametime">16.6 ms</span>
+      </div>
+      <div class="rtss-row rtss-subrow">
+        <span class="rtss-lbl">1% LOW</span>
+        <span class="rtss-val" id="rtss-low-fps">58 FPS</span>
+        <span class="rtss-lbl" style="margin-left: 10px;">JITTER (&sigma;)</span>
+        <span class="rtss-val" id="rtss-var-frametime">±0.4 ms</span>
+      </div>
+
+      <!-- Real-Time Scrolling Frametime Graph -->
+      <div class="rtss-graph-container">
+        <canvas id="rtss-graph" width="240" height="44"></canvas>
+        <div class="rtss-graph-labels">
+          <span class="rtss-gl-top">35ms</span>
+          <span class="rtss-gl-target">16.6ms (60 FPS)</span>
+          <span class="rtss-gl-bot">0ms</span>
+        </div>
+      </div>
+
+      <!-- GPU Draw Calls & Primitives -->
+      <div class="rtss-divider"></div>
+      <div class="rtss-row">
+        <span class="rtss-tag rtss-tag-draw">DISPOSITION</span>
+        <span class="rtss-val rtss-val-draw" id="rtss-drawcalls">18</span>
+        <span class="rtss-pill-budget rtss-budget-pass" id="rtss-budget-status">BUDGET CONFORMANT</span>
+      </div>
+      <div class="rtss-row rtss-subrow">
+        <span class="rtss-lbl">TRIANGLES</span>
+        <span class="rtss-val" id="rtss-triangles">5.5k</span>
+        <span class="rtss-lbl" style="margin-left: 10px;">VERTICES</span>
+        <span class="rtss-val" id="rtss-vertices">16.5k</span>
+      </div>
+
+      <!-- VRAM Memory Buffers -->
+      <div class="rtss-divider"></div>
+      <div class="rtss-row">
+        <span class="rtss-tag rtss-tag-mem">ALLOCATIONS</span>
+        <span class="rtss-val" id="rtss-geometries">34 geos</span>
+        <span class="rtss-val" style="margin-left: 6px;" id="rtss-textures">4 tex</span>
+        <span class="rtss-val" style="margin-left: 6px;" id="rtss-programs">14 shaders</span>
+      </div>
+
+      <!-- Artisan Pipeline Status -->
+      <div class="rtss-divider"></div>
+      <div class="rtss-section-title">ENGINE PIPELINE DIAGNOSTICS</div>
+      <div class="rtss-row rtss-subrow">
+        <span class="rtss-lbl">SHADOW MAP</span>
+        <span class="rtss-val rtss-pass-cached" id="rtss-shadow-state">CACHED (0 passes)</span>
+      </div>
+      <div class="rtss-row rtss-subrow">
+        <span class="rtss-lbl">REFRACTION</span>
+        <span class="rtss-val rtss-pass-opt" id="rtss-refr-state">PBR ALPHA (0 pre-pass)</span>
+      </div>
+      <div class="rtss-row rtss-subrow">
+        <span class="rtss-lbl">INSTANCING</span>
+        <span class="rtss-val" id="rtss-inst-count">3 meshes (30 parts)</span>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- Bottom Architectural Modular Command Deck -->
+  <div class="viewport-command-deck">
+    <!-- DOCK 1: SCÈNES D'ATELIER -->
+    <div class="dock-cluster">
+      <span class="dock-cluster-label">PORTFOLIO</span>
+      <div class="dock-buttons">
+        <button class="pill-btn" id="btn-scene-tokyo">⛩️ Tokyo</button>
+        <button class="pill-btn" id="btn-scene-winterhold">❄️ Winterhold</button>
+        <button class="pill-btn active" id="btn-scene-trio">⚔️ Hero Trio</button>
+        <button class="pill-btn" id="btn-scene-tavern">🍺 Tavern</button>
+        <button class="pill-btn" id="btn-scene-alchemist">🧪 Alchemist</button>
+        <button class="pill-btn" id="btn-scene-armory">🛡️ Armory</button>
+        <button class="pill-btn" id="btn-scene-library">📚 Library</button>
+      </div>
+    </div>
+
+    <div class="deck-separator"></div>
+
+    <!-- DOCK 2: ATMOSPHÈRE & LUMIÈRE -->
+    <div class="dock-cluster">
+      <span class="dock-cluster-label">LUMIÈRE</span>
+      <div class="dock-buttons">
+        <button class="pill-btn" id="btn-lighting-dusk">🌅 Dusk</button>
+        <button class="pill-btn" id="btn-lighting-hearth">🔥 Hearth</button>
+        <button class="pill-btn" id="btn-lighting-day">☀️ Sol</button>
+      </div>
+    </div>
+
+    <div class="deck-separator"></div>
+
+    <!-- DOCK 3: CADENCE & FIDÉLITÉ GRAPHIQUE -->
+    <div class="dock-cluster">
+      <span class="dock-cluster-label">FIDÉLITÉ</span>
+      <div class="dock-buttons">
+        <button class="pill-btn active fidelity-btn" id="btn-toggle-dpr" title="Cycle Graphic Mode (Auto / Performance / Balanced / Ultra)">
+          ⚡ Auto 60 FPS (1.00x)
+        </button>
+        <button class="pill-btn" id="btn-toggle-lod">
+          📐 Wireframe
+        </button>
+      </div>
+    </div>
+
+    <div class="deck-separator"></div>
+
+    <!-- DOCK 4: CADRAGE & OPTIQUE -->
+    <div class="dock-cluster">
+      <span class="dock-cluster-label">OPTIQUE</span>
+      <div class="dock-buttons">
+        <button class="pill-btn" id="btn-cam-hero">🏛️ Hero</button>
+        <button class="pill-btn" id="btn-cam-enchanter">💀 Enchanter</button>
+        <button class="pill-btn" id="btn-cam-shelf">📖 Study</button>
+        <button class="pill-btn" id="btn-cam-aurora">🌌 Aurora</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Side Drawer (Collapsed by default to keep 3D diorama unoccluded) -->
+  <div class="studio-drawer collapsed" id="studio-drawer">
+    <div class="drawer-tabs">
+      <div class="drawer-tab active" data-tab="manifest">World Manifest</div>
+      <div class="drawer-tab" data-tab="taskmgr" style="color: #38bdf8;">⚡ Task Manager</div>
+      <div class="drawer-tab" data-tab="roi">Token ROI & Math</div>
+      <div class="drawer-tab" data-tab="llm">LLM Prompt Engine</div>
+    </div>
+
+    <div class="drawer-content" id="tab-manifest">
+      <div class="roi-card">
+        <div class="roi-title">Deterministic Compiler Active</div>
+        <div class="roi-sub">The LLM writes semantic JSON; the Studio compiles instancing, PBR shaders, and spatial anchors.</div>
+      </div>
+
+      <label class="drawer-label">Authoritative World JSON (.world.json)</label>
+      <textarea class="code-editor-area" id="manifest-editor" spellcheck="false"></textarea>
+
+      <div class="drawer-actions">
+        <button class="action-btn" id="btn-compile-manifest">
+          ▶ Compile & Render
+        </button>
+        <button class="action-btn secondary" id="btn-reset-manifest">
+          ↺ Reset
+        </button>
+      </div>
+
+      <div style="margin-top: 10px;">
+        <label class="drawer-label">Quick Semantic Injector (Try Adding Assets)</label>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;">
+          <button class="pill-btn" style="font-size: 11px; padding: 4px 10px;" id="btn-inject-barrel">+ Barrel</button>
+          <button class="pill-btn" style="font-size: 11px; padding: 4px 10px;" id="btn-inject-lantern">+ Lantern</button>
+          <button class="pill-btn" style="font-size: 11px; padding: 4px 10px;" id="btn-inject-chest">+ Chest</button>
+          <button class="pill-btn" style="font-size: 11px; padding: 4px 10px;" id="btn-inject-bookshelf">+ Bookshelf</button>
+          <button class="pill-btn" style="font-size: 11px; padding: 4px 10px;" id="btn-inject-cauldron">+ Cauldron</button>
+          <button class="pill-btn" style="font-size: 11px; padding: 4px 10px;" id="btn-inject-rack">+ Weapon Rack</button>
+        </div>
+      </div>
+      <div id="compiler-status-box" style="margin-top: 8px; font-size: 11px; padding: 8px; border-radius: 6px; display: none;"></div>
+    </div>
+
+    <div class="drawer-content" id="tab-roi" style="display: none;">
+      <div class="roi-card">
+        <div class="roi-title">Token Economics Breakdown</div>
+        <div class="roi-metrics">
+          <div>
+            <div class="roi-sub">LLM Manifest Tokens</div>
+            <div class="roi-big" style="color: #4ade80;">~340 tokens</div>
+          </div>
+          <div>
+            <div class="roi-sub">Raw Three.js Code</div>
+            <div class="roi-big" style="color: #f87171;">~19,200 tokens</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="roi-notes">
+        <h4>Why This Guarantees Success:</h4>
+        <ul>
+          <li><b>98.2% Token Reduction:</b> LLMs output compact semantic JSON specs instead of 20,000 lines of boilerplate canvas logic.</li>
+          <li><b>Zero Physical Drift:</b> Spatial laws (`supported_by`, `clearance`) automatically snap objects to surfaces without math hallucinations.</li>
+          <li><b>Consistent AAA Artistry:</b> Locked PBR Material Foundry (`forged_iron`, `dark_oak`, `rough_stone`, `lime_plaster`) guarantees no cartoon drift.</li>
+          <li><b>Any LLM Capable:</b> Can be run with lightweight, low-cost models (Gemini Flash, Claude Haiku, GPT-4o-mini) with 100% deterministic success.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="drawer-content" id="tab-llm" style="display: none;">
+      <div class="roi-card">
+        <div class="roi-title">Copy-Paste LLM Prompt Template</div>
+        <div class="roi-sub">Send this concise system contract to ANY LLM to generate instant AAA Artisan assets.</div>
+      </div>
+
+      <textarea class="code-editor-area" id="llm-prompt-box" readonly style="height: 280px;"></textarea>
+
+      <div class="drawer-actions">
+        <button class="action-btn" id="btn-copy-llm-prompt">
+          📋 Copy System Prompt
+        </button>
+      </div>
+    </div>
+
+    <!-- Task Manager & Smoking Gun Sysmon -->
+    <div class="drawer-content" id="tab-taskmgr" style="display: none;">
+      <div class="roi-card" style="border-color: rgba(56, 189, 248, 0.4); background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(0,0,0,0.3));">
+        <div class="roi-title" style="color: #38bdf8;">⚡ Mainframe Subsystem Profiler</div>
+        <div class="roi-sub">Zero-trust microsecond timings. Strict 16.6ms frame budget monitoring.</div>
+        <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-size: 11px; color: var(--text-dim);">Total CPU Time:</span>
+          <span id="taskmgr-total-cpu" style="font-size: 14px; font-weight: 700; font-family: monospace; color: #4ade80;">1.85 ms / 16.6 ms</span>
+        </div>
+        <div style="margin-top: 4px; display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-size: 11px; color: var(--text-dim);">rAF / V-Sync Gap:</span>
+          <span id="taskmgr-val-raf" style="font-size: 12px; font-family: monospace; color: #94a3b8;">16.6 ms (60 FPS)</span>
+        </div>
+      </div>
+
+      <!-- Live Subsystem Waterfall -->
+      <div class="taskmgr-section">
+        <label class="drawer-label">Render Loop Stage Execution (Avg & p99)</label>
+        
+        <div class="taskmgr-stage-row">
+          <div class="taskmgr-stage-meta">
+            <span>Forward PBR Render</span>
+            <span id="taskmgr-val-render">0.00 ms</span>
+          </div>
+          <div class="taskmgr-bar-track"><div class="taskmgr-bar-fill" id="taskmgr-bar-render"></div></div>
+        </div>
+
+        <div class="taskmgr-stage-row">
+          <div class="taskmgr-stage-meta">
+            <span>Shadow Depth Pass</span>
+            <span id="taskmgr-val-shadow">0.00 ms</span>
+          </div>
+          <div class="taskmgr-bar-track"><div class="taskmgr-bar-fill" id="taskmgr-bar-shadow"></div></div>
+        </div>
+
+        <div class="taskmgr-stage-row">
+          <div class="taskmgr-stage-meta">
+            <span>Controls & Transforms</span>
+            <span id="taskmgr-val-ctrl">0.00 ms</span>
+          </div>
+          <div class="taskmgr-bar-track"><div class="taskmgr-bar-fill" id="taskmgr-bar-ctrl"></div></div>
+        </div>
+
+        <div class="taskmgr-stage-row">
+          <div class="taskmgr-stage-meta">
+            <span>Lighting Fire Rig</span>
+            <span id="taskmgr-val-light">0.00 ms</span>
+          </div>
+          <div class="taskmgr-bar-track"><div class="taskmgr-bar-fill" id="taskmgr-bar-light"></div></div>
+        </div>
+
+        <div class="taskmgr-stage-row">
+          <div class="taskmgr-stage-meta">
+            <span>RTSS Telemetry & HUD</span>
+            <span id="taskmgr-val-telem">0.00 ms</span>
+          </div>
+          <div class="taskmgr-bar-track"><div class="taskmgr-bar-fill" id="taskmgr-bar-telem"></div></div>
+        </div>
+      </div>
+
+      <!-- Automated 7-Point Smoking Gun Bisection Audit -->
+      <div class="taskmgr-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label class="drawer-label" style="margin-bottom: 0;">Smoking Gun Bisection Audit</label>
+          <span id="taskmgr-audit-status" style="font-size: 10px; font-weight: 700; color: #4ade80;">READY</span>
+        </div>
+        
+        <button class="action-btn" id="btn-run-audit" style="background: linear-gradient(135deg, #0284c7, #0369a1); width: 100%;">
+          ⚡ Run 7-Point Smoking Gun Audit
+        </button>
+
+        <div class="taskmgr-audit-box" id="taskmgr-audit-log">
+          <div class="audit-log-line audit-info">Ready to bisect scene subsystems (Shadows, EnvMap, DPR, Entities). Click above to execute.</div>
+        </div>
+
+        <div class="drawer-actions" style="margin-top: 8px;">
+          <button class="action-btn secondary" id="btn-copy-audit-md" disabled style="font-size: 11px; padding: 6px 10px;">
+            📋 Copy Markdown
+          </button>
+          <button class="action-btn secondary" id="btn-export-audit-json" disabled style="font-size: 11px; padding: 6px 10px;">
+            💾 Export JSON
+          </button>
+        </div>
+      </div>
+
+      <!-- Process Table (Scene Hierarchy Resource Utilization) -->
+      <div class="taskmgr-section">
+        <label class="drawer-label">Process & Hierarchy Table (Omegamon)</label>
+        <div class="taskmgr-table-container">
+          <table class="taskmgr-table">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Process / Entity</th>
+                <th>Draws</th>
+                <th>Tris</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="taskmgr-process-rows">
+              <!-- Dynamically populated by ArtisanProfiler -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

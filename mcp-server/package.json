@@ -1,0 +1,13 @@
+{
+  "name": "artisan-3d-mcp-server",
+  "version": "1.0.0",
+  "description": "Artisan 3D World Compass MCP Server — gives any LLM arms and legs for artisan-grade 3D scene authoring",
+  "type": "module",
+  "main": "index.js",
+  "bin": { "artisan-3d": "./index.js" },
+  "scripts": { "start": "node index.js" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "ws": "^8.18.0"
+  }
+}

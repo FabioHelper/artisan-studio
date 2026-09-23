@@ -21,6 +21,16 @@ import {
 import { RivaTunerOSD } from './engine/RivaTunerOSD.js';
 import { ArtisanProfiler } from './engine/ArtisanProfiler.js';
 import { SingleInstanceGuard } from './engine/SingleInstanceGuard.js';
+import { LIGHTING_PRESETS, authoredLighting, computeSceneIdentity, BRIDGE_PROTOCOL } from './contracts/artisanContract.js';
+import {
+  computeAuthoredSceneReference,
+  resolveSceneAlias
+} from './contracts/sceneIdentityContract.js';
+import {
+  RENDERER_HASH,
+  SCENE_ALIASES,
+  SCENE_IDENTITIES
+} from './contracts/sceneIdentityManifest.generated.js';
 
 /* ==========================================================================
    ARTISAN 3D STUDIO — PRODUCTION ENGINE RUNTIME (COMPASS V2)
@@ -30,6 +40,7 @@ let scene, camera, renderer, controls;
 let materials, lighting, compiler, rtss, profiler;
 let currentScene = 'trio';
 let currentLightingPreset = 'dusk';
+let lightingTarget = 'trio'; // preset scene id or lighting family of the active world
 let isWireframe = false;
 let activeWorldGroup = null;
 let shadowBakeFrames = 4;
@@ -40,6 +51,18 @@ let isSoftwareRasterizer = false;
 let lastForwardRenderMs = 0; // Tracks actual GPU forward render pass duration
 let appMode = 'diorama'; // 'diorama' | 'game'
 let dioramaRunning = true;
+let fantasticZoneScope = false;
+
+// SPEC-08 render state: what this page can prove it is showing, never an echo of what it was sent.
+// P0.6: canonical surfaces carry a structured content-bound reference. Older non-Fantastic presets
+// remain explicitly legacy; mode:game and preset:fantastic are accepted only as input aliases.
+const renderState = {
+  sceneIdentity: 'none', sceneReference: null, zoneReference: null, rendererHash: RENDERER_HASH,
+  renderPlanHash: null, legacy: true, epoch: 0, worldId: null, version: null,
+  renderedEntityIds: [], authored: false, identityError: null
+};
+const pageClientId = globalThis.crypto?.randomUUID?.() ?? `client-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+const frameListeners = new Set(); // called after every diorama frame with { time, calls, triangles }
 
 // Calibrated hardware pixel budgets for Intel(R) UHD Graphics (0x00009B41)
 // Intel UHD has shared UMA memory bandwidth (~30 GB/s). Capping shaded fragments to ~2.07 Mpixels
@@ -118,6 +141,287 @@ export function computeEffectiveDPR(preset = dprPreset) {
 
 export function requestShadowBake(frames = 3) {
   shadowBakeFrames = Math.max(shadowBakeFrames, frames);
+}
+
+/* ==========================================================================
+   RENDER STATE & EVIDENCE PRIMITIVES (SPEC-08) — one render path for live and headless
+   ========================================================================== */
+
+function entityIdsOf(group) {
+  return group ? group.children.filter(c => c.isGroup && c.name).map(c => c.name) : [];
+}
+
+function evidenceCamera() {
+  return appMode === 'game' && fantasticCtx.camera ? fantasticCtx.camera : camera;
+}
+
+function evidenceSceneRoot() {
+  return appMode === 'game' && fantasticCtx.scene ? fantasticCtx.scene : activeWorldGroup;
+}
+
+function setRenderState(next) {
+  Object.assign(renderState, {
+    worldId: null, version: null, renderedEntityIds: [], authored: false, identityError: null,
+    sceneReference: null, zoneReference: null, rendererHash: RENDERER_HASH, renderPlanHash: null, legacy: false
+  }, next);
+  renderState.epoch++;
+}
+
+/** Compact render block attached to every bridge reply. */
+function renderBlock() {
+  const zoneEvidence = renderState.zoneReference ? fantasticHallZoneEvidence() : null;
+  return {
+    sceneIdentity: renderState.sceneIdentity,
+    sceneReference: renderState.sceneReference,
+    zoneReference: renderState.zoneReference,
+    zoneEvidence,
+    rendererHash: renderState.rendererHash,
+    renderPlanHash: renderState.renderPlanHash,
+    legacy: renderState.legacy,
+    epoch: renderState.epoch,
+    worldId: renderState.worldId,
+    version: renderState.version,
+    renderedEntityIds: [...renderState.renderedEntityIds]
+  };
+}
+
+export function getRenderState() {
+  return { ...renderBlock(), authored: renderState.authored, identityError: renderState.identityError, clientId: pageClientId, appMode, counters: { sceneWarmupFrames, shadowBakeFrames } };
+}
+
+const r3 = (n) => Math.round(n * 1000) / 1000;
+function cameraState() {
+  const activeCamera = evidenceCamera();
+  if (!activeCamera) return null;
+  const position = activeCamera.position.toArray().map(r3);
+  if (appMode !== 'game' && controls) return { position, target: controls.target.toArray().map(r3), fov: activeCamera.fov };
+  const direction = new THREE.Vector3();
+  activeCamera.getWorldDirection(direction);
+  return { position, target: activeCamera.position.clone().add(direction).toArray().map(r3), fov: activeCamera.fov };
+}
+
+/** Entity groups whose bounding box intersects the camera frustum ("inFrustum", not "visible"). */
+function entitiesInFrustum() {
+  const root = evidenceSceneRoot();
+  const activeCamera = evidenceCamera();
+  if (!root || !activeCamera) return [];
+  activeCamera.updateMatrixWorld();
+  root.updateMatrixWorld(true);
+  const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(activeCamera.projectionMatrix, activeCamera.matrixWorldInverse));
+  const box = new THREE.Box3();
+  return [...new Set(root.children.filter(c => c.isGroup && c.name).filter(g => { box.setFromObject(g); return !box.isEmpty() && frustum.intersectsBox(box); }).map(g => g.name))];
+}
+
+function fantasticHallZoneEvidence() {
+  const hall = fantasticCtx.hall;
+  const activeCamera = fantasticCtx.camera;
+  if (appMode !== 'game' || !fantasticZoneScope || !hall || !activeCamera) return null;
+  const bounds = new THREE.Box3().setFromObject(hall);
+  const inFrustum = entitiesInFrustum();
+  return {
+    parentSceneIdentity: SCENE_IDENTITIES.walkableWorld.sceneIdentity,
+    zoneSceneIdentity: SCENE_IDENTITIES.fantasticHallZone.sceneIdentity,
+    cameraInZone: !bounds.isEmpty() && bounds.containsPoint(activeCamera.position),
+    zoneObjectId: hall.name,
+    camera: cameraState(),
+    inFrustum
+  };
+}
+
+export function setFantasticEvidenceScope(zoneSceneIdentity = null) {
+  if (appMode !== 'game') throw new Error('IDENTITY_KIND_MISMATCH: Hall zone scope requires The Fantastic World');
+  const wantsZone = zoneSceneIdentity === SCENE_IDENTITIES.fantasticHallZone.sceneIdentity;
+  if (zoneSceneIdentity !== null && !wantsZone) throw new Error('IDENTITY_UNRESOLVED: unknown Fantastic World zone');
+  fantasticZoneScope = wantsZone;
+  renderState.zoneReference = wantsZone ? SCENE_IDENTITIES.fantasticHallZone : null;
+  renderState.renderedEntityIds = fantasticCtx.scene
+    ? [...new Set(fantasticCtx.scene.children.filter(child => child.name).map(child => child.name))]
+    : [];
+  renderState.epoch++;
+  return renderBlock();
+}
+
+/**
+ * The one authored-manifest render path: the live MANIFEST and WORLD_UPDATE handlers, the legacy bare
+ * manifest and the headless evidence runner all call it. The identity is computed from the received
+ * manifest BEFORE compiling; the body below is the former bridge manifest handler, unchanged.
+ */
+export async function applyAuthoredManifest(manifest) {
+  let sceneIdentity = null;
+  let sceneReference = null;
+  let identityError = null;
+  try {
+    sceneReference = await computeAuthoredSceneReference(manifest, RENDERER_HASH);
+    sceneIdentity = sceneReference.sceneIdentity;
+  }
+  catch (e) { identityError = /INSECURE_CONTEXT/.test(e.message) ? 'INSECURE_CONTEXT' : String(e.message).slice(0, 120); }
+
+  // Lighting: preset from the manifest, family + practical light from its archetypes
+  if (manifest.lighting && manifest.lighting !== currentLightingPreset) {
+    setLighting(manifest.lighting);
+  }
+  const authored = authoredLighting(manifest);
+  const compiled = compiler.compile(manifest);
+
+  if (activeWorldGroup) {
+    scene.remove(activeWorldGroup);
+  }
+  activeWorldGroup = compiled.group;
+  scene.add(activeWorldGroup);
+  if (authored.localPosition) lighting.setHearthPosition(...authored.localPosition);
+  lighting.setLocalEnabled(!!authored.localPosition);
+  applyLightingProfile(authored.family);
+  requestShadowBake(3);
+  materials.setWireframe(isWireframe);
+  updateTelemetry();
+
+  if (window.__artisan) window.__artisan.activeWorldGroup = activeWorldGroup;
+  const renderedEntityIds = entityIdsOf(activeWorldGroup);
+  setRenderState({ sceneIdentity, sceneReference, identityError, worldId: manifest.worldId ?? null, version: manifest.version ?? null, renderedEntityIds, authored: true });
+  return { sceneIdentity, sceneReference, identityError, worldId: renderState.worldId, version: renderState.version, manifestEntityCount: manifest.entities?.length ?? 0, renderedEntityIds, epoch: renderState.epoch, warnings: compiled.validation?.warnings?.length ?? 0 };
+}
+
+/** Editor + toast feedback after an MCP manifest was rendered (UI only; not part of the render path). */
+function showAuthoredManifestUI(manifest) {
+  const editorEl = document.getElementById('manifest-editor');
+  if (editorEl) {
+    editorEl.value = JSON.stringify(manifest, null, 2);
+  }
+  const statusBox = document.getElementById('compiler-status-box');
+  if (statusBox) {
+    statusBox.style.display = 'block';
+    statusBox.style.background = 'rgba(16, 185, 129, 0.15)';
+    statusBox.style.border = '1px solid #10b981';
+    statusBox.style.color = '#34d399';
+    statusBox.innerHTML = `<b>✓ MCP Live Preview Updated</b><br>World: ${manifest.worldId} · Entities: ${manifest.entities?.length || 0} · v${manifest.version}`;
+  }
+}
+
+/** Resolves once warm-up and shadow-bake counters stay at 0 for `quietFrames` consecutive frames (settled:false on timeout). */
+export function waitForSettled({ quietFrames = 10, timeoutMs = 8000 } = {}) {
+  if (appMode === 'game') {
+    return new Promise((resolve) => {
+      const started = performance.now();
+      let frames = 0;
+      let done = false;
+      const timer = setTimeout(() => { if (!done) { done = true; resolve({ settled: false, frames, waitedMs: Math.round(performance.now() - started) }); } }, timeoutMs);
+      const tick = () => {
+        if (done) return;
+        frames++;
+        if (frames >= Math.max(2, quietFrames)) {
+          done = true;
+          clearTimeout(timer);
+          resolve({ settled: true, frames, waitedMs: Math.round(performance.now() - started) });
+        } else requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+    let quiet = 0;
+    let frames = 0;
+    let timer = null;
+    const done = (settled) => { frameListeners.delete(onFrame); clearTimeout(timer); resolve({ settled, frames, waitedMs: Math.round(performance.now() - t0) }); };
+    const onFrame = () => {
+      frames++;
+      if (sceneWarmupFrames === 0 && shadowBakeFrames === 0) { if (++quiet >= quietFrames) done(true); }
+      else quiet = 0;
+    };
+    timer = setTimeout(() => done(false), timeoutMs);
+    frameListeners.add(onFrame);
+  });
+}
+
+/** Samples `frames` rendered diorama frames: max draws/triangles, mean + p95 frametime, fps = 1000/mean. */
+export function measureRender({ frames = 60, timeoutMs = 15000 } = {}) {
+  const n = Math.max(2, Math.min(600, Math.round(frames)));
+  if (appMode === 'game') {
+    return new Promise((resolve) => {
+      const deltas = [];
+      let last = null;
+      let maxCalls = 0;
+      let maxTris = 0;
+      let done = false;
+      const finish = (complete) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        const sorted = [...deltas].sort((a, b) => a - b);
+        const mean = deltas.length ? deltas.reduce((a, b) => a + b, 0) / deltas.length : null;
+        const p95 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] : null;
+        const r2 = value => value === null ? null : Math.round(value * 100) / 100;
+        resolve({
+          complete, frames: deltas.length, drawCalls: maxCalls, triangles: maxTris,
+          frametimeMs: r2(mean), frametimeP95Ms: r2(p95), fps: mean ? r2(1000 / mean) : null,
+          gpu: rtss?.gpuName ?? null, isSoftwareRasterizer, pixelRatio: fantasticCtx.renderer?.getPixelRatio?.() ?? renderer.getPixelRatio(),
+          viewport: `${window.innerWidth}x${window.innerHeight}`, camera: cameraState(), inFrustum: entitiesInFrustum()
+        });
+      };
+      const tick = time => {
+        if (done) return;
+        const info = fantasticCtx.renderer?.info?.render;
+        maxCalls = Math.max(maxCalls, info?.calls ?? 0);
+        maxTris = Math.max(maxTris, info?.triangles ?? 0);
+        if (last !== null) deltas.push(time - last);
+        last = time;
+        if (deltas.length >= n) finish(true);
+        else requestAnimationFrame(tick);
+      };
+      const timer = setTimeout(() => finish(false), timeoutMs);
+      requestAnimationFrame(tick);
+    });
+  }
+  return new Promise((resolve) => {
+    const deltas = [];
+    let maxCalls = 0;
+    let maxTris = 0;
+    let last = null;
+    let timer = null;
+    const finish = (complete) => {
+      frameListeners.delete(onFrame);
+      clearTimeout(timer);
+      const sorted = [...deltas].sort((a, b) => a - b);
+      const mean = deltas.length ? deltas.reduce((a, b) => a + b, 0) / deltas.length : null;
+      const p95 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] : null;
+      const r2 = (x) => (x === null ? null : Math.round(x * 100) / 100);
+      resolve({
+        complete, frames: deltas.length, drawCalls: maxCalls, triangles: maxTris,
+        frametimeMs: r2(mean), frametimeP95Ms: r2(p95), fps: mean ? r2(1000 / mean) : null,
+        gpu: rtss?.gpuName ?? null, isSoftwareRasterizer, pixelRatio: renderer.getPixelRatio(),
+        viewport: `${window.innerWidth}x${window.innerHeight}`, camera: cameraState()
+      });
+    };
+    const onFrame = (info) => {
+      maxCalls = Math.max(maxCalls, info.calls);
+      maxTris = Math.max(maxTris, info.triangles);
+      if (last !== null) deltas.push(info.time - last);
+      last = info.time;
+      if (deltas.length >= n) finish(true);
+    };
+    timer = setTimeout(() => finish(false), timeoutMs);
+    frameListeners.add(onFrame);
+  });
+}
+
+/**
+ * Canvas-only capture (no DOM overlays): optional camera angle, settle, then render + toDataURL in the same
+ * task. Fails with EPOCH_CHANGED if the scene was swapped while waiting.
+ */
+export async function captureCanvas({ angle = null, settle = true, timeoutMs = 8000 } = {}) {
+  const epochStart = renderState.epoch;
+  if (angle && appMode !== 'game') setCameraAngle(angle);
+  const settledInfo = settle ? await waitForSettled({ timeoutMs }) : { settled: null };
+  if (renderState.epoch !== epochStart) throw new Error('EPOCH_CHANGED: the scene changed during capture');
+  if (appMode === 'game') {
+    fantasticCtx.renderer.render(fantasticCtx.scene, fantasticCtx.camera);
+  } else {
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  const activeRenderer = appMode === 'game' ? fantasticCtx.renderer : renderer;
+  const dataUrl = activeRenderer.domElement.toDataURL('image/png');
+  return { dataUrl, width: activeRenderer.domElement.width, height: activeRenderer.domElement.height, settled: settledInfo.settled, camera: cameraState(), inFrustum: entitiesInFrustum(), epochStart, render: renderBlock() };
 }
 
 // Telemetry state
@@ -201,7 +505,7 @@ function init() {
   const requestedMode = urlParams.get('mode');
   const requestedAngle = urlParams.get('angle');
 
-  if (requestedMode === 'game') {
+  if (requestedMode === 'game' || requestedMode === 'mode:game') {
     appMode = 'game';
     dioramaRunning = false;
     switchToGameMode();
@@ -251,7 +555,17 @@ function init() {
       updateEnvironmentMap();
       syncSettingsModalUI();
     },
-    getEnvReflections: () => engineConfig.envReflections
+    getEnvReflections: () => engineConfig.envReflections,
+    setLighting,
+    getLightingTelemetry: () => ({ ...lighting.getTelemetry(), exposureApplied: renderer.toneMappingExposure }),
+    // SPEC-08 evidence primitives (live bridge and headless runner share these)
+    applyAuthoredManifest,
+    getRenderState,
+    waitForSettled,
+    measureRender,
+    captureCanvas,
+    setFantasticEvidenceScope,
+    computeSceneIdentity
   };
 
   // Populate LLM prompt template
@@ -281,8 +595,8 @@ function setupDPIListener() {
   }, { once: true });
 }
 
-export async function switchToGameMode() {
-  await SingleInstanceGuard.getInstance().acquire(
+export async function switchToGameMode({ zone = null } = {}) {
+  const switched = await SingleInstanceGuard.getInstance().acquire(
     'game',
     () => {
       appMode = 'game';
@@ -291,6 +605,12 @@ export async function switchToGameMode() {
       if (activeWorldGroup) {
         scene.remove(activeWorldGroup);
       }
+      setRenderState({
+        sceneIdentity: SCENE_IDENTITIES.walkableWorld.sceneIdentity,
+        sceneReference: SCENE_IDENTITIES.walkableWorld,
+        renderedEntityIds: [],
+        authored: false
+      });
 
       // Update mode switcher buttons
       document.getElementById('btn-mode-game')?.classList.add('active');
@@ -319,6 +639,8 @@ export async function switchToGameMode() {
       teardownFantasticWorld();
     }
   );
+  if (switched) setFantasticEvidenceScope(zone);
+  return switched;
 }
 
 export async function switchToDioramaMode() {
@@ -418,6 +740,11 @@ function onWindowResize() {
 }
 
 function loadScene(mode) {
+  if (mode === 'preset:fantastic' || mode === SCENE_IDENTITIES.dioramaAdaptation.sceneIdentity) {
+    const resolved = resolveSceneAlias(mode, { identities: SCENE_IDENTITIES, aliases: SCENE_ALIASES });
+    if (resolved.sceneReference.kind !== 'diorama-adaptation') throw new Error('IDENTITY_KIND_MISMATCH: expected the Fantastic diorama adaptation');
+    mode = 'fantastic';
+  }
   currentScene = mode;
 
   // Update button states
@@ -479,7 +806,7 @@ function loadScene(mode) {
     controls.target.set(0, 1.2, 0);
     controls.minDistance = 1.2;
     controls.maxDistance = 10.0;
-    lighting.setSceneProfile('tokyo', currentLightingPreset);
+    lighting.setHearthPosition(0.5, 1.35, -0.3); // desk lamp practical
     document.getElementById('manifest-editor').value = JSON.stringify(ManifestTokyoNintendoOffice, null, 2);
   } else if (mode === 'winterhold') {
     const compiled = compiler.compile(ManifestWinterholdCollege);
@@ -488,7 +815,7 @@ function loadScene(mode) {
     controls.target.set(0, 1.2, 0);
     controls.minDistance = 1.2;
     controls.maxDistance = 12.0;
-    lighting.setSceneProfile('winterhold', currentLightingPreset);
+    lighting.setHearthPosition(0, 1.05, 1.8); // witchlight brazier practical
     document.getElementById('manifest-editor').value = JSON.stringify(ManifestWinterholdCollege, null, 2);
   } else if (mode === 'fantastic') {
     activeWorldGroup = buildFantasticWorld(materials);
@@ -496,7 +823,6 @@ function loadScene(mode) {
     controls.target.set(-0.8, 1.2, -0.6);
     controls.minDistance = 0.8;
     controls.maxDistance = 14.0;
-    lighting.setSceneProfile('library', currentLightingPreset);
     lighting.setHearthPosition(-3.05, 0.95, 0.4);
     document.getElementById('manifest-editor').value = JSON.stringify({
       worldId: "the_fantastic_world_hall_v1",
@@ -514,22 +840,43 @@ function loadScene(mode) {
     }, null, 2);
   }
 
+  lighting.setLocalEnabled(true);
+  applyLightingProfile(mode);
+
   scene.add(activeWorldGroup);
   if (window.__artisan) window.__artisan.activeWorldGroup = activeWorldGroup;
   if (controls) controls.update();
   materials.setWireframe(isWireframe);
   requestShadowBake(4);
   updateTelemetry();
+  if (mode === 'fantastic') {
+    setRenderState({
+      sceneIdentity: SCENE_IDENTITIES.dioramaAdaptation.sceneIdentity,
+      sceneReference: SCENE_IDENTITIES.dioramaAdaptation,
+      renderedEntityIds: entityIdsOf(activeWorldGroup),
+      authored: false
+    });
+  } else {
+    setRenderState({ sceneIdentity: `preset:${mode}`, renderedEntityIds: entityIdsOf(activeWorldGroup), legacy: true });
+  }
+}
+
+// Applies the canonical LIGHTING_PROFILES entry (lights, background, exposure) for the active world.
+function applyLightingProfile(target) {
+  lightingTarget = target;
+  lighting.setSceneProfile(target, currentLightingPreset);
+  renderer.toneMappingExposure = lighting.getExposure();
 }
 
 function setLighting(preset) {
+  if (!LIGHTING_PRESETS.includes(preset)) return;
   currentLightingPreset = preset;
   document.getElementById('btn-lighting-dusk').classList.toggle('active', preset === 'dusk');
   document.getElementById('btn-lighting-hearth').classList.toggle('active', preset === 'hearth');
   const dayBtn = document.getElementById('btn-lighting-day');
   if (dayBtn) dayBtn.classList.toggle('active', preset === 'day');
 
-  lighting.setSceneProfile(currentScene, preset);
+  applyLightingProfile(lightingTarget);
   requestShadowBake(3);
 }
 
@@ -1133,7 +1480,7 @@ function setupEventListeners() {
     const btn = document.getElementById('btn-vault-verify-all');
     if (btn) btn.innerText = '⏳ Running Quality Gates across all 5 cabinets...';
     try {
-      await fetch('http://localhost:3456/api/vault/status');
+      await fetch('http://127.0.0.1:3456/api/vault/status');
     } catch (_) {}
     setTimeout(() => {
       if (btn) btn.innerText = '✓ All 5 Cabinets Verified (100% Green Gate)';
@@ -1330,7 +1677,15 @@ OUTPUT FORMAT:
    ========================================================================== */
 
 function setupMCPBridge() {
+  // Loopback preview bridge only (stdio is the MCP transport). ?mcpPort=N pins a port; ?mcpBridge=off disables;
+  // ?mcpInstance=<id> pins the MCP instance (protocol v2): a different instance is refused (WRONG INSTANCE).
+  const bridgeParams = new URLSearchParams(window.location.search);
+  if (bridgeParams.get('mcpBridge') === 'off') return;
   const MCP_WS_PORTS = [3456, 9900];
+  const pinnedPort = parseInt(bridgeParams.get('mcpPort') || '', 10);
+  if (Number.isInteger(pinnedPort) && pinnedPort > 0) MCP_WS_PORTS.splice(0, MCP_WS_PORTS.length, pinnedPort);
+  const pinnedInstance = (bridgeParams.get('mcpInstance') || '').trim().toLowerCase() || null;
+  const KNOWN_SCENES = ['trio', 'tavern', 'alchemist', 'armory', 'library', 'tokyo', 'winterhold', 'fantastic', 'preset:fantastic', SCENE_IDENTITIES.dioramaAdaptation.sceneIdentity];
   let portIndex = 0;
   let ws = null;
   let reconnectDelay = 1000;
@@ -1343,172 +1698,249 @@ function setupMCPBridge() {
     document.body.appendChild(mcpIndicator);
   }
 
-  function setStatus(connected, port) {
+  // kind: 'verified' (instance proven by BRIDGE_HELLO), 'legacy' (no HELLO: pre-v2 MCP), 'wrong' (pinned instance
+  // mismatch), 'handshake' (socket open, HELLO pending), otherwise standby. The label names the instance, not just a port.
+  function setStatus(kind, port, instanceId) {
     const dot = document.getElementById('mcp-dot');
     const label = document.getElementById('mcp-label');
     if (!dot || !label) return;
-    if (connected) {
-      dot.style.background = '#10b981';
-      dot.style.boxShadow = '0 0 8px #10b981';
-      label.textContent = `MCP: CONNECTED (${port || 3456})`;
-      label.style.color = '#34d399';
-    } else {
-      dot.style.background = '#64748b';
-      dot.style.boxShadow = 'none';
-      label.textContent = 'MCP: STANDBY';
-      label.style.color = '#8492a6';
+    const look = {
+      verified: ['#10b981', `MCP: CONNECTED (${port} · ${String(instanceId).slice(0, 8)})`, '#34d399'],
+      legacy: ['#f59e0b', `MCP: CONNECTED (${port} · UNVERIFIED legacy)`, '#fbbf24'],
+      wrong: ['#ef4444', `MCP: WRONG INSTANCE (${port})`, '#f87171'],
+      handshake: ['#64748b', `MCP: HANDSHAKE (${port})`, '#8492a6']
+    }[kind] || ['#64748b', 'MCP: STANDBY', '#8492a6'];
+    dot.style.background = look[0];
+    dot.style.boxShadow = kind === 'verified' ? '0 0 8px #10b981' : 'none';
+    label.textContent = look[1];
+    label.style.color = look[2];
+  }
+
+  function showBridgeError(err) {
+    console.error('[MCP Bridge] Failed to process message:', err);
+    const statusBox = document.getElementById('compiler-status-box');
+    if (statusBox) {
+      statusBox.style.display = 'block';
+      statusBox.style.background = 'rgba(239, 68, 68, 0.15)';
+      statusBox.style.border = '1px solid #ef4444';
+      statusBox.style.color = '#f87171';
+      statusBox.innerHTML = `<b>✗ MCP Processing Error:</b><br>${err.message}`;
     }
   }
 
   function connect() {
     const currentPort = MCP_WS_PORTS[portIndex];
-    const url = `ws://localhost:${currentPort}`;
+    const url = `ws://127.0.0.1:${currentPort}`;
+    let hello = null; // BRIDGE_HELLO of this socket (protocol v2); stays null for a legacy MCP
+    let legacy = false;
+    let wrongInstance = false;
+    let helloTimer = null;
+    let queue = Promise.resolve(); // bridge messages are handled strictly one at a time
     try {
       ws = new WebSocket(url);
+      const sock = ws;
+      const reply = (obj) => { if (sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(obj)); };
+      const enterLegacy = () => {
+        if (hello || legacy || wrongInstance) return;
+        legacy = true;
+        clearTimeout(helloTimer);
+        console.warn(`[MCP Bridge] Port ${currentPort} sent no BRIDGE_HELLO: legacy (unverified) MCP bridge`);
+        setStatus('legacy', currentPort);
+      };
 
-      ws.onopen = () => {
-        console.log(`[MCP Bridge] Connected to Artisan 3D MCP Server on port ${currentPort}`);
-        setStatus(true, currentPort);
+      sock.onopen = () => {
+        console.log(`[MCP Bridge] Connected to Artisan 3D MCP bridge on port ${currentPort}; awaiting BRIDGE_HELLO`);
+        setStatus('handshake', currentPort);
         reconnectDelay = 1000; // Reset backoff
+        helloTimer = setTimeout(enterLegacy, 2000);
       };
 
-      ws.onmessage = async (event) => {
-        try {
-          const msg = JSON.parse(event.data);
+      sock.onmessage = (event) => {
+        queue = queue.then(() => handleMessage(event.data)).catch(showBridgeError);
+      };
 
-          // VAULT: Live Cabinet Visual Deck message dispatch
-          if (msg.type === 'cabinet_init' || msg.type === 'cabinet_status' || msg.type === 'cabinet_gate_update') {
-            handleVaultMessage(msg);
-            return;
+      // Commands shared by v2 and legacy MCPs; every reply carries this page's render block.
+      async function handleCommand(msg, base) {
+        // Command: RUN_AUDIT
+        if (msg.type === 'RUN_AUDIT') {
+          console.log('[MCP Bridge] Executing empirical audit requested by MCP server...');
+          let report = null;
+          if (profiler) {
+            report = await profiler.runAudit();
           }
-
-          // Command: RUN_AUDIT
-          if (msg.type === 'RUN_AUDIT') {
-            console.log('[MCP Bridge] Executing empirical audit requested by MCP server...');
-            let report = null;
-            if (profiler) {
-              report = await profiler.runAudit();
-            }
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({
-                type: 'AUDIT_RESULT',
-                id: msg.id,
-                report
-              }));
-            }
-            return;
-          }
-
-          // Command: GET_TELEMETRY
-          if (msg.type === 'GET_TELEMETRY') {
-            const telemetry = rtss ? rtss.getTelemetry() : {
-              fps,
-              calls: renderer?.info?.render?.calls ?? 0,
-              triangles: renderer?.info?.render?.triangles ?? 0,
-              pixelRatio: renderer?.getPixelRatio() ?? 1.0,
-              viewport: `${window.innerWidth}x${window.innerHeight}`
-            };
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({
-                type: 'TELEMETRY_RESULT',
-                id: msg.id,
-                telemetry
-              }));
-            }
-            return;
-          }
-
-          // Command: CAPTURE_SCREENSHOT
-          if (msg.type === 'CAPTURE_SCREENSHOT') {
-            if (msg.angle && window.setCameraAngle) {
-              window.setCameraAngle(msg.angle);
-              await new Promise(r => setTimeout(r, 200));
-            }
-            renderer.render(scene, camera);
-            const dataUrl = renderer.domElement.toDataURL('image/png');
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({
-                type: 'SCREENSHOT_RESULT',
-                id: msg.id,
-                dataUrl
-              }));
-            }
-            return;
-          }
-
-          // Command: SET_SCENE
-          if (msg.type === 'SET_SCENE') {
-            loadScene(msg.scene);
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({
-                type: 'SCENE_RESULT',
-                id: msg.id,
-                scene: msg.scene
-              }));
-            }
-            return;
-          }
-
-          // Otherwise, message is a Scene Manifest to compile & render
-          const manifest = msg;
-          console.log('[MCP Bridge] Received manifest:', manifest.worldId, 'v' + manifest.version, `(${manifest.entities?.length || 0} entities)`);
-
-          // Handle lighting preset from manifest
-          if (manifest.lighting && manifest.lighting !== currentLightingPreset) {
-            setLighting(manifest.lighting);
-          }
-
-          // Compile and render the scene
-          const compiled = compiler.compile(manifest);
-
-          if (activeWorldGroup) {
-            scene.remove(activeWorldGroup);
-          }
-          activeWorldGroup = compiled.group;
-          scene.add(activeWorldGroup);
-          materials.setWireframe(isWireframe);
-          updateTelemetry();
-
-          // Update manifest editor to show the received manifest
-          const editorEl = document.getElementById('manifest-editor');
-          if (editorEl) {
-            editorEl.value = JSON.stringify(manifest, null, 2);
-          }
-
-          // Show compilation toast
-          const statusBox = document.getElementById('compiler-status-box');
-          if (statusBox) {
-            statusBox.style.display = 'block';
-            statusBox.style.background = 'rgba(16, 185, 129, 0.15)';
-            statusBox.style.border = '1px solid #10b981';
-            statusBox.style.color = '#34d399';
-            statusBox.innerHTML = `<b>✓ MCP Live Preview Updated</b><br>World: ${manifest.worldId} · Entities: ${manifest.entities?.length || 0} · v${manifest.version}`;
-          }
-
-        } catch (err) {
-          console.error('[MCP Bridge] Failed to process message:', err);
-          const statusBox = document.getElementById('compiler-status-box');
-          if (statusBox) {
-            statusBox.style.display = 'block';
-            statusBox.style.background = 'rgba(239, 68, 68, 0.15)';
-            statusBox.style.border = '1px solid #ef4444';
-            statusBox.style.color = '#f87171';
-            statusBox.innerHTML = `<b>✗ MCP Processing Error:</b><br>${err.message}`;
-          }
+          reply({ ...base('AUDIT_RESULT'), report, markdown: profiler?.formatAuditMarkdown?.() || null, render: renderBlock() });
+          return;
         }
-      };
 
-      ws.onclose = () => {
+        // Command: GET_TELEMETRY (v2: settled + sampled over `frames` unless it is an identity probe)
+        if (msg.type === 'GET_TELEMETRY') {
+          const epochStart = renderState.epoch;
+          let telemetry = rtss ? rtss.getTelemetry() : {
+            fps,
+            calls: renderer?.info?.render?.calls ?? 0,
+            triangles: renderer?.info?.render?.triangles ?? 0,
+            pixelRatio: renderer?.getPixelRatio() ?? 1.0,
+            viewport: `${window.innerWidth}x${window.innerHeight}`
+          };
+          if (hello && !msg.probe) {
+            const settle = await waitForSettled({ timeoutMs: 8000 });
+            const m = await measureRender({ frames: Number.isInteger(msg.frames) ? msg.frames : 60 });
+            telemetry = { ...telemetry, ...m, settled: settle.settled && m.complete };
+          }
+          reply({ ...base('TELEMETRY_RESULT'), telemetry, epochStart, render: renderBlock() });
+          return;
+        }
+
+        // Command: CAPTURE_SCREENSHOT (canvas only: no DOM overlays in evidence)
+        if (msg.type === 'CAPTURE_SCREENSHOT') {
+          const angle = typeof msg.angle === 'string' ? msg.angle : null;
+          try {
+            const cap = await captureCanvas({ angle });
+            reply({ ...base('SCREENSHOT_RESULT'), dataUrl: cap.dataUrl, width: cap.width, height: cap.height, settled: cap.settled, camera: cap.camera, inFrustum: cap.inFrustum, epochStart: cap.epochStart, render: cap.render });
+          } catch (err) {
+            reply({ ...base('SCREENSHOT_RESULT'), error: String(err.message).slice(0, 300), render: renderBlock() });
+          }
+          return;
+        }
+
+        // Command: SET_SCENE
+        if (msg.type === 'SET_SCENE') {
+          if (msg.scene === 'mode:game' || msg.scene === SCENE_IDENTITIES.walkableWorld.sceneIdentity || msg.scene === SCENE_IDENTITIES.fantasticHallZone.sceneIdentity) {
+            const zone = msg.scene === SCENE_IDENTITIES.fantasticHallZone.sceneIdentity ? msg.scene : null;
+            await switchToGameMode({ zone });
+          }
+          else if (KNOWN_SCENES.includes(msg.scene)) loadScene(msg.scene);
+          reply({ ...base('SCENE_RESULT'), scene: msg.scene, render: renderBlock() });
+        }
+      }
+
+      async function handleMessage(raw) {
+        const msg = JSON.parse(raw);
+
+        // VAULT: Live Cabinet Visual Deck message dispatch
+        if (msg.type === 'cabinet_init' || msg.type === 'cabinet_status' || msg.type === 'cabinet_gate_update') {
+          handleVaultMessage(msg);
+          return;
+        }
+
+        // Protocol v2 handshake: prove which MCP instance this socket belongs to
+        if (msg.type === 'BRIDGE_HELLO') {
+          if (msg.protocol !== BRIDGE_PROTOCOL || typeof msg.instanceId !== 'string') {
+            console.warn('[MCP Bridge] ignored BRIDGE_HELLO with an unsupported protocol');
+            return;
+          }
+          clearTimeout(helloTimer);
+          if (pinnedInstance && msg.instanceId.toLowerCase() !== pinnedInstance) {
+            wrongInstance = true;
+            console.warn(`[MCP Bridge] Port ${currentPort} is MCP instance ${msg.instanceId}, not the pinned ${pinnedInstance}; disconnecting`);
+            setStatus('wrong', currentPort);
+            sock.close(4002, 'wrong MCP instance');
+            return;
+          }
+          hello = msg;
+          legacy = false;
+          reply({ type: 'BRIDGE_HELLO_ACK', protocol: BRIDGE_PROTOCOL, instanceId: msg.instanceId, connectionId: msg.connectionId, clientId: pageClientId, pinnedInstance, render: renderBlock() });
+          console.log(`[MCP Bridge] Verified MCP instance ${msg.instanceId} (pid ${msg.pid}) as client ${pageClientId}`);
+          setStatus('verified', currentPort, msg.instanceId);
+          return;
+        }
+
+        if (hello) {
+          // v2: only the instance that greeted this socket may command it
+          if (msg.instanceId !== hello.instanceId) {
+            console.warn('[MCP Bridge] ignored a message from a foreign MCP instance');
+            return;
+          }
+          const base = (type) => ({ type, id: msg.id, instanceId: hello.instanceId, clientId: pageClientId });
+          if (msg.type === 'MANIFEST') {
+            const manifest = msg.manifest;
+            console.log('[MCP Bridge] Received manifest:', manifest?.worldId, 'v' + manifest?.version, `(${manifest?.entities?.length || 0} entities)`);
+            let result;
+            try {
+              result = await applyAuthoredManifest(manifest);
+            } catch (compileErr) {
+              reply({ ...base('MANIFEST_RESULT'), ok: false, worldId: manifest?.worldId, version: manifest?.version, error: String(compileErr.message).slice(0, 2000), render: renderBlock() });
+              throw compileErr;
+            }
+            // Settled numbers only: shadow-bake frames are excluded from the acknowledged draws/triangles
+            const settle = await waitForSettled({ timeoutMs: 8000 });
+            const m = await measureRender({ frames: 10 });
+            const settled = settle.settled && m.complete && renderState.epoch === result.epoch;
+            reply({
+              ...base('MANIFEST_RESULT'), ok: true,
+              worldId: result.worldId, version: result.version, sceneIdentity: result.sceneIdentity, sceneReference: result.sceneReference,
+              rendererHash: result.sceneReference?.rendererHash ?? RENDERER_HASH,
+              renderPlanHash: result.sceneReference?.renderPlanHash ?? null,
+              identityError: result.identityError,
+              entityCount: result.renderedEntityIds.length, renderedEntityIds: result.renderedEntityIds,
+              drawCalls: m.drawCalls, triangles: m.triangles, settled, warnings: result.warnings,
+              render: { ...renderBlock(), drawCalls: m.drawCalls, triangles: m.triangles, settled }
+            });
+            showAuthoredManifestUI(manifest);
+            return;
+          }
+          if (msg.type === 'WORLD_UPDATE') {
+            await applyAuthoredManifest(msg.manifest);
+            showAuthoredManifestUI(msg.manifest);
+            return;
+          }
+          await handleCommand(msg, base);
+          return;
+        }
+
+        // No HELLO yet and something other than a HELLO arrived: this is a legacy (pre-v2) MCP
+        enterLegacy();
+        if (wrongInstance) return;
+        const legacyBase = (type) => ({ type, id: msg.id, clientId: pageClientId });
+        if (msg.type) {
+          await handleCommand(msg, legacyBase);
+          return;
+        }
+
+        // Legacy: a bare Scene Manifest to compile & render (acknowledged when the MCP requested a preview)
+        const manifest = msg;
+        console.log('[MCP Bridge] Received legacy manifest:', manifest.worldId, 'v' + manifest.version, `(${manifest.entities?.length || 0} entities)`);
+        const previewRequestId = manifest.previewRequestId;
+        delete manifest.previewRequestId;
+        let result;
+        try {
+          result = await applyAuthoredManifest(manifest);
+        } catch (compileErr) {
+          if (previewRequestId) reply({ type: 'MANIFEST_RESULT', id: previewRequestId, ok: false, worldId: manifest.worldId, version: manifest.version, error: String(compileErr.message).slice(0, 2000) });
+          throw compileErr;
+        }
+        if (previewRequestId) {
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          reply({
+            type: 'MANIFEST_RESULT', id: previewRequestId, ok: true,
+            worldId: manifest.worldId, version: manifest.version,
+            entityCount: result.manifestEntityCount,
+            drawCalls: renderer?.info?.render?.calls ?? null,
+            triangles: renderer?.info?.render?.triangles ?? null,
+            warnings: result.warnings, sceneIdentity: result.sceneIdentity, render: renderBlock()
+          });
+        }
+        showAuthoredManifestUI(manifest);
+      }
+
+      sock.onclose = () => {
+        clearTimeout(helloTimer);
+        if (wrongInstance) {
+          // Keep the refusal visible and retry slowly: the pinned instance may come back on this port
+          console.log(`[MCP Bridge] Port ${currentPort} is not the pinned MCP instance. Retrying in 10s...`);
+          setTimeout(connect, 10000);
+          return;
+        }
         console.log(`[MCP Bridge] Disconnected from port ${currentPort}. Retrying...`);
-        setStatus(false);
+        setStatus('standby');
         portIndex = (portIndex + 1) % MCP_WS_PORTS.length;
         setTimeout(connect, reconnectDelay);
         reconnectDelay = Math.min(reconnectDelay * 1.5, 10000); // Exponential backoff, max 10s
       };
 
-      ws.onerror = (err) => {
+      sock.onerror = () => {
         // Silently handle — onclose will trigger reconnect
-        try { ws.close(); } catch (e) {}
+        try { sock.close(); } catch (e) {}
       };
     } catch (e) {
       portIndex = (portIndex + 1) % MCP_WS_PORTS.length;
@@ -1517,7 +1949,7 @@ function setupMCPBridge() {
   }
 
   connect();
-  fetchVaultStatus();
+  fetchVaultStatus(MCP_WS_PORTS[0]);
 }
 
 // VAULT: Live Cabinet Visual Deck (SPEC-06 / SPEC-16 / S.A.R.T. Governance)
@@ -1542,9 +1974,9 @@ function handleVaultMessage(msg) {
   renderVaultDeck();
 }
 
-async function fetchVaultStatus() {
+async function fetchVaultStatus(port = 3456) {
   try {
-    const res = await fetch('http://localhost:3456/api/vault/status');
+    const res = await fetch(`http://127.0.0.1:${port}/api/vault/status`);
     if (res.ok) {
       vaultData = await res.json();
       renderVaultDeck();
@@ -1556,15 +1988,15 @@ async function fetchVaultStatus() {
   vaultData = {
     global_thresholds: { visual_similarity_ssim_min: 0.98, frametime_max_ms: 16.66, fps_min: 60.0, draw_calls_max: 35 },
     cabinets: {
-      'CAB-OPTICS': { id: 'CAB-OPTICS', name: 'Cathedral Lighting, Shadows & Post-FX', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.994, last_verified_frametime_ms: 16.2, last_verified_fps: 60.0, last_verified_drawcalls: 22, description: 'Directional moonlight, hallGlow warm point key, window spotlight, and bloom composer' },
-      'CAB-ATMOSPHERICS': { id: 'CAB-ATMOSPHERICS', name: 'Airborne Dust Motes, Fireflies & Snowfall', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.991, last_verified_frametime_ms: 16.1, last_verified_fps: 60.0, last_verified_drawcalls: 18, description: 'Indoor golden dust motes, garden fireflies, and slow gentle snowfall' },
-      'CAB-ARCHITECTURE': { id: 'CAB-ARCHITECTURE', name: 'Great Hall Structural Geometry & Shelves', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.989, last_verified_frametime_ms: 16.1, last_verified_fps: 60.0, last_verified_drawcalls: 18, description: 'Plank floor, plaster walls with apertures, dark wood beams, and library bookshelves' },
-      'CAB-ENVIRONMENT': { id: 'CAB-ENVIRONMENT', name: 'Dream Garden Terrain & Mirror Pond', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.987, last_verified_frametime_ms: 16.3, last_verified_fps: 60.0, last_verified_drawcalls: 24, description: 'Undulating snowy meadow, stepping stone path, mirror pond, and water reflection' },
-      'CAB-CELESTIAL': { id: 'CAB-CELESTIAL', name: 'Celestial Gradient Dome & Starfield', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.993, last_verified_frametime_ms: 16.1, last_verified_fps: 60.0, last_verified_drawcalls: 17, description: 'Dusk gradient shader dome, 900 star points, cratered moons, and horizon glow' },
-      'CAB-PROPS': { id: 'CAB-PROPS', name: 'Artisan Furniture, Hearth & Clutter', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.992, last_verified_frametime_ms: 16.2, last_verified_fps: 60.0, last_verified_drawcalls: 19, description: 'Writing desk with journal, spinning globe, hearth fireplace, armchair, and candelabras' },
-      'CAB-PALETTE': { id: 'CAB-PALETTE', name: 'Physical PBR Color Soul & Palette', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.998, last_verified_frametime_ms: 16.0, last_verified_fps: 60.0, last_verified_drawcalls: 16, description: 'Central harmonic palette dictionary defining aged wood, brass, ember, snow, and water' },
-      'CAB-ACOUSTICS': { id: 'CAB-ACOUSTICS', name: 'Generative WebAudio Soundscape & Ambience', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.995, last_verified_frametime_ms: 16.0, last_verified_fps: 60.0, last_verified_drawcalls: 16, description: 'Synthesized detuned pad chords, breathing lowpass filter, wind noise, and chimes' },
-      'CAB-KINEMATICS': { id: 'CAB-KINEMATICS', name: 'Player Controls, Camera & Collision Kinematics', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.993, last_verified_frametime_ms: 16.1, last_verified_fps: 60.0, last_verified_drawcalls: 18, description: 'Pointer lock look, WASD walk physics, drag-to-look fallback, and room collision' }
+      'CAB-OPTICS': { id: 'CAB-OPTICS', name: 'Lighting Rig, Shadows & Bloom', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.994, last_verified_frametime_ms: 16.2, last_verified_fps: 60.0, last_verified_drawcalls: 22, description: 'Ceiling hallGlow, directional moonlight, shadow camera matrix, chandelier pools and UnrealBloomPass composer' },
+      'CAB-ARCHITECTURE': { id: 'CAB-ARCHITECTURE', name: 'Great Hall Architecture & Layout', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.989, last_verified_frametime_ms: 16.1, last_verified_fps: 60.0, last_verified_drawcalls: 18, description: 'Procedural wood-plank floor, plaster walls with apertures, roof beams, circular moon window ring and instanced bookshelves' },
+      'CAB-ENVIRONMENT': { id: 'CAB-ENVIRONMENT', name: 'Dream Garden & Mirror Pond', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.987, last_verified_frametime_ms: 16.3, last_verified_fps: 60.0, last_verified_drawcalls: 24, description: 'Gently undulating snow meadow terrain, cylinder stepping stone path, still mirror pond and drowned moon reflection' },
+      'CAB-CELESTIAL': { id: 'CAB-CELESTIAL', name: 'Celestial Sky Dome & Starfield', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.993, last_verified_frametime_ms: 16.1, last_verified_fps: 60.0, last_verified_drawcalls: 16, description: 'Custom gradient ShaderMaterial sky dome, 900 twinkling starfield points, cratered main moon and orbiting companions' },
+      'CAB-PROPS': { id: 'CAB-PROPS', name: 'Library Furnishings & Candelabras', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.992, last_verified_frametime_ms: 16.2, last_verified_fps: 60.0, last_verified_drawcalls: 19, description: 'Writing desk with Keeper\'s readable journal, brass dream globe, stone fireplace hearth, reading armchair and candle chandelier' },
+      'CAB-ATMOSPHERICS': { id: 'CAB-ATMOSPHERICS', name: 'Airborne Dust Motes & Snowfall', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.995, last_verified_frametime_ms: 16.0, last_verified_fps: 60.0, last_verified_drawcalls: 17, description: 'Suspended golden dust motes in hall, bioluminescent garden fireflies and gentle drifting snow particle buffers' },
+      'CAB-PALETTE': { id: 'CAB-PALETTE', name: 'Canonical Color Palette (P)', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.999, last_verified_frametime_ms: 16.0, last_verified_fps: 60.0, last_verified_drawcalls: 15, description: 'The world\'s chromatic soul: physical hexadecimal constants for dark oak, plaster, brass, candle, ember, snow and water' },
+      'CAB-ACOUSTICS': { id: 'CAB-ACOUSTICS', name: 'Generative Ambience & Chimes', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.998, last_verified_frametime_ms: 16.1, last_verified_fps: 60.0, last_verified_drawcalls: 15, description: 'Detuned triangle pad synthesizer, breathing lowpass filter, filtered noise wind swell and distant modal bell chimes' },
+      'CAB-KINEMATICS': { id: 'CAB-KINEMATICS', name: 'First/Third-Person Controls & Physics', status: 'LOCKED', similarity_min: 0.98, last_verified_similarity: 0.991, last_verified_frametime_ms: 16.2, last_verified_fps: 60.0, last_verified_drawcalls: 18, description: 'Unified input router, mouse pointer lock look, drag-look fallback, WASD movement, touch joystick and AABB collision resolution' }
     }
   };
   renderVaultDeck();
@@ -1665,7 +2097,7 @@ export function renderVaultDeck() {
       const cid = btn.dataset.cid;
       btn.innerText = '⏳ Verifying...';
       try {
-        const res = await fetch('http://localhost:3456/api/vault/status');
+        const res = await fetch('http://127.0.0.1:3456/api/vault/status');
         if (res.ok) vaultData = await res.json();
       } catch (_) {}
       setTimeout(() => {
@@ -1710,6 +2142,8 @@ function renderLoop(time) {
   const tRenderStart = performance.now();
   renderer.render(scene, camera);
   lastForwardRenderMs = performance.now() - tRenderStart;
+  const frameCalls = renderer.info.render.calls;
+  const frameTris = renderer.info.render.triangles;
   if (profiler) profiler.endStage('ForwardRender');
 
   // Update RivaTuner / RTSS Hardware OSD & Engine Telemetry
@@ -1763,6 +2197,12 @@ function renderLoop(time) {
   if (profiler) profiler.endStage('Telemetry');
 
   if (profiler) profiler.onFrameEnd();
+
+  // SPEC-08 samplers (waitForSettled / measureRender) read this frame's own counters
+  if (frameListeners.size) {
+    const info = { time, calls: frameCalls, triangles: frameTris };
+    for (const fn of [...frameListeners]) fn(info);
+  }
 }
 
 // Boot application with error boundary

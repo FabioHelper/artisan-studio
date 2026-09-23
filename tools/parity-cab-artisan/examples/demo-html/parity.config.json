@@ -1,0 +1,9 @@
+{
+  "_comment": "parity-cab DEMO-HTML config — H1/H2 fixture. Monolith is an .html file with one INDENTED inline <script> (top-level class + function) plus a CDN <script src> that must be ignored. Standalone (no artifact_system_sink).",
+  "project": "demo-html",
+  "monolith": { "root": "./monolith.html", "kind": "single-file" },
+  "modular": { "root": "./modular", "kind": "directory", "entry_html": "./modular/index.html" },
+  "out_dir": "./.parity",
+  "thresholds": { "parity_score_min": 0.85, "max_high_open": 0 },
+  "risk_overrides": {}
+}

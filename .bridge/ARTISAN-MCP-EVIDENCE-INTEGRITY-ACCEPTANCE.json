@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "evidence_integrity_acceptance": "PASS",
+  "verdict": "ACCEPT",
+  "task": "P0.5 MCP Evidence Integrity (BUILD-EVIDENCE / SPEC-08)",
+  "date": "2026-09-22",
+  "owner": "Fabio",
+  "head": "909d41f182b2c4446411af6e19251f04257e13bf",
+  "owner_ruling": {
+    "decision": ".claude/scheduled_tasks.lock is executor-local Claude runtime state, not project/product content.",
+    "scope": "For this P0.5 closeout only, allow the exact path .claude/scheduled_tasks.lock in the historical repair-baseline treehash comparison.",
+    "limits": [
+      "The exception applies only to the historical treehash comparison.",
+      "The verifier S8 tree-unchanged gate is not weakened.",
+      "No other .claude path is authorized.",
+      "The lock was not modified or deleted.",
+      "No baseline, treehash tool, .gitignore, .git/info/exclude, source, test, or fixture was modified.",
+      "The ruling is valid only while the lock matches the recorded evidence."
+    ]
+  },
+  "runtime_lock": {
+    "path": ".claude/scheduled_tasks.lock",
+    "bytes": 123,
+    "sha256": "37BC7078246A0440D3C8DBB8C219F4B15E0F32E10AD78C3CD2A7C14F9D22E66A",
+    "content": "{\"sessionId\":\"ce0c5d6b-cd98-4b76-8cd9-f0298c30c86e\",\"pid\":2588,\"procStart\":\"134345490364462340\",\"acquiredAt\":1790075605448}",
+    "provenance": "Executor-local Claude Code scheduling runtime state created during acceptance run 1; git-excluded under # claude-code-runtime.",
+    "excluded_by": ".git/info/exclude: **/.claude/scheduled_tasks.lock",
+    "historical_treehash_treatment": "Exact-path exception authorized by the owner for this closeout only.",
+    "s8_treatment": "No exception. The successful verifier began with the lock already present and proved 252 project files byte-identical before/after; S8-tree-unchanged PASS."
+  },
+  "verifier": {
+    "report": ".artisan-artifacts/verify-evidence/latest/evidence_integrity_report.json",
+    "sha256": "451C8FF5567B83184140285C28729BF50AE505ECF7C405EB1C62B0A07C6119A3",
+    "started_at": "2026-09-22T13:06:39.933Z",
+    "duration_seconds": 505,
+    "authentication": "The canonical latest report has the expected hash, is the latest verifier output, HEAD remains the recorded repair-baseline HEAD, and S8 proves the non-artifact project tree was unchanged throughout the run.",
+    "gates": "44/45 passed",
+    "integrity": "PASS",
+    "budget_instrumentation": "PASS",
+    "p0_preservation": "PASS",
+    "overall_p05": "PASS",
+    "a1_through_a11": "PASS",
+    "only_failure": "A-12, nonblocking, owned by BUILD-AUTHORED-BUDGET / P0.6"
+  },
+  "authored_performance": {
+    "draw_calls": 56,
+    "draw_calls_budget": 30,
+    "triangles": 12870,
+    "triangles_budget": 15000,
+    "fps": 59.08,
+    "verdict": "FAIL",
+    "risk": "The authored replay is 26 draw calls over the diorama limit; triangle count passes. This remains a P0.6 blocker for P1."
+  },
+  "historical_treehash": {
+    "baseline": ".bridge/ARTISAN-VISIBILITY-P0-FIX-BASELINE.json",
+    "allowlist": "Recorded repair, P0 closeout, and P0.5 exact paths; exact P0.5 governance-closeout paths; plus only .claude/scheduled_tasks.lock as the owner-authorized runtime exception.",
+    "removed": [],
+    "unapproved": [],
+    "result": "PASS"
+  },
+  "closes": ["EVI-6", "BUILD-EVIDENCE"],
+  "deferred": [
+    "BUILD-AUTHORED-BUDGET remains draft and unfinished.",
+    "ABG-1 remains draft and unfinished.",
+    "BUILD-CREATIVE remains approved and unstarted, blocked by BUILD-AUTHORED-BUDGET / ABG-1.",
+    "P1 remains unstarted.",
+    "P0.6 remains unstarted.",
+    "Fantastic Hall reference mapping remains unstarted.",
+    "Vault hardening remains unstarted.",
+    "The real Astra session pre-flight / rehearsal remains an owner action."
+  ],
+  "scope": "Governance-only closeout. No source, tests, fixtures, verifier, baseline, treehash tooling, exclusions, P1 work, commit, publish, CTX, or THREEJS_HARNESSING work occurred."
+}

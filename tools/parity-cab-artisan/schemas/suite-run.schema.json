@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parity-cab.local/schemas/suite-run/1.0.0",
+  "title": "Modularization suite run",
+  "description": "Canonical immutable run contract owned by parity-cab. Transformer writes facts; verifier alone writes the final decision; artifact-system validates and displays it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "schema_kind", "family_id", "project_id", "run_id", "parent_run_id",
+    "paths", "bindings", "attempts", "attempt", "state", "state_history", "profile_resolution",
+    "gate_summary", "authority", "provenance", "gate_results", "final_decision"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "schema_kind": { "const": "modularization-suite/suite-run" },
+    "family_id": { "type": "string", "minLength": 1 },
+    "project_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "parent_run_id": { "type": "string", "minLength": 1 },
+    "paths": {
+      "type": "object", "additionalProperties": false,
+      "required": ["monolith_root", "isolated_modular_target", "target_kind"],
+      "properties": {
+        "monolith_root": { "type": "string", "minLength": 1 },
+        "isolated_modular_target": { "type": "string", "minLength": 1 },
+        "target_kind": { "enum": ["worktree", "staging-directory"] }
+      }
+    },
+    "bindings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_commit", "source_tree_hash", "target_commit", "target_tree_hash", "config_hash", "toolchain"],
+      "properties": {
+        "source_commit": { "$ref": "#/$defs/gitCommit" },
+        "source_tree_hash": { "$ref": "#/$defs/hash" },
+        "target_commit": { "$ref": "#/$defs/gitCommit" },
+        "target_tree_hash": { "$ref": "#/$defs/hash" },
+        "config_hash": { "$ref": "#/$defs/hash" },
+        "toolchain": {
+          "type": "array", "minItems": 2, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/toolBinding" }
+        }
+      }
+    },
+    "attempts": {
+      "type": "array", "minItems": 1,
+      "items": { "$ref": "#/$defs/attempt" }
+    },
+    "attempt": { "$ref": "#/$defs/attempt" },
+    "state": { "enum": ["planned", "approved", "extracting", "candidate_ready", "verifying", "GO", "NO-GO", "INCOMPLETE", "archived"] },
+    "state_history": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["sequence", "state", "at", "writer"],
+        "properties": {
+          "sequence": { "type": "integer", "minimum": 1 },
+          "state": { "enum": ["planned", "approved", "extracting", "candidate_ready", "verifying", "GO", "NO-GO", "INCOMPLETE", "archived"] },
+          "at": { "type": "string", "format": "date-time" },
+          "writer": { "enum": ["transformer", "verifier"] },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "profile_resolution": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profile", "required_gate_ids", "optional_gate_ids", "applicability_signals"],
+      "properties": {
+        "profile": { "enum": ["library", "web-app", "threejs", "custom"] },
+        "base_profile": { "enum": ["library", "web-app", "threejs"] },
+        "required_gate_ids": { "$ref": "#/$defs/gateIds" },
+        "optional_gate_ids": { "$ref": "#/$defs/gateIdsAllowEmpty" },
+        "applicability_signals": { "type": "object", "additionalProperties": { "type": "boolean" } },
+        "not_applicable_declarations": {
+          "type": "array", "items": { "$ref": "#/$defs/notApplicableDeclaration" }
+        }
+      }
+    },
+    "gate_summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["required", "optional", "skipped", "failed", "completed"],
+      "properties": {
+        "required": { "$ref": "#/$defs/gateIds" },
+        "optional": { "$ref": "#/$defs/gateIdsAllowEmpty" },
+        "skipped": { "$ref": "#/$defs/gateIdsAllowEmpty" },
+        "failed": { "$ref": "#/$defs/gateIdsAllowEmpty" },
+        "completed": { "$ref": "#/$defs/gateIdsAllowEmpty" }
+      }
+    },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_owner", "fact_writer", "final_verdict_writer", "readers"],
+      "properties": {
+        "schema_owner": { "const": "parity-cab" },
+        "fact_writer": { "const": "transformer" },
+        "final_verdict_writer": { "const": "verifier" },
+        "readers": {
+          "type": "array", "uniqueItems": true,
+          "contains": { "const": "artifact-system" },
+          "items": { "enum": ["transformer", "verifier", "artifact-system"] }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["snapshot_kind", "source_hash", "candidate_hash", "config_hash", "toolchain_hash", "captured_at"],
+      "properties": {
+        "snapshot_kind": { "enum": ["committed", "dirty"] },
+        "source_hash": { "$ref": "#/$defs/hash" },
+        "candidate_hash": { "$ref": "#/$defs/hash" },
+        "config_hash": { "$ref": "#/$defs/hash" },
+        "toolchain_hash": { "$ref": "#/$defs/hash" },
+        "captured_at": { "type": "string", "format": "date-time" },
+        "dirty_snapshot": { "$ref": "#/$defs/dirtySnapshot" }
+      },
+      "allOf": [
+        { "if": { "properties": { "snapshot_kind": { "const": "dirty" } } }, "then": { "required": ["dirty_snapshot"] } }
+      ]
+    },
+    "gate_results": {
+      "type": "array", "minItems": 1,
+      "items": { "$ref": "#/$defs/gateResult" }
+    },
+    "final_decision": {
+      "type": "object", "additionalProperties": false,
+      "required": ["writer", "decision", "aggregate_gate_id", "exit_code", "at"],
+      "properties": {
+        "writer": { "const": "verifier" },
+        "decision": { "enum": ["GO", "NO-GO", "INCOMPLETE"] },
+        "aggregate_gate_id": { "const": "05" },
+        "exit_code": { "enum": [0, 1, 2] },
+        "at": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "gitCommit": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" },
+    "gateIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "gateIdsAllowEmpty": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "toolBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "invoked_path", "git_head", "package_version", "content_hash"],
+      "properties": {
+        "role": { "enum": ["transformer", "verifier", "visual-control-plane"] },
+        "invoked_path": { "type": "string", "minLength": 1 },
+        "git_head": { "$ref": "#/$defs/gitCommit" },
+        "package_version": { "type": "string", "minLength": 1 },
+        "content_hash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "attempt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["attempt_id", "sequence", "immutable", "status", "content_hash", "created_at"],
+      "properties": {
+        "attempt_id": { "type": "string", "minLength": 1 },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "immutable": { "const": true },
+        "status": { "enum": ["active", "completed", "cancelled"] },
+        "content_hash": { "$ref": "#/$defs/hash" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "parent_attempt_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "notApplicableDeclaration": {
+      "type": "object", "additionalProperties": false,
+      "required": ["gate_id", "predicate", "approved_profile_hash", "signature"],
+      "properties": {
+        "gate_id": { "type": "string", "minLength": 1 },
+        "predicate": { "type": "string", "minLength": 1 },
+        "approved_profile_hash": { "$ref": "#/$defs/hash" },
+        "signature": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "dirtySnapshot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["staged_hash", "unstaged_hash", "untracked_hash", "external_asset_hash", "dependency_lock_hash", "harness_hash", "build_output_hash", "served_artifact_hash", "browser_runtime_hash", "seed_hash", "clock_hash", "viewport_hash", "renderer_hash", "config_hash"],
+      "properties": {
+        "staged_hash": { "$ref": "#/$defs/hash" }, "unstaged_hash": { "$ref": "#/$defs/hash" },
+        "untracked_hash": { "$ref": "#/$defs/hash" }, "external_asset_hash": { "$ref": "#/$defs/hash" },
+        "dependency_lock_hash": { "$ref": "#/$defs/hash" }, "harness_hash": { "$ref": "#/$defs/hash" },
+        "build_output_hash": { "$ref": "#/$defs/hash" }, "served_artifact_hash": { "$ref": "#/$defs/hash" },
+        "browser_runtime_hash": { "$ref": "#/$defs/hash" }, "seed_hash": { "$ref": "#/$defs/hash" },
+        "clock_hash": { "$ref": "#/$defs/hash" }, "viewport_hash": { "$ref": "#/$defs/hash" },
+        "renderer_hash": { "$ref": "#/$defs/hash" }, "config_hash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "schema_kind", "schema_version", "sha256", "captured_at", "run_id", "attempt_id", "parent_run_id", "source_hash", "candidate_hash", "config_hash", "tool_hash"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 }, "schema_kind": { "type": "string", "minLength": 1 },
+        "schema_version": { "type": "string", "minLength": 1 }, "sha256": { "$ref": "#/$defs/hash" },
+        "captured_at": { "type": "string", "format": "date-time" }, "run_id": { "type": "string", "minLength": 1 },
+        "attempt_id": { "type": "string", "minLength": 1 }, "parent_run_id": { "type": "string", "minLength": 1 },
+        "source_hash": { "$ref": "#/$defs/hash" }, "candidate_hash": { "$ref": "#/$defs/hash" },
+        "config_hash": { "$ref": "#/$defs/hash" }, "tool_hash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "gateResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["gate_id", "run_id", "attempt_id", "parent_run_id", "status", "applicability", "decision", "observations", "artifact"],
+      "properties": {
+        "gate_id": { "type": "string", "minLength": 1 }, "run_id": { "type": "string", "minLength": 1 },
+        "attempt_id": { "type": "string", "minLength": 1 }, "parent_run_id": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["completed", "failed", "skipped"] },
+        "applicability": { "enum": ["required", "optional", "not_applicable"] },
+        "decision": { "enum": ["pass", "fail", "not_applicable", "GO", "NO-GO", "INCOMPLETE"] },
+        "observations": { "type": "array" },
+        "artifact": { "$ref": "#/$defs/artifact" }
+      }
+    }
+  }
+}

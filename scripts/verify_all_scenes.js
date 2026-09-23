@@ -42,8 +42,7 @@ async function run() {
 
   try {
     const page = await browser.newPage();
-    console.log('Connecting to http://localhost:5173/ ...');
-    await page.goto('http://localhost:5173/', { waitUntil: 'networkidle0', timeout: 30000 });
+    await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded', timeout: 15000 });
     await page.waitForFunction(() => window.__artisan && window.__artisan.loadScene, { timeout: 10000 });
 
     for (const s of SCENES) {

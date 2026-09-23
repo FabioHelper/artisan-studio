@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Demo Three — Side A (Baseline)</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #111; }
+    canvas { width: 100vw; height: 100vh; display: block; }
+  </style>
+  <script src="https://unpkg.com/three@0.150.0/build/three.min.js"></script>
+</head>
+<body>
+<script>
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 2, 5);
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // Lights
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambientLight);
+
+  const pointLight = new THREE.PointLight(0xffaa00, 2.0, 20);
+  pointLight.position.set(0, 3, 2);
+  scene.add(pointLight);
+
+  // Mesh 1: Box
+  const geo1 = new THREE.BoxGeometry(1, 1, 1);
+  const mat1 = new THREE.MeshStandardMaterial({ color: 0x3388ff, roughness: 0.4, metalness: 0.2 });
+  const mesh1 = new THREE.Mesh(geo1, mat1);
+  mesh1.position.set(-1.2, 0, 0);
+  scene.add(mesh1);
+
+  // Mesh 2: Sphere
+  const geo2 = new THREE.SphereGeometry(0.7, 16, 16);
+  const mat2 = new THREE.MeshStandardMaterial({ color: 0xff4477, roughness: 0.3, metalness: 0.1 });
+  const mesh2 = new THREE.Mesh(geo2, mat2);
+  mesh2.position.set(1.2, 0, 0);
+  scene.add(mesh2);
+
+  // Readiness contract seam
+  window.__viewport = { scene, renderer, camera };
+
+  let frame = 0;
+  function animate() {
+    frame++;
+    // Active flicker animation on light intensity
+    pointLight.intensity = 2.0 + Math.sin(frame * 0.1) * 0.5;
+    mesh1.rotation.y += 0.01;
+    mesh2.rotation.x += 0.01;
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
+</script>
+</body>
+</html>

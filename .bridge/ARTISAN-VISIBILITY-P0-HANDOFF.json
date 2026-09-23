@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0",
+  "task": "artisan-visibility-creative-P0",
+  "phase": "P0 — Truth, visibility, and trustworthy gates",
+  "status": "complete",
+  "status_note": "P0 governance closeout complete. Fabio's already recorded 2026-09-21 contact-sheet approval is preserved in the owner-acceptance record; the independent Sol re-audit verdict is ACCEPT; VIS-6 and BUILD-VIS are closed; board regeneration, P1-P10 governance gate, and the repair-baseline treehash comparison pass. P1 was NOT started.",
+  "executor": "Claude Opus 5 (claude-opus-5), fresh session, 2026-09-21",
+  "closeout_executor": "Codex, 2026-09-21",
+  "p0_governance_closeout": {
+    "date": "2026-09-21",
+    "scope": "P0 governance closeout only; no product source changes, P1 work, commits, publishing, or THREEJS_HARNESSING access",
+    "authorization": "Fabio explicitly requested creation of the owner-acceptance record and closure of VIS-6 and BUILD-VIS based on his already recorded contact-sheet approval",
+    "owner_acceptance": ".bridge/ARTISAN-VISIBILITY-P0-OWNER-ACCEPTANCE.json",
+    "independent_reaudit": {
+      "path": ".bridge/ARTISAN-VISIBILITY-P0-SOL-REAUDIT.json",
+      "verdict": "ACCEPT"
+    },
+    "nodes_closed": [
+      "VIS-6",
+      "BUILD-VIS"
+    ],
+    "files_changed": [
+      ".bridge/ARTISAN-VISIBILITY-P0-OWNER-ACCEPTANCE.json",
+      ".bridge/ARTISAN-VISIBILITY-P0-HANDOFF.json",
+      ".bridge/ARTISAN-VISIBILITY-P0-WORKLOG.jsonl",
+      "PLAN.json",
+      "board.html"
+    ],
+    "verification": [
+      { "command": "python make_board.py", "exit_code": 0, "result": "wrote board.html (55,345 bytes)" },
+      { "command": "python scripts/gate.py", "exit_code": 0, "result": "P1-P10 all passed; P10 board matches fresh regeneration" },
+      { "command": "node .artisan-artifacts/p0-evidence/treehash.mjs compare . .bridge/ARTISAN-VISIBILITY-P0-FIX-BASELINE.json <repair plus closeout allowlist>", "exit_code": 0, "result": "changed 11, added 3, removed [], unapproved []" }
+    ]
+  },
+  "p0_repair_session": {
+    "date": "2026-09-21",
+    "executor": "Claude Opus 5 (claude-opus-5), fresh session",
+    "scope": "SOL-FIX-1 and SOL-FIX-2 from .bridge/ARTISAN-VISIBILITY-P0-SOL-AUDIT.json only; P1 not started; no commits",
+    "owner_extended_allowlist": [
+      "src/contracts/artisanContract.js",
+      "src/engine/WorldCompiler.js",
+      "scripts/check_contract_drift.mjs",
+      "mcp-server/artifacts.js",
+      "mcp-server/index.js",
+      "mcp-server/HeadlessRunner.js",
+      "mcp-server/test_ws_bridge.js",
+      "PLAN.json (VIS-1/VIS-4 notes only)",
+      "board.html (regenerated)"
+    ],
+    "baseline": ".bridge/ARTISAN-VISIBILITY-P0-FIX-BASELINE.json (SHA-256, 234 files, taken before any repair edit)",
+    "preimages": ".artisan-artifacts/p0fix-preimage/<path> (all 9 repair files + handoff + worklog)",
+    "worklog_entries": [
+      13,
+      14,
+      15
+    ],
+    "fixes": {
+      "SOL-FIX-1": "ARCHETYPE_EXPECTED_ROUTES audited oracle in the contract (44 ids, foundry|inline; arch.balcony_window and arch.tokyo_walls marked temporary for P1). The drift check spies every foundry build* and every WorldCompiler inline builder and compares the builder that actually ran to the oracle; routeFor is only a label-consistency check. 3 wrong-builder negative fixtures (label kept correct) are detected.",
+      "SOL-FIX-2": "LightingRig proof is behavioural (8 scenes x 3 presets, two call paths, both orders, all applied fields vs the canonical profile) with 4 injected-branch fixtures (double quotes, switch, includes, startsWith) detected plus a passing control. All MCP fs mutation moved into artifacts.js (writeArtifactAt for live + headless screenshots and perf reports; screenshots captured to memory; browser-profile temp dir helpers). The write proof is an AST deny-by-default scan with 14 alias/reassignment/screenshot-path fixtures rejected plus a control; test_ws_bridge +4 runtime write-boundary checks."
+    },
+    "audit_rerun": [
+      {
+        "command": "treehash compare vs CREATIVE baseline with the letter allowlist only",
+        "result": "unapproved = exactly the 4 newly approved paths: mcp-server/index.js, mcp-server/HeadlessRunner.js, .bridge/ARTISAN-VISIBILITY-P0-SOL-AUDIT.json (Sol authorized verdict), .bridge/ARTISAN-VISIBILITY-P0-FIX-BASELINE.json"
+      },
+      {
+        "command": "same + those 4 paths",
+        "result": "removed [], unapproved []"
+      },
+      {
+        "command": "node scripts/check_contract_drift.mjs",
+        "result": "68/68 (was 41/41)"
+      },
+      {
+        "command": "node mcp-server/test_ws_bridge.js",
+        "result": "33/33 (was 29/29)"
+      },
+      {
+        "command": "npm run measure:brightness -- --tag p0fix-audit --compare-to .artisan-artifacts/brightness/p0-before",
+        "result": "ALL GATES PASS; max clip 0.08%; draws unchanged (tokyo 45, winterhold 39); max tris 11,484"
+      },
+      {
+        "command": "python make_board.py",
+        "result": "wrote board.html (55,321 bytes)"
+      },
+      {
+        "command": "python scripts/gate.py",
+        "result": "P1-P10 green; P10 board matches fresh regeneration"
+      },
+      {
+        "command": "node scripts/verify_astra_harness.mjs",
+        "result": "29/30, 0 blocking, WARN preset-profile-budgets only (tokyo 45/30, winterhold 39/30, fantastic 58/35); contract-drift 68/68; e2e-headless-fallback wrote a 321,057-byte screenshot through the new in-memory + writeArtifactAt path; no-writes-outside-artifacts 236 files byte-identical; 307s"
+      },
+      {
+        "command": "git rev-parse HEAD",
+        "result": "909d41f182b2c4446411af6e19251f04257e13bf (unchanged)"
+      },
+      {
+        "command": "treehash compare vs P0-FIX baseline with the repair allowlist",
+        "result": "changed 10 (the 9 allowed files + worklog), added 1 (fix baseline), removed [], unapproved []"
+      }
+    ],
+    "raw_logs": "OS temp scratchpad of the repair session (not in the project)",
+    "remaining_caveats": [
+      "Gate 6 stays PARTIAL on semantics, not on proof: balcony_window (inline) and tokyo_walls (full shell) are the audited current routes, encoded as temporary; P1 owns the foundry balcony builder and walls-only semantics.",
+      "The behavioural lighting proof covers LightingRig in Node; main.js scene wiring is still covered by the browser brightness/mode-response gates.",
+      "Sol p1_amendment on measure_brightness --scenes partial labelling is NOT done (P1 scope, file not in the repair allowlist)."
+    ]
+  },
+  "plan_path": ".bridge/ARTISAN-VISIBILITY-CREATIVE-PLAN.md",
+  "target_path": "C:/Users/Fabio D/.gemini/antigravity/scratch/artisan-studio-app",
+  "commits": "none (HEAD unchanged: 909d41f182b2c4446411af6e19251f04257e13bf, 1 commit)",
+  "published": "nothing; no network services added; THREEJS_HARNESSING not touched",
+
+  "preservation": {
+    "baseline_file": ".bridge/ARTISAN-VISIBILITY-CREATIVE-BASELINE.json",
+    "baseline_scope": "SHA-256 of 228 files; excludes .git/, node_modules/ (any depth), .artisan-artifacts/, the baseline file",
+    "preimages": ".artisan-artifacts/p0-preimage/<path> = exact pre-edit bytes of every changed allowlisted file (3 were reconstructed after editing and verified hash-equal to the baseline: artisanContract.js, LightingRig.js, main.js)",
+    "compare_tool": ".artisan-artifacts/p0-evidence/treehash.mjs",
+    "reproduce": "node .artisan-artifacts/p0-evidence/treehash.mjs compare . .bridge/ARTISAN-VISIBILITY-CREATIVE-BASELINE.json <allowlist paths...>",
+    "result": "changed 15 + added 2 (all P0 allowlist) + the 2 user-requested .bridge handoff files; removed 0; unapproved 0",
+    "outside_allowlist_written": [".bridge/ARTISAN-VISIBILITY-P0-HANDOFF.json", ".bridge/ARTISAN-VISIBILITY-P0-WORKLOG.jsonl"],
+    "outside_allowlist_reason": "explicitly requested by the user for Sol's audit; not source",
+    "approved_artifacts": ".artisan-artifacts/{brightness/p0-before, brightness/p0-after, brightness/verify, verify, p0-preimage, p0-evidence} (git-ignored artifact root)"
+  },
+
+  "files_changed": {
+    "src/contracts/artisanContract.js": "VISIBILITY_THRESHOLDS, MODE_RESPONSE, EXPOSURE_RANGE, LIGHTING_FAMILIES, LIGHTING_PROFILES (4 families x 3 presets), PRESET_SCENES[*].lightingFamily, AUTHORED_LIGHTING_FAMILY_BY_ARCHETYPE, LOCAL_LIGHT_ANCHORS, sceneLightingFamily(), resolveLightingProfile(), authoredLighting(); MATERIAL_CATALOG regenerated from browser-live values (33 records; see p0-evidence/mat_changes.json)",
+    "src/engine/LightingRig.js": "matrix-driven; no scene-name branches; always sets key/fill positions; getExposure(), getTelemetry(), setLocalEnabled(); flicker from profile (fire/arcane/none)",
+    "src/engine/MaterialFoundry.js": "imports MATERIAL_CATALOG; register() applies canonical color/roughness/metalness/emissive/emissiveIntensity and records contractDrift",
+    "src/engine/WorldCompiler.js": "exact isKnownArchetype guard first; ARCHETYPE_ROUTES exact table (44); static routeFor(); substring routing removed; inline compileBalconyWindow/compileFramedPanel/compileRug",
+    "src/main.js": "applyLightingProfile() on every loadScene / setLighting / MCP manifest (exposure applied); tokyo desk-lamp and winterhold brazier practical positions; authored worlds use authoredLighting(); window.__artisan.setLighting + getLightingTelemetry",
+    "mcp-server/bridge.js": "REPLY_TYPES; request() resolves only on matching id AND type; unknown request type refused; WebSocket requires allowed Origin",
+    "mcp-server/artifacts.js": "isInsideArtifacts, assertInsideArtifacts, writeArtifactAt; writeArtifact re-asserts confinement",
+    "mcp-server/test_ws_bridge.js": "+9 checks (missing-Origin WS, wrong reply type, typed resolve, unknown request, traversal, escape refusal, root not writable, configured root honoured, writeArtifact inside)",
+    "scripts/measure_brightness.mjs": "NEW measurement harness (method per plan P0.2)",
+    "scripts/check_contract_drift.mjs": "executable routing (builder spy) 44/44, adversarial ids x 4 paths, material values 53/53 + construction drift, lighting-matrix rules, static write-confinement scan (4 writes)",
+    "scripts/verify_astra_harness.mjs": "SHA-256 tree no-write gate (replaces git-status diff); 5 unknown/near-match ids; new gates preset-triangle-target, material-contract-browser, visibility-brightness",
+    "package.json": "scripts.measure:brightness",
+    "HARNESS-SIJ.json": "scene_baselines_meta, scene_baselines (8 scenes), metric_semantics; 9 cabinets gain last_verified_drawcalls_status=unverified-component-scope (values kept); audit_log entry",
+    "FINDINGS.json": "FND-DRAW-CALLS-EXCESSIVE gains a 'qualification' (the <=24 claim); +8 findings: 4 open (Tokyo/Winterhold/Fantastic draws, cabinet metric), 1 open for P1 (Tokyo builders), 3 closed (visibility, material values, substring routing)",
+    "PLAN.json": "arc ARC-VISIBILITY; BUILD-VIS and VIS-1..6 closed after owner acceptance; BUILD-CREATIVE remains approved and unstarted (P1); BUILD-PERF-SCENES remains draft (P2)",
+    "docs/specs/SPEC-07-VISIBILITY-CREATIVE-CONTRACT.md": "NEW spec",
+    "board.html": "regenerated by python make_board.py only",
+    ".bridge/ARTISAN-VISIBILITY-P0-OWNER-ACCEPTANCE.json": "Fabio's already recorded contact-sheet approval, with Sol re-audit ACCEPT linkage and VIS-6/BUILD-VIS closure scope"
+  },
+
+  "acceptance_gates": [
+    { "gate": 1, "text": "measure_brightness passes every numeric target", "status": "PASS", "evidence": ".artisan-artifacts/brightness/p0-after/brightness_report.json and brightness/verify/ (21/21 cells, run twice)" },
+    { "gate": 2, "text": "Tokyo and Winterhold respond to all three modes", "status": "PASS", "evidence": "Tokyo mean Y 118.3/108.5/151.9 (was 118.3 x3); Winterhold 64.3/51.4/73.5 (was 32.4/31.9/32.5); pair RMS Tokyo 33.1/36.8/54.1, Winterhold 18.3/11.6/29.4" },
+    { "gate": 3, "text": "Clipped <= 2% everywhere", "status": "PASS", "evidence": "max 0.08% (Winterhold Hearth)" },
+    { "gate": 4, "text": "Fabio-reviewed before/after contact sheet", "status": "PASS — approved by Fabio 2026-09-21; owner acceptance recorded; Sol re-audit ACCEPT", "evidence": ".bridge/ARTISAN-VISIBILITY-P0-OWNER-ACCEPTANCE.json and .artisan-artifacts/brightness/p0-after/before_after.png" },
+    { "gate": 5, "text": "Material contract vs live comparable PBR: 0/53 mismatches", "status": "PASS", "evidence": "check_contract_drift 53/53 (Node) + verifier material-contract-browser 53/53, drift 0 (browser, textured materials included)" },
+    { "gate": 6, "text": "All 44 archetypes compile through their intended exact route", "status": "PARTIAL per Sol (semantic caveat only); proof hardened by SOL-FIX-1", "evidence": "check_contract_drift: observed builder vs independent ARCHETYPE_EXPECTED_ROUTES oracle, 44/44, 3 negative fixtures detected", "caveat": "arch.balcony_window's intended builder never existed (TypeError since HEAD); it now compiles via an inline compound in WorldCompiler. arch.tokyo_walls explicitly routes to buildTokyoApartmentShell (no walls-only builder exists; this is what it rendered before). Sol should judge whether 'intended' is satisfied for these two." },
+    { "gate": 7, "text": "4 adversarial ids fail through validateWorld, compile, compileEntity", "status": "PASS", "evidence": "check_contract_drift (also browser SpatialValidator); verifier unknown-archetype-never-primitive (5 ids)" },
+    { "gate": 8, "text": "Preset draws do not increase; Tokyo/Winterhold/Fantastic <= 45/39/58", "status": "PASS", "evidence": "16/17/25/22/28/45/39/58 before and after" },
+    { "gate": 9, "text": "No scene > 15,000 triangles", "status": "PASS", "evidence": "max 11,484 (Winterhold); verifier preset-triangle-target" },
+    { "gate": 10, "text": "Origin-required WS, wrong reply type, traversal, configured-root confinement tests", "status": "PASS", "evidence": "node mcp-server/test_ws_bridge.js 29/29" },
+    { "gate": 11, "text": "SHA-256 preservation: only allowlist + approved artifacts changed", "status": "PASS", "evidence": "treehash compare: unapproved [] (plus the 2 requested .bridge handoff files)" },
+    { "gate": 12, "text": "verify_astra_harness zero blocking failures", "status": "PASS", "evidence": "29/30 gates, 0 blocking, only WARN preset-profile-budgets (tokyo 45/30, winterhold 39/30, fantastic 58/35) — .artisan-artifacts/verify/verify_report.json" },
+    { "gate": 13, "text": "make_board.py then gate.py", "status": "PASS", "evidence": "P1-P10 all green" }
+  ],
+
+  "measurements": {
+    "method": "Edge headless ANGLE D3D11, Intel UHD Graphics (0x9B41), 1280x720, dsf 1, renderer canvas only, 3 samples median, Rec.709 luma",
+    "before_mean_nearblack": { "trio": [57.4, 24.1, 30.0, 54.0, 72.0, 15.7], "tavern": [47.9, 28.4, 21.4, 63.6, 67.2, 13.6], "alchemist": [52.5, 24.7, 28.0, 48.5, 67.5, 11.1], "armory": [65.5, 11.3, 37.3, 26.1, 77.0, 8.5], "library": [46.9, 29.7, 23.1, 64.0, 63.5, 21.1], "tokyo": [118.3, 13.1, 118.3, 13.1, 118.3, 13.1], "winterhold": [32.4, 65.7, 31.9, 65.9, 32.5, 65.6] },
+    "after_mean_nearblack": { "trio": [74.3, 17.3, 51.3, 23.3, 86.9, 10.7], "tavern": [64.9, 13.1, 45.1, 31.0, 80.4, 6.7], "alchemist": [71.8, 8.9, 55.7, 30.6, 81.0, 5.0], "armory": [85.0, 8.2, 72.0, 16.0, 91.5, 6.6], "library": [63.1, 17.8, 45.6, 36.5, 77.4, 4.2], "tokyo": [118.3, 13.1, 108.5, 9.3, 151.9, 4.1], "winterhold": [64.3, 7.8, 51.4, 25.1, 73.5, 4.9] },
+    "array_order": "[Dusk mean, Dusk near-black %, Hearth mean, Hearth near-black %, Sol mean, Sol near-black %]",
+    "tightest_margins": "Library Hearth near-black 36.5% vs 38% ceiling; Tavern Hearth median 33 vs 30; Library Dusk mean 63.1 vs 58"
+  },
+
+  "deviations_and_decisions": [
+    "Artifact writes: plan P0.1.4 says 'every artifact write routes through artifacts.js'. mcp-server/index.js (screenshot fs.writeFileSync) and HeadlessRunner.js (perf report writes, page.screenshot) are outside the P0 allowlist and were NOT edited. All 4 writes already use safeArtifactPath() paths; this is now proven by a static scan in check_contract_drift.mjs and by the runtime SHA-256 tree gate. writeArtifactAt() is ready for P1 to adopt in index.js.",
+    "UniversalFoundry is outside the P0 allowlist, so the missing balcony-window builder was implemented inline in WorldCompiler (allowlisted) rather than in the foundry. Recorded as FND-TOKYO-FOUNDRY-BUILDERS-MISSING for P1.",
+    "Material contract follows BROWSER-live values: Node's MaterialFoundry builds canvas-free fallbacks for textured materials, so the audit's Node-side comparison was not authoritative. 33 records updated (not 22) because comparable fields were also added to procedural records and textured flags added. Live browser values byte-identical before/after (no appearance change).",
+    "MaterialFoundry 'consumes' (not merely asserts) the canonical fields, and additionally records construction disagreement in contractDrift so dead construction literals cannot silently drift.",
+    "Dual-temperature rule enforced in the contract check: medieval Sol hemisphere sky changed from pure #ffffff to #dce6f2; Winterhold given a warm-neutral key (it previously had no warm light at all).",
+    "Fantastic World: 'fantastic' lighting family = frozen pre-P0 medieval values, exempt from the new lighting rules (out of P0 scope). Its key/fill positions are now fixed to the boot-time values instead of inheriting from the previous scene.",
+    "Authored MCP worlds without a fire/lamp archetype now get NO practical light (previously a leftover point light from the last preset scene).",
+    "Cabinet draw figures NOT nulled: scripts/gate_cabinet.js uses `|| 20`, so removal would fabricate a pass. Marked unverified-component-scope instead; FND-SIJ-CABINET-DRAWCALLS-UNVERIFIED opened.",
+    "New closed PLAN phases carry no guard ids: P7 requires guards to exist in scripts/gate.py, which is outside the allowlist. Verifying commands are in each node's note.",
+    "The verifier's first full run failed no-writes-outside-artifacts because I wrote the worklog during the run (true positive — the new gate works). Clean rerun: 0 blocking."
+  ],
+
+  "not_done_carried_forward": [
+    "P1 entirely (not begun, per instruction); BUILD-CREATIVE remains approved but was not started by this closeout",
+    "P2 draw-call remediation (BUILD-PERF-SCENES draft)",
+    "Plan acceptance-gate 4 of the executed Astra plan (fresh GPT-6 Astra cold-start task) remains outstanding; P0 did not change the MCP tool surface (still 13 tools, ≈1,969 schema tokens)"
+  ],
+
+  "sol_audit_checklist": [
+    "Diff each changed file against .artisan-artifacts/p0-preimage/<path>",
+    "node .artisan-artifacts/p0-evidence/treehash.mjs compare . .bridge/ARTISAN-VISIBILITY-CREATIVE-BASELINE.json <allowlist + 2 handoff files>  → expect unapproved []",
+    "node scripts/check_contract_drift.mjs  → 41/41",
+    "node mcp-server/test_ws_bridge.js  → 29/29",
+    "npm run measure:brightness -- --tag sol-audit --compare-to .artisan-artifacts/brightness/p0-before  → ALL GATES PASS (≈3 min)",
+    "node scripts/verify_astra_harness.mjs  → 0 blocking (≈6 min; do not write project files while it runs)",
+    "python make_board.py && python scripts/gate.py  → P1-P10 green",
+    "Inspect .artisan-artifacts/brightness/p0-after/before_after.png for mood/material identity",
+    "Probe: WorldCompiler.routeFor for arch.balcony_window / arch.tokyo_walls and judge the 'intended route' caveat"
+  ]
+}

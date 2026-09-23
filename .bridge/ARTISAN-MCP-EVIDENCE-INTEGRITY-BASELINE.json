@@ -1,0 +1,482 @@
+{
+  "baseline": "P0.5 MCP Evidence Integrity (BUILD-EVIDENCE / SPEC-08)",
+  "recordedAt": "2026-09-22T04:05:28.097Z",
+  "plan": ".bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-PLAN.md",
+  "snapshot": ".snapshots/pre_p05_evidence_integrity.zip",
+  "allowlistExistingPreChange": {
+    "mcp-server/bridge.js": {
+      "sha256": "C9C1EEF61046D035908D7BE20626DAA4BF40DAD70E9794D2FC475058EBFEE09F",
+      "bytes": 9260
+    },
+    "mcp-server/index.js": {
+      "sha256": "E858604697E2A73E3E18BBA2A72893CD575EECEC2A921CF13800EFF028419CCE",
+      "bytes": 35368
+    },
+    "mcp-server/HeadlessRunner.js": {
+      "sha256": "2E5A96FBA57BDA2C3B62F81BA98170C514BDE9F96E7C09E234CEC593C1907FED",
+      "bytes": 4678
+    },
+    "mcp-server/artifacts.js": {
+      "sha256": "B148096A55591A98C97150D8C609F503FF5C16E67AC33AC225FED6CE6C2E4BFD",
+      "bytes": 3379
+    },
+    "mcp-server/WorldSession.js": {
+      "sha256": "CB588C66FFDDCACE97B7CCFAE0D4CE9E9A80F9C0EDEED29E84FB141B2EB26D83",
+      "bytes": 2099
+    },
+    "src/contracts/artisanContract.js": {
+      "sha256": "011D202C6D2369C0320FFF8D8C3BCC0F3C926A498D5AEBB846ECE6950E0824BD",
+      "bytes": 37963
+    },
+    "src/main.js": {
+      "sha256": "CEE496B6C4B27A7C7883A50674925553EE3525EEE6EDA81DBF859F7769D406C0",
+      "bytes": 77388
+    },
+    "src/engine/ArtisanProfiler.js": {
+      "sha256": "8D820BF17FAF04036464A72465458C962A829501CD8CD3F0A7618B584337C384",
+      "bytes": 47117
+    },
+    "scripts/run_perf_audit.js": {
+      "sha256": "7C3AF04C55D9DBB78F165A83EED77EE984BF3202FEBE56592EDF73597B7861ED",
+      "bytes": 9723
+    },
+    "mcp-server/test_ws_bridge.js": {
+      "sha256": "CA399A651031C2CBB7BB04F16D69012160D556D2D4ECED30D9EA409FB49115DA",
+      "bytes": 13281
+    },
+    "mcp-server/test_stdio_client.js": {
+      "sha256": "0D8EC5A51402427B639B405B03C52F2A8DBE6724849676C202F08D801CAE8213",
+      "bytes": 12661
+    },
+    "scripts/verify_astra_harness.mjs": {
+      "sha256": "AD06F95D111B1F27E52E5336FD67E5AA6D6F2C12CCBDFDA6363268E6C7B0DC31",
+      "bytes": 24107
+    },
+    "scripts/check_contract_drift.mjs": {
+      "sha256": "13B841586F8ADD8915C78299F6C35F881F0E05C0848214E9B40554446735F7F8",
+      "bytes": 27771
+    },
+    "PLAN.json": {
+      "sha256": "6BE3A949A77F8054368B325416EAAF386F9F6FE22EDDB2A72C4D07761DB57AD3",
+      "bytes": 26665
+    },
+    "FINDINGS.json": {
+      "sha256": "FA378C3816D104927EABF2F0B746440B358D5370829A63938745A4D3DB46F814",
+      "bytes": 8908
+    },
+    "board.html": {
+      "sha256": "FC2CE7277D95B489892494E1E7F6768ABD24926DDA6B5B8D56B9A5C8E9239F0B",
+      "bytes": 55345
+    },
+    ".bridge/ARTISAN-VISIBILITY-CREATIVE-PLAN.md": {
+      "sha256": "D785224BAD1CC190E1DC85AB73307FD88D9308AED7185598A9D7FE0D55D12526",
+      "bytes": 30999
+    },
+    "CLAUDE.md": {
+      "sha256": "DBF02FF6411ACF13567FFDAD12C57243294E1C5C47F815E862C521B0107B347E",
+      "bytes": 383
+    },
+    "AGENTS.md": {
+      "sha256": "6E77C37D4A9DD37BB308ABD099012DF50DBBE91FD15038340A83211859A57C85",
+      "bytes": 1789
+    }
+  },
+  "filesToCreate": [
+    {
+      "path": "mcp-server/test_evidence_integrity.js",
+      "existsBefore": false
+    },
+    {
+      "path": "scripts/verify_mcp_evidence_integrity.mjs",
+      "existsBefore": false
+    },
+    {
+      "path": "docs/specs/SPEC-08-MCP-EVIDENCE-INTEGRITY.md",
+      "existsBefore": false
+    },
+    {
+      "path": ".bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-BASELINE.json",
+      "existsBefore": false
+    },
+    {
+      "path": ".bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-WORKLOG.jsonl",
+      "existsBefore": false
+    },
+    {
+      "path": ".bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-HANDOFF.json",
+      "existsBefore": false
+    },
+    {
+      "path": ".bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-ACCEPTANCE.json",
+      "existsBefore": false
+    },
+    {
+      "path": ".bridge/ARTISAN-AUTHORED-BUDGET-ACCEPTANCE.json",
+      "existsBefore": false
+    }
+  ],
+  "fixtureIntegrity": {
+    "allMatch": true,
+    "files": [
+      {
+        "name": "authored-world.json",
+        "expected": "85A83B04D36A5CDB01D08CE3CBE0B1CA559C2DA38FCADBF9EA1DED6B69448C0F",
+        "actual": "85A83B04D36A5CDB01D08CE3CBE0B1CA559C2DA38FCADBF9EA1DED6B69448C0F",
+        "bytes": 7309,
+        "match": true
+      },
+      {
+        "name": "DOGFOOD-REPORT.md",
+        "expected": "BA8DC10876861F46A1798E7563179EB275FF68F0D77E07DCF9B7CBE42B6C69D2",
+        "actual": "BA8DC10876861F46A1798E7563179EB275FF68F0D77E07DCF9B7CBE42B6C69D2",
+        "bytes": 8879,
+        "match": true
+      },
+      {
+        "name": "final-fallback-alchemist-preset.png",
+        "expected": "92D85C94D8810B83FFC6DEFDEAE37BA28FBC9267AF9BD7DBF76063967601B2B1",
+        "actual": "92D85C94D8810B83FFC6DEFDEAE37BA28FBC9267AF9BD7DBF76063967601B2B1",
+        "bytes": 285040,
+        "match": true
+      },
+      {
+        "name": "initial-hero.png",
+        "expected": "0DDCC5374A4236500FFD5A4D81B5148064324ABB5F38C055EACDC765C5A51539",
+        "actual": "0DDCC5374A4236500FFD5A4D81B5148064324ABB5F38C055EACDC765C5A51539",
+        "bytes": 285382,
+        "match": true
+      },
+      {
+        "name": "perf_audit_report.json",
+        "expected": "96073E338FA0413A58CCEF9FEF634D634912B0D211E623E4283F0B76D8893EC5",
+        "actual": "96073E338FA0413A58CCEF9FEF634D634912B0D211E623E4283F0B76D8893EC5",
+        "bytes": 1739,
+        "match": true
+      },
+      {
+        "name": "perf_audit_report.md",
+        "expected": "83BE4222A8106EC965A4EF16379847A019F174CD609D0746969A019C74AC7FF3",
+        "actual": "83BE4222A8106EC965A4EF16379847A019F174CD609D0746969A019C74AC7FF3",
+        "bytes": 1032,
+        "match": true
+      },
+      {
+        "name": "telemetry_import_1790046515831.json",
+        "expected": "6B2801B70EAD2A25E80BB91298E1927C32699E177804F35FAF6C1D4BE325C38D",
+        "actual": "6B2801B70EAD2A25E80BB91298E1927C32699E177804F35FAF6C1D4BE325C38D",
+        "bytes": 8564,
+        "match": true
+      },
+      {
+        "name": "tool-call-log.json",
+        "expected": "2C6898056244FDE844FD9895047458EDE5F03BEEA2F243AAC19CB5F9A1B89304",
+        "actual": "2C6898056244FDE844FD9895047458EDE5F03BEEA2F243AAC19CB5F9A1B89304",
+        "bytes": 46637,
+        "match": true
+      }
+    ]
+  },
+  "replayReproduction": {
+    "mutatingSteps": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      22
+    ],
+    "allCallsOk": true,
+    "deepEqualAuthoredWorld": true,
+    "sessionIdentity": "sha256:f4bb39db91d785d657fb56059e7222f4",
+    "fixtureIdentityRecomputed": "sha256:f4bb39db91d785d657fb56059e7222f4",
+    "expectedIdentity": "sha256:f4bb39db91d785d657fb56059e7222f4",
+    "version": 15,
+    "entityCount": 13,
+    "validation": {
+      "valid": true,
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "node": "v22.18.0",
+  "redResults": {
+    "recordedAt": "2026-09-22T04:34:01.811Z",
+    "codeState": "unmodified (pre-P0.5); only governance, SPEC-08 and the two new test files written",
+    "commands": [
+      "node mcp-server/test_evidence_integrity.js --json (via S2)",
+      "node scripts/verify_mcp_evidence_integrity.mjs --skip-p0"
+    ],
+    "verifyReportSha256": "5d305548ec3efff762dc645dcf15f33a26439ce55d284d6ae9dbda3ec0208a9d",
+    "s2Invalid": false,
+    "unexpectedPasses": [],
+    "guardT_ART_5": "pass",
+    "node": [
+      {
+        "id": "T-ART-1",
+        "status": "fail",
+        "detail": "unit threw: A.safeArtifactRelPath is not a function; tool code=OK path=C:\\Users\\FABIOD~1\\AppData\\Local\\Temp\\artisan_evi_test_JD8bVx\\evd2\\x.png"
+      },
+      {
+        "id": "T-ART-2",
+        "status": "fail",
+        "detail": "..\\..\\Windows\\evil.png=>A.safeArtifactRelPath is not a function | C:/x.png=>A.safeArtifactRelPath is not a function | \\\\srv\\s\\x.png=>A.safeArtifactRelPath is not a function | con.png=>A.safeArtifactRelPath is not a function | a/b/c/d/e.png=>A.safeArtifactRelPath is not a function | a/../x.png=>A.saf"
+      },
+      {
+        "id": "T-ART-3",
+        "status": "fail",
+        "detail": "code=A.safeArtifactRelPath is not a function filesOutside=0"
+      },
+      {
+        "id": "T-ART-4",
+        "status": "fail",
+        "detail": "threw: A.safeArtifactRelPath is not a function"
+      },
+      {
+        "id": "T-ART-5",
+        "status": "pass",
+        "detail": "C:\\Users\\FABIOD~1\\AppData\\Local\\Temp\\artisan_evi_test_JD8bVx\\art_root\\evil.json"
+      },
+      {
+        "id": "T-BRG-1",
+        "status": "fail",
+        "detail": "state=undefined owner=undefined listening=false"
+      },
+      {
+        "id": "T-BRG-2",
+        "status": "fail",
+        "detail": "code=OK livePreview=false text=Valid world; no live Studio connected. Open http://127.0.0.1:9/ to preview."
+      },
+      {
+        "id": "T-BRG-3",
+        "status": "fail",
+        "detail": "A=undefined B.state=undefined B.owner=undefined identity=404/undefined"
+      },
+      {
+        "id": "T-BRG-4",
+        "status": "fail",
+        "detail": "first=cabinet_init instanceId=undefined caps=undefined"
+      },
+      {
+        "id": "T-BRG-5",
+        "status": "fail",
+        "detail": "code=BRIDGE_TIMEOUT studioClients=1"
+      },
+      {
+        "id": "T-BRG-6",
+        "status": "fail",
+        "detail": "other-socket=RESOLVED wrong-instance=RESOLVED control=resolved"
+      },
+      {
+        "id": "T-BRG-7",
+        "status": "fail",
+        "detail": "before=undefined compile=OK after=undefined"
+      },
+      {
+        "id": "T-EVD-1",
+        "status": "fail",
+        "detail": "wrong sceneIdentity:OK missing sceneIdentity:OK wrong version:OK missing entity id:OK wrong instanceId:OK"
+      },
+      {
+        "id": "T-EVD-2",
+        "status": "fail",
+        "detail": "code=OK summary=sha256:f4bb39db91d785d657fb56059e7222f4 ack.sceneIdentity=undefined rendered=undefined"
+      },
+      {
+        "id": "T-EVD-3",
+        "status": "fail",
+        "detail": "get_engine_telemetry:OK capture_viewport_screenshot:OK run_performance_audit:OK import_telemetry_logs:OK filesWritten=2"
+      },
+      {
+        "id": "T-EVD-4",
+        "status": "fail",
+        "detail": "ok=true livePreview=false bridge=undefined"
+      },
+      {
+        "id": "T-EVD-5",
+        "status": "fail",
+        "detail": "sync=sha256:f4bb39db91d785d657fb56059e7222f4 webcrypto=ABSENT "
+      }
+    ],
+    "browserAndStatic": [
+      {
+        "id": "T-BRW-1",
+        "status": "fail",
+        "evidence": "browser computeSceneIdentity(authored-world.json) = ABSENT"
+      },
+      {
+        "id": "T-BRW-2",
+        "status": "fail",
+        "evidence": "applyAuthoredManifest ABSENT"
+      },
+      {
+        "id": "T-BRW-3",
+        "status": "fail",
+        "evidence": "captureCanvas ABSENT; negative control page.screenshot magenta 100.0%"
+      },
+      {
+        "id": "T-BRW-4",
+        "status": "fail",
+        "evidence": "label \"MCP: CONNECTED (3481)\"; studioClients 1"
+      },
+      {
+        "id": "T-AUD-1",
+        "status": "fail",
+        "evidence": "pixel ratio before 1.5 after 1; restoredState null "
+      },
+      {
+        "id": "T-AUD-2",
+        "status": "fail",
+        "evidence": "verdict \"NO CRITICAL ENGINE BOTTLENECK DETECTED (LOCKED 60 FPS)\"; 0 gun(s): none"
+      },
+      {
+        "id": "T-AUD-3",
+        "status": "fail",
+        "evidence": "scene null; entityDeltas arch.shell.forge_pavilion.001,arch.hearth.chimney.001,prop.anvil.blacksmith.001,prop.bellows.workshop.001,Entity_4"
+      },
+      {
+        "id": "T-AUD-4",
+        "status": "fail",
+        "evidence": "device.gpu=ABSENT gpuRenderer=WebGL 2.0"
+      },
+      {
+        "id": "T-EVD-6",
+        "status": "fail",
+        "evidence": "code=OK id=undefined verified=undefined src=headless inst=undefined client=undefined path=C:\\Users\\Fabio D\\.gemini\\antigravity\\scratch\\artisan-studio-app\\.artisan-artifacts\\verify-evidence\\latest\\mcp-units\\authored-headless.png"
+      },
+      {
+        "id": "T-EVD-7",
+        "status": "fail",
+        "evidence": "telemetry code=OK id=undefined verified=undefined src=headless inst=undefined client=undefined; audit code=OK id=undefined verified=undefined src=headless inst=undefined client=undefined entityDeltas=arch.shell.tokyo_apartment.001,prop.desk.tokyo_birch.001,prop.workstation.nintendo_rig.001,prop.chair.ergonomic.001,prop.decor.bonsai.001,prop.shelf.nintendo_games.001"
+      },
+      {
+        "id": "T-EVD-8",
+        "status": "fail",
+        "evidence": "code=OK id=undefined verified=undefined src=headless inst=undefined client=undefined authored=undefined carriesAuthoredIdentity=false"
+      },
+      {
+        "id": "S1-headless-no-page-screenshot",
+        "status": "fail",
+        "evidence": "HeadlessRunner.js still calls page.screenshot( (DOM overlays reach the evidence)"
+      },
+      {
+        "id": "S1-audit-no-claim-tokens",
+        "status": "fail",
+        "evidence": "claim tokens present: src/engine/ArtisanProfiler.js:actionTaken, src/engine/ArtisanProfiler.js:'MITIGATED', src/engine/ArtisanProfiler.js:'RESOLVED', src/engine/ArtisanProfiler.js:ZERO GUESSWORK, src/engine/ArtisanProfiler.js:LOCKED 60 FPS, scripts/run_perf_audit.js:actionTaken, scripts/run_perf_audit.js:ZERO GUESSWORK"
+      }
+    ],
+    "baselineObservations": {
+      "headlessAuthoredMeasurementActuallyTrio": {
+        "drawCalls": 16,
+        "triangles": 1616,
+        "fps": 59.9,
+        "frametimeMs": 16.7,
+        "frametimeP95Ms": null,
+        "gpu": "Intel(R) UHD Graphics (0x00009B41)",
+        "isSoftwareRasterizer": false,
+        "settled": null,
+        "pixelRatio": 1,
+        "viewport": "1280x720",
+        "frames": null
+      },
+      "staticEstimator": {
+        "authored": {
+          "draws": 56,
+          "triangles": 12870,
+          "perEntity": {
+            "study-shell": 4,
+            "worktable": 4,
+            "alchemy-station": 13,
+            "books-west": 6,
+            "books-east": 6,
+            "cauldron": 3,
+            "ingredient-chest": 2,
+            "water-barrel": 2,
+            "supply-crate": 2,
+            "woven-rug": 1,
+            "table-lantern": 5,
+            "chest-lantern": 5,
+            "mountain-sigil": 2,
+            "shadow-catcher-ground": 1
+          }
+        },
+        "trio": {
+          "draws": 16,
+          "triangles": 1616
+        },
+        "alchemist": {
+          "draws": 25,
+          "triangles": 4814
+        }
+      },
+      "verdictLines": {
+        "integrity": "FAIL",
+        "budgetInstrument": "FAIL",
+        "p0": "SKIPPED",
+        "overall": "FAIL",
+        "authoredBudget": "UNMEASURED"
+      }
+    }
+  },
+  "p0HarnessBaseline": {
+    "recordedAt": "2026-09-22T04:28:24.182Z",
+    "passed": 29,
+    "failed": 0,
+    "warnings": [
+      "preset-profile-budgets"
+    ],
+    "totalGates": 30,
+    "presetDraws": {
+      "trio": 16,
+      "tavern": 17,
+      "alchemist": 25,
+      "armory": 22,
+      "library": 28,
+      "tokyo": 45,
+      "winterhold": 39,
+      "fantastic": 58
+    },
+    "presetTriangles": {
+      "trio": 1616,
+      "tavern": 3152,
+      "alchemist": 4814,
+      "armory": 3628,
+      "library": 2965,
+      "tokyo": 5545,
+      "winterhold": 11484,
+      "fantastic": 7036
+    },
+    "toolSchemaChars": 7873,
+    "toolSchemaTokens": 1969,
+    "suites": {
+      "contract-drift": {
+        "passed": 68,
+        "failed": 0
+      },
+      "mcp-stdio-sdk": {
+        "passed": 64,
+        "failed": 0
+      },
+      "ws-bridge-privacy": {
+        "passed": 33,
+        "failed": 0
+      }
+    },
+    "e2ePreviewBudget": {
+      "profile": "diorama",
+      "drawCallsMax": 30,
+      "drawCalls": 29,
+      "withinBudget": true
+    },
+    "gpu": "Intel(R) UHD Graphics (0x00009B41)",
+    "note": "Clean re-run. A first run the same session showed no-writes-outside-artifacts FAIL caused by the executor editing scripts/verify_mcp_evidence_integrity.mjs during that run; discarded."
+  }
+}

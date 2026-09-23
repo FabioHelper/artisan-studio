@@ -1,3 +1,7 @@
+import { PERFORMANCE_PROFILES } from '../contracts/artisanContract.js';
+
+const DIORAMA_DRAW_BUDGET = PERFORMANCE_PROFILES.diorama.drawCallsMax;
+
 /**
  * ARTISAN RIVATUNER STATISTICS SERVER (RTSS) OSD
  * Tailor-made, zero-overhead hardware monitoring overlay for WebGL2 real-time rendering.
@@ -276,7 +280,14 @@ export class RivaTunerOSD {
       const w = window.innerWidth;
       const h = window.innerHeight;
       const dpr = this.renderer ? this.renderer.getPixelRatio() : 1.0;
-      this.dom.res.innerText = `${w}x${h} @ ${dpr.toFixed(2)}x DPR`;
+      const rw = Math.round(w * dpr);
+      const rh = Math.round(h * dpr);
+      const isClamped = (w * h) > (rw * rh * 1.05);
+      if (isClamped) {
+        this.dom.res.innerHTML = `${rw}x${rh} <span style="font-size:8px;color:#38bdf8;padding:1px 4px;background:rgba(56,189,248,0.15);border-radius:3px;border:1px solid rgba(56,189,248,0.3);">DRS</span> <span style="color:#64748b;font-size:8px;">(${w}x${h} @ ${dpr.toFixed(2)}x)</span>`;
+      } else {
+        this.dom.res.innerText = `${w}x${h} @ ${dpr.toFixed(2)}x DPR`;
+      }
     }
 
     // Draw calls & budget badge
@@ -284,8 +295,8 @@ export class RivaTunerOSD {
       this.dom.drawcalls.innerText = String(calls);
     }
     if (this.dom.budgetStatus) {
-      if (calls <= 30) {
-        this.dom.budgetStatus.innerText = 'AAA BUDGET (<=30)';
+      if (calls <= DIORAMA_DRAW_BUDGET) {
+        this.dom.budgetStatus.innerText = `AAA BUDGET (<=${DIORAMA_DRAW_BUDGET})`;
         this.dom.budgetStatus.className = 'rtss-pill-budget rtss-budget-pass';
       } else if (calls <= 70) {
         this.dom.budgetStatus.innerText = 'OPTIMIZED (<=70)';

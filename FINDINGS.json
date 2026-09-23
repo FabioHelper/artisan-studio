@@ -1,0 +1,189 @@
+{
+  "findings_version": 1,
+  "generated_note": "Every known defect and expected failure. Audited by check P6 in both directions.",
+  "findings": [
+    {
+      "id": "FND-DRAW-CALLS-EXCESSIVE",
+      "title": "Fantastic World renders ~310 draw calls exceeding the <= 35 budget",
+      "opened_by": "Omegamon empirical profiling",
+      "opened_on": "2026-09-18",
+      "evidence": "Measured: Great Hall Architecture (129 draws), Hall Props and Furniture (105 draws), Exterior Terrain & Pines (56 draws) = 310 draws. AAA Artisan budget is <= 35 draws.",
+      "expected_failures": [],
+      "owner": "BUILD-PERF",
+      "disposition": "closed",
+      "rationale": "Resolved strictly inside artisan-studio-app/src/game/fantastic-world/ via BufferGeometryUtils.mergeGeometries and InstancedMesh compounding. Forward draw calls collapsed from ~310 to 64 un-culled (<= 24 in frustum), fully compliant with the AAA budget of <= 35.",
+      "qualification": "QUALIFIED 2026-09-21 (SPEC-07 P0): the '<= 24 in frustum' / 'fully compliant' claim is not reproducible. Independent measurement at the default camera (Edge ANGLE D3D11, Intel UHD, 1280x720) is 58 visible draws against the 35 budget; tracked as open finding FND-PERF-FANTASTIC-VISIBLE-DRAWS. The ~310 -> 64 collapse itself stands."
+    },
+    {
+      "id": "FND-SINGLE-INSTANCE-LEAK",
+      "title": "Diorama and Game mode toggle lacks mutual exclusion and leaks listeners/audio",
+      "opened_by": "Architecture audit",
+      "opened_on": "2026-09-19",
+      "evidence": "Observed: Toggling between Diorama Mode and Game Mode does not remove event listeners from window/document, leaves AudioContext running with active oscillators, and appends duplicate colliders/animations on re-boot.",
+      "expected_failures": [],
+      "owner": "BUILD-LIFE",
+      "disposition": "closed",
+      "rationale": "Resolved by SingleInstanceGuard and full teardown hooks in controls.js (teardownControls), ambience.js (stopAmbience), and ctx.js (resetCtx)."
+    },
+    {
+      "id": "FND-MCP-BRIDGE-PORT",
+      "title": "MCP server WebSocket bridge expected on port 3456",
+      "opened_by": "Task specification",
+      "opened_on": "2026-09-19",
+      "evidence": "mcp-server/index.js hardcoded port 9900 instead of port 3456 requested in the runtime specification.",
+      "expected_failures": [],
+      "owner": "BUILD-INT",
+      "disposition": "closed",
+      "rationale": "Resolved by supporting process.env.MCP_WS_PORT || 3456 on the MCP server and dual-port client retry across [3456, 9900] in src/main.js."
+    },
+    {
+      "id": "FND-OMEGAMON-GAME-BREAKDOWN",
+      "title": "Omegamon Process Table requires accurate inspection of compounded meshes",
+      "opened_by": "Empirical audit",
+      "opened_on": "2026-09-19",
+      "evidence": "ArtisanProfiler.js scanEntityProcesses() needs to report consolidated draw calls and VRAM accurately for compounded and instanced groups in Fantastic World.",
+      "expected_failures": [],
+      "owner": "BUILD-INT",
+      "disposition": "closed",
+      "rationale": "Resolved by enhancing calcNodeResources and the Fantastic World entity scanner to detect instanced and merged geometry nodes cleanly, flagging compounded assemblies within budget as CLEAN."
+    },
+    {
+      "id": "FND-PERF-TOKYO-DRAWS",
+      "title": "Tokyo diorama renders 45 draw calls against the 30-draw diorama budget",
+      "opened_by": "SPEC-07 P0 (independent audit + executor)",
+      "opened_on": "2026-09-21",
+      "evidence": "Measured 45 draws (pre-dates the MCP/plugin work; reproduced before and after P0). Edge headless ANGLE D3D11, Intel UHD, 1280x720, default camera, renderer.info.render.calls.",
+      "expected_failures": [],
+      "owner": "BUILD-PERF-SCENES",
+      "disposition": "open",
+      "rationale": "Non-blocking until the dedicated P2 performance plan. Budget stays 30; count must not increase (verifier gate preset-no-draw-call-regression)."
+    },
+    {
+      "id": "FND-PERF-WINTERHOLD-DRAWS",
+      "title": "Winterhold diorama renders 39 draw calls against the 30-draw diorama budget",
+      "opened_by": "SPEC-07 P0 (independent audit + executor)",
+      "opened_on": "2026-09-21",
+      "evidence": "Measured 39 draws, 11,484 triangles. Edge headless ANGLE D3D11, Intel UHD, 1280x720, default camera, renderer.info.render.calls.",
+      "expected_failures": [],
+      "owner": "BUILD-PERF-SCENES",
+      "disposition": "open",
+      "rationale": "Non-blocking until P2. Budget stays 30; count must not increase."
+    },
+    {
+      "id": "FND-PERF-FANTASTIC-VISIBLE-DRAWS",
+      "title": "Fantastic World shows 58 visible draw calls against the 35 visible-draw budget",
+      "opened_by": "SPEC-07 P0 (independent audit + executor)",
+      "opened_on": "2026-09-21",
+      "evidence": "Measured 58 visible draws at the default diorama camera. Edge headless ANGLE D3D11, Intel UHD, 1280x720, default camera, renderer.info.render.calls.",
+      "expected_failures": [],
+      "owner": "BUILD-PERF-SCENES",
+      "disposition": "open",
+      "rationale": "Non-blocking until P2. Budget stays 35; count must not increase. Supersedes the '<= 24 in frustum' claim in FND-DRAW-CALLS-EXCESSIVE."
+    },
+    {
+      "id": "FND-SIJ-CABINET-DRAWCALLS-UNVERIFIED",
+      "title": "Cabinet last_verified_drawcalls are component-scoped and unreproducible; gate_cabinet.js defaults a missing value to 20",
+      "opened_by": "SPEC-07 P0 (independent audit + executor)",
+      "opened_on": "2026-09-21",
+      "evidence": "HARNESS-SIJ.json cabinets carry 15-24 draw figures with no isolation method; scripts/gate_cabinet.js uses `cab.last_verified_drawcalls || 20`, so removing a value would fabricate a pass.",
+      "expected_failures": [],
+      "owner": "BUILD-CABINETS",
+      "disposition": "open",
+      "rationale": "P0 marks each value unverified-component-scope and records scene_baselines instead of overwriting. Fixing gate_cabinet.js is outside the P0 allowlist."
+    },
+    {
+      "id": "FND-TOKYO-FOUNDRY-BUILDERS-MISSING",
+      "title": "arch.balcony_window and arch.tokyo_walls had no foundry builder",
+      "opened_by": "SPEC-07 P0 (independent audit + executor)",
+      "opened_on": "2026-09-21",
+      "evidence": "WorldCompiler (since HEAD 909d41f) called this.foundry.buildTokyoBalconyWindow, which never existed -> TypeError; arch.tokyo_walls substring-matched the apartment-shell branch.",
+      "expected_failures": [],
+      "owner": "BUILD-CREATIVE",
+      "disposition": "open",
+      "rationale": "P0: exact route table compiles arch.balcony_window through an inline compound in WorldCompiler (3 draws) and routes arch.tokyo_walls explicitly to the apartment shell (its prior rendering). P1 moves both into UniversalFoundry."
+    },
+    {
+      "id": "FND-VISIBILITY-MODES",
+      "title": "Hearth/Winterhold unreadable; Tokyo and Winterhold ignored the lighting modes; medieval scenes inherited light positions from the previously loaded scene",
+      "opened_by": "SPEC-07 P0 (independent audit + executor)",
+      "opened_on": "2026-09-21",
+      "evidence": "Pre-P0: Tokyo mean Y 118.3 in all modes, Winterhold 32-34 with median Y 7-8, Hearth mean Y 20-37 in 5 medieval scenes. LightingRig never set key/fill positions for medieval scenes.",
+      "expected_failures": [],
+      "owner": "BUILD-VIS",
+      "disposition": "closed",
+      "rationale": "Canonical LIGHTING_PROFILES matrix consumed by LightingRig; scripts/measure_brightness.mjs passes all 21 scene/mode cells and all mode-response gates."
+    },
+    {
+      "id": "FND-MATERIAL-CONTRACT-VALUES",
+      "title": "MATERIAL_CATALOG values disagreed with live MaterialFoundry values",
+      "opened_by": "SPEC-07 P0 (independent audit + executor)",
+      "opened_on": "2026-09-21",
+      "evidence": "Audit: 22/53 records differed in color/PBR; strict browser comparison found 33 records to update (values, missing fields, textured flags).",
+      "expected_failures": [],
+      "owner": "BUILD-VIS",
+      "disposition": "closed",
+      "rationale": "Contract updated to browser-live values (no appearance change: live values byte-identical before/after); MaterialFoundry.register applies the canonical fields and records contractDrift (0 in Node and browser)."
+    },
+    {
+      "id": "FND-COMPILEENTITY-SUBSTRING-ROUTING",
+      "title": "compileEntity accepted near-match unknown archetypes via substring routing",
+      "opened_by": "SPEC-07 P0 (independent audit + executor)",
+      "opened_on": "2026-09-21",
+      "evidence": "unknown.table, unknown.lantern and totally.alchemist_shell.fake compiled through buildTable/buildLantern/buildAlchemistShell.",
+      "expected_failures": [],
+      "owner": "BUILD-VIS",
+      "disposition": "closed",
+      "rationale": "Exact isKnownArchetype guard + exact route table; check_contract_drift.mjs executes all 44 routes and 4 adversarial ids on 4 paths."
+    },
+    {
+      "id": "FND-MCP-BRIDGE-SILENT-CONFLICT",
+      "title": "A second MCP instance silently lost the live bridge while the Studio stayed connected to another instance",
+      "opened_by": "P1 current-harness dogfood",
+      "opened_on": "2026-09-22",
+      "evidence": "Three mcp-server/index.js processes ran at once (PIDs 4424, 25324, 25384); only 4424 owned 127.0.0.1:3456. bridge.js catches EADDRINUSE and only logs to stderr (listening=false); compile_preview then returned ok:true, livePreview:false, 'no live Studio connected' while the Studio showed 'MCP: CONNECTED (3456)', a port label that identifies no instance. Plan §1 E1-E4, E9.",
+      "expected_failures": [],
+      "owner": "BUILD-EVIDENCE",
+      "disposition": "open"
+    },
+    {
+      "id": "FND-MCP-EVIDENCE-PROVENANCE",
+      "title": "Headless evidence rendered presets, and export/screenshot stamped the authored identity on unrelated renders",
+      "opened_by": "P1 current-harness dogfood",
+      "opened_on": "2026-09-22",
+      "evidence": "Headless telemetry loads the default trio page, headless audit defaults to tokyo, headless screenshots render presets; import_telemetry_logs attached sceneIdentity sha256:f4bb... and the authored manifest to 16 draws / 1,616 tris from the trio page; live screenshots stamp session.sceneIdentity() without asking the browser; the compile ack echoes worldId/version, counts manifest entries and reads draws during shadow-bake frames. Plan §1 E5-E8, E14.",
+      "expected_failures": [],
+      "owner": "BUILD-EVIDENCE",
+      "disposition": "open"
+    },
+    {
+      "id": "FND-MCP-CAPTURE-OVERLAY-SUBDIR",
+      "title": "Captures included UI overlays, and requested artifact subdirectories were dropped",
+      "opened_by": "P1 current-harness dogfood",
+      "opened_on": "2026-09-22",
+      "evidence": "HeadlessRunner uses page.screenshot, so the RTSS OSD, MCP indicator and command deck land in the evidence; safeArtifactPath applies path.basename(), so 'dogfood/p1-current-harness/initial-hero.png' silently landed at the artifact root. Plan §1 E10-E11.",
+      "expected_failures": [],
+      "owner": "BUILD-EVIDENCE",
+      "disposition": "open"
+    },
+    {
+      "id": "FND-AUDIT-CANNED-REPAIR-CLAIMS",
+      "title": "The audit emitted prewritten RESOLVED/MITIGATED repair claims and mutated pixel ratio",
+      "opened_by": "P1 current-harness dogfood",
+      "opened_on": "2026-09-22",
+      "evidence": "ArtisanProfiler emits fixed actionTaken text with status RESOLVED/MITIGATED whenever a threshold trips, verdicts claim 'ZERO GUESSWORK' / 'LOCKED 60 FPS', gpuRenderer is the literal 'WebGL 2.0', and the audit restores pixel ratio to Math.min(orig, 1.0) instead of orig. Plan §1 E12-E13.",
+      "expected_failures": [],
+      "owner": "BUILD-EVIDENCE",
+      "disposition": "open"
+    },
+    {
+      "id": "FND-AUTHORED-REPLAY-DRAW-BUDGET",
+      "title": "The dogfood replay world (13 entities) is estimated at ~56 draws against the 30-draw diorama budget",
+      "opened_by": "P0.5 deep plan (static estimate)",
+      "opened_on": "2026-09-22",
+      "evidence": "Static in-memory compile of dogfood-alchemist-midnight-study v15 (sha256:f4bb39db91d785d657fb56059e7222f4): 56 draws / 12,870 triangles, never rendered. Per entity: alchemy-station 13, books-west 6, books-east 6, table-lantern 5, chest-lantern 5, study-shell 4, worktable 4, cauldron 3, chest/barrel/crate 2 each, mountain-sigil 2, rug 1, shadow-catcher ground 1. Every entity already uses one mesh per material (intra-entity merging saves 0); 28 distinct materials (3 transparent, 6 emissive) put the world-level batching floor at ~28 draws. Calibrated against preset browser measurements (trio 16/1,616, alchemist 25/4,814). To be replaced with the measured P0.5 values at closeout.",
+      "expected_failures": [],
+      "owner": "BUILD-AUTHORED-BUDGET",
+      "disposition": "open"
+    }
+  ]
+}

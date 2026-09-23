@@ -1,3 +1,5 @@
+import { isKnownArchetype } from '../contracts/artisanContract.js';
+
 /**
  * SPATIAL & CONSTRAINT VALIDATOR (World Compass Laws A–G)
  * Enforces physical correctness, support relationships, clearance, and scale laws.
@@ -42,6 +44,13 @@ export class SpatialValidator {
         report.valid = false;
         report.errors.push('Entity missing required "id".');
         continue;
+      }
+
+      // 1b. Archetype vocabulary (canonical contract) — unknown archetypes are rejected,
+      // never degraded to a raw primitive (non-reduction invariant).
+      if (!(entity.kind === 'room' && entity.assetRef === undefined) && !isKnownArchetype(entity.assetRef)) {
+        report.valid = false;
+        report.errors.push(`Entity "${entity.id}" uses unknown archetype "${entity.assetRef}".`);
       }
 
       // 2. Transform validation

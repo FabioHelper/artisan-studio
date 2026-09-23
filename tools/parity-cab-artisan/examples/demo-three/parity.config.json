@@ -1,0 +1,24 @@
+{
+  "_comment": "SPEC-16 S4 Generic Three.js fixture config. Generic HTML mode with zero Megazord globals.",
+  "project": "demo-three",
+  "monolith": { "root": "./a", "kind": "directory", "entry_html": "./a/index.html" },
+  "modular":  { "root": "./b", "kind": "directory", "entry_html": "./b/index.html" },
+  "out_dir":  "./.parity",
+  "camera_presets": [],
+  "runtime": {
+    "ready": {
+      "global": "__viewport",
+      "timeout_ms": 10000
+    },
+    "globals": {
+      "matpool": null,
+      "audio": null,
+      "bus": null
+    },
+    "sides": {
+      "monolith": { "mode": "html", "entry_html": "./a/index.html" },
+      "modular":  { "mode": "html", "entry_html": "./b/index.html" }
+    },
+    "settings_presets": null
+  }
+}

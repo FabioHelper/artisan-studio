@@ -992,12 +992,6 @@ export class UniversalFoundry {
     const flame = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.035, 8), fireMat);
     flame.position.y = 0.18;
     group.add(flame);
-
-    // Calibrated Warm Interior Lantern Light
-    const light = new THREE.PointLight(0xff9933, 2.4, 3.2, 1.4);
-    light.position.y = 0.22;
-    light.castShadow = true;
-    group.add(light);
   }
 
   // ==========================================
@@ -1234,21 +1228,6 @@ export class UniversalFoundry {
     dockLed.position.set(0.56 - 0.07, 0.774, -0.013);
     rigGroup.add(dockLed);
 
-    // Warm Task Lights (Without shadow depth overhead — scene keyLight provides dominant shadows)
-    const taskBarLight = new THREE.SpotLight(0xffedd5, 2.8, 1.5, Math.PI / 3.4, 0.65, 1.4);
-    taskBarLight.position.set(-0.16, 1.29, -0.12);
-    taskBarLight.target.position.set(-0.16, 0.75, 0.06);
-    taskBarLight.castShadow = false;
-    rigGroup.add(taskBarLight);
-    rigGroup.add(taskBarLight.target);
-
-    const taskLight = new THREE.SpotLight(0xffedd5, 2.2, 2.0, Math.PI / 4, 0.6, 1.5);
-    taskLight.position.set(-0.42, 1.154, -0.18);
-    taskLight.target.position.set(-0.48, 0.754, -0.23);
-    taskLight.castShadow = false;
-    rigGroup.add(taskLight);
-    rigGroup.add(taskLight.target);
-
     group.add(rigGroup);
   }
 
@@ -1389,16 +1368,7 @@ export class UniversalFoundry {
     shadeBoxGeo.translate(1.65, 0.264, 1.65);
     shellGroup.add(new THREE.Mesh(this.mergeGeometries([washiGeo, shadeBoxGeo]), paperMat));
 
-    // Cozy candle-warm ambient PointLight
-    const lanternLight = new THREE.PointLight(0xff9933, 2.8, 2.5, 1.6);
-    lanternLight.position.set(1.65, 0.264, 1.65);
-    shellGroup.add(lanternLight);
 
-    // Warm unified ceiling ambient downlight (Non-shadow casting, optimized light pass)
-    const ceilingLight = new THREE.PointLight(0xffeedb, 3.6, 6.5, 1.3);
-    ceilingLight.position.set(0.1, wallH - 0.1, 0.2);
-    ceilingLight.castShadow = false;
-    shellGroup.add(ceilingLight);
 
     // ==========================================
     // 4. BALCONY SLIDING WINDOW & PANORAMIC TOKYO SKYLINE (MERGED)
@@ -1832,21 +1802,20 @@ export class UniversalFoundry {
     runeMesh.receiveShadow = true;
     shellGroup.add(runeMesh);
 
-    // Mystical Arcane Font Light
-    const fontLight = new THREE.PointLight(0x00d4ff, 3.2, 4.0, 1.5);
-    fontLight.position.set(0, 0.45, 0);
-    fontLight.castShadow = false;
-    shellGroup.add(fontLight);
+
 
     // Floating Arcane Rune Motes (Magical particles)
     const particleCount = 75;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
+    // Deterministic particle layout (Law G): fixed-seed mulberry32 instead of Math.random
+    let _s = 0x5eed1e55;
+    const rand = () => { _s = (_s + 0x6D2B79F5) | 0; let t = Math.imul(_s ^ (_s >>> 15), 1 | _s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     for (let p = 0; p < particleCount; p++) {
-      const theta = Math.random() * Math.PI * 2;
-      const radius = Math.random() * (daisR - 0.2);
+      const theta = rand() * Math.PI * 2;
+      const radius = rand() * (daisR - 0.2);
       particlePositions[p * 3] = Math.cos(theta) * radius;
-      particlePositions[p * 3 + 1] = 0.15 + Math.random() * 2.2;
+      particlePositions[p * 3 + 1] = 0.15 + rand() * 2.2;
       particlePositions[p * 3 + 2] = Math.sin(theta) * radius;
     }
     particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
@@ -1913,26 +1882,12 @@ export class UniversalFoundry {
     shellGroup.add(new THREE.Mesh(this.mergeGeometries(ironGeos), ironMat));
     shellGroup.add(new THREE.Mesh(this.mergeGeometries(chFlameGeos), witchlightMat));
 
-    // Chandelier lights (PointLight without shadow map pass for locked 60 FPS performance)
-    const witchlight = new THREE.PointLight(0x38bdf8, 6.8, 6.2, 1.25);
-    witchlight.position.set(chX, chY + 0.15, chZ);
-    witchlight.castShadow = false;
-    shellGroup.add(witchlight);
-
-    const warmFill = new THREE.PointLight(0xffbe85, 2.2, 4.5, 1.8);
-    warmFill.position.set(chX, chY - 0.2, chZ);
-    shellGroup.add(warmFill);
-
     // 6. CURVED PANORAMIC SEA OF GHOSTS & AURORA
     const auroraGeo = new THREE.CylinderGeometry(3.2, 3.2, 4.8, 32, 1, true, Math.PI * 0.65, Math.PI * 0.70);
     auroraGeo.scale(-1, 1, 1);
     const auroraMesh = new THREE.Mesh(auroraGeo, auroraMat);
     auroraMesh.position.set(0, 2.2, -1.2);
     shellGroup.add(auroraMesh);
-
-    const auroraBacklight = new THREE.PointLight(0x10b981, 2.4, 5.0, 1.4);
-    auroraBacklight.position.set(0, 2.4, -2.6);
-    shellGroup.add(auroraBacklight);
 
     // 7. TAPESTRY BANNERS (Merged 1 Draw Call)
     const bannerGeos = [
@@ -2022,11 +1977,7 @@ export class UniversalFoundry {
     skylineMesh.position.set(0, 2.2, -0.6);
     shellGroup.add(skylineMesh);
 
-    // Subtle moonlit window glow
-    const moonFill = new THREE.PointLight(0x93c5fd, 2.6, 6.0, 1.4);
-    moonFill.position.set(0, 2.4, rearZ + 0.6);
-    moonFill.castShadow = false;
-    shellGroup.add(moonFill);
+
 
     group.add(shellGroup);
   }
@@ -2106,11 +2057,7 @@ export class UniversalFoundry {
     skylineMesh.position.set(0, 2.0, -0.6);
     shellGroup.add(skylineMesh);
 
-    // Atmospheric warm amber alley lantern glow
-    const amberFill = new THREE.PointLight(0xf59e0b, 2.4, 5.5, 1.4);
-    amberFill.position.set(winX, 2.2, rearZ + 0.8);
-    amberFill.castShadow = false;
-    shellGroup.add(amberFill);
+
 
     group.add(shellGroup);
   }
@@ -2183,11 +2130,7 @@ export class UniversalFoundry {
     skylineMesh.position.set(0, 2.0, -0.6);
     shellGroup.add(skylineMesh);
 
-    // Flickering orange torchlight PointLight
-    const torchLight = new THREE.PointLight(0xf97316, 2.8, 6.0, 1.3);
-    torchLight.position.set(-plinthW / 2 + wallThick + 0.35, 2.2, -0.6);
-    torchLight.castShadow = false;
-    shellGroup.add(torchLight);
+
 
     group.add(shellGroup);
   }
@@ -2247,11 +2190,7 @@ export class UniversalFoundry {
     skylineMesh.position.set(0, 2.2, -0.4);
     shellGroup.add(skylineMesh);
 
-    // Twilight golden hour warm fill PointLight
-    const valleyFill = new THREE.PointLight(0xfbbf24, 2.2, 6.0, 1.4);
-    valleyFill.position.set(0, 3.2, 0);
-    valleyFill.castShadow = false;
-    shellGroup.add(valleyFill);
+
 
     group.add(shellGroup);
   }
@@ -2329,11 +2268,7 @@ export class UniversalFoundry {
     skylineMesh.position.set(0, 2.0, -0.6);
     shellGroup.add(skylineMesh);
 
-    // Warm tavern amber ambient glow
-    const tavernFill = new THREE.PointLight(0xf59e0b, 2.2, 6.0, 1.4);
-    tavernFill.position.set(0, 2.4, 0);
-    tavernFill.castShadow = false;
-    shellGroup.add(tavernFill);
+
 
     group.add(shellGroup);
   }
@@ -2467,10 +2402,6 @@ export class UniversalFoundry {
       flameGeo.translate(eyeDir * 0.044, 0.048, 0.062);
       eyeFlamesGeos.push(flameGeo);
 
-      const orbitGlow = new THREE.PointLight(0x00e5ff, 0.18, 0.35, 2.0);
-      orbitGlow.position.set(eyeDir * 0.044, 0.048, 0.07);
-      skull.add(orbitGlow);
-
       const nostrilGeo = new THREE.ConeGeometry(0.007, 0.024, 3);
       const nRot = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(0.4, 0, Math.PI));
       nostrilGeo.applyMatrix4(nRot);
@@ -2549,10 +2480,7 @@ export class UniversalFoundry {
     gemCore.position.y = 0.18;
     gemGroup.add(gemCore);
 
-    const gemLight = new THREE.PointLight(0xa855f7, 4.2, 2.5, 1.3);
-    gemLight.position.y = 0.20;
-    gemLight.castShadow = false; // Disabled point light shadow pass to save 6 depth faces
-    gemGroup.add(gemLight);
+
 
     group.add(gemGroup);
 
@@ -2593,9 +2521,7 @@ export class UniversalFoundry {
     group.add(new THREE.Mesh(this.mergeGeometries(candleWickGeos), ironMat));
     group.add(new THREE.Mesh(this.mergeGeometries(candleFlameGeos), fireMat));
 
-    const candleLight = new THREE.PointLight(0xffa233, 2.6, 2.0, 1.5);
-    candleLight.position.set(0.72, 1.23, 0.15);
-    group.add(candleLight);
+
 
     // 7. OPEN ILLUMINATED GRIMOIRE (Compounded 1 Draw Call for pages + ribbon)
     const pageGeos = [];
@@ -2785,10 +2711,7 @@ export class UniversalFoundry {
     const coreCrystal = new THREE.Mesh(new THREE.IcosahedronGeometry(0.075, 0), cyanGemMat);
     orreryGroup.add(coreCrystal);
 
-    // Arcane Core Light (PointLight with castShadow = false to prevent 6-sided cubemap stall)
-    const coreLight = new THREE.PointLight(0x06b6d4, 3.8, 3.2, 1.4);
-    coreLight.castShadow = false;
-    orreryGroup.add(coreLight);
+
 
     group.add(orreryGroup);
   }
@@ -2868,11 +2791,7 @@ export class UniversalFoundry {
     fireGeos.push(coreGeo);
     group.add(new THREE.Mesh(this.mergeGeometries(fireGeos), fireMat));
 
-    // 4. Dynamic Witchlight Point Light (Non-shadow casting)
-    const light = new THREE.PointLight(0x38bdf8, 4.2, 4.5, 1.35);
-    light.position.y = 1.22;
-    light.castShadow = false;
-    group.add(light);
+
   }
 
   buildSpellLectern(group, stoneMat, brassMat, navyMat, pageMat, cyanGemMat) {

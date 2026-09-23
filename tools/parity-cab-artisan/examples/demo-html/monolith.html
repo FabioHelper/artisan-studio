@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>DEMO HTML MONOLITH</title>
+  <style>
+    /* CSS must NOT contribute symbols (H1 blanks non-script content) */
+    body { margin: 0; background: #111; color: #eee; }
+    .stage { width: 100vw; height: 100vh; }
+  </style>
+  <!-- CDN script: external src, MUST be ignored (no inline body) -->
+  <script src="https://cdn.example.com/three.min.js"></script>
+  <!-- importmap is non-JS type: MUST be ignored -->
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.example.com/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="stage" class="stage"></div>
+  <!-- The ONLY real source: an inline module, INDENTED (8 spaces) inside HTML.
+       H1 keeps this body in place; H2 dedents so the top-level class/function
+       land at column 0 for the strict regexes. A NESTED const stays indented
+       relative to its function body and MUST NOT be counted as top-level. -->
+  <script type="module">
+        const TAU = 6.2832;
+
+        class Stage {
+          constructor(el) { this.el = el; this.n = 0; }
+          tick() {
+            // NESTED const — must NOT be reported as a top-level symbol
+            const step = TAU / 60;
+            this.n += step;
+            return this.n;
+          }
+        }
+
+        function boot(id) {
+          const el = document.getElementById(id);
+          const stage = new Stage(el);
+          return stage;
+        }
+
+        boot("stage");
+  </script>
+</body>
+</html>

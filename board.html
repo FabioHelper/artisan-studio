@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Master Change Plan</title>
+<!--
+GENERATED FILE. Do not edit the output by hand.
+  regenerate:  <your gate> --board
+  guarded by:  check P10 (fails if the output is stale)
+
+ONE template, ONE data source, two renderings -- there is deliberately no
+second board anywhere:
+  board.html           standalone file, this template inside a full document
+  board.fragment.html  the same bytes minus the document wrapper, for a host
+                       that supplies its own head/body
+Both are emitted by the same generator from PLAN.json + FINDINGS.json, so a
+published board and the plan the gate audits cannot say different things.
+
+GENERATOR CONTRACT -- two string substitutions, nothing else:
+
+  1. THE DATA PLACEHOLDER. A bare token inside the <script id="boardData">
+     element at the bottom of this file. The generator replaces it with the
+     JSON payload, having first escaped any "</script" inside that payload.
+  2. THE SPLIT MARKER. An HTML comment sitting between the <style> block and
+     the first <section>, marking where head content ends and body content
+     begins.
+
+NEITHER TOKEN IS WRITTEN OUT IN THIS COMMENT, AND THAT IS DELIBERATE. Both
+substitutions are plain string operations, so a token that also appears in
+prose gets substituted THERE -- the first draft of this file spelled both out
+here, and the generated board came out with the whole JSON payload injected
+into this comment and the entire stylesheet pushed into <body>. Read the two
+tokens off the file itself; do not restate them in prose anywhere.
+
+The generator must assert each token occurs EXACTLY ONCE and fail loudly if
+not. Silent corruption of a generated file is the one failure mode a board
+cannot survive, because the board is what everyone else trusts.
+-->
+<style>
+/* Deliberate single-theme commitment: a control-panel board is a light-ground
+   artifact by nature. color-scheme is pinned so a dark toggle cannot
+   half-invert the chrome. Change this only if you commit to styling BOTH. */
+:root{
+  color-scheme:light;
+  --paper:#FFFFFF; --panel:#F2F4F8; --panel-2:#E6EAF2; --rule:#C8CEDA;
+  --ink:#0B0E14; --ink-2:#3A4356; --ink-3:#6B748A;
+  --blue:#0033CC; --green:#00A651; --red:#FF2D2D;
+  --cyan:#00C2E0; --mag:#E0009B; --amber:#E08A00;
+  --title-a:#0A246A; --title-b:#A6CAF0;
+  --ui:Tahoma,Verdana,Geneva,sans-serif;
+  --mono:"Lucida Console",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:24px 16px 64px;background:var(--paper);color:var(--ink);
+  font:12px/1.55 var(--ui);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+/* --- the window chrome: raised bevel, title bar, inset body ------------- */
+.win{background:var(--panel);border:2px solid;border-color:#FFF #808080 #808080 #FFF;
+  box-shadow:0 2px 0 rgba(11,14,20,.18)}
+.win-bar{display:flex;align-items:center;gap:8px;padding:5px 8px;color:#fff;
+  background:linear-gradient(90deg,var(--title-a) 0%,#1E58B8 55%,var(--title-b) 100%)}
+.win-bar h1,.win-bar h2{margin:0;font:bold 12px/1.3 var(--ui);letter-spacing:.06em;text-transform:uppercase}
+.win-dots{display:flex;gap:4px;margin-left:auto}
+.win-dots i{width:13px;height:12px;background:var(--panel);border:1px solid;
+  border-color:#FFF #404040 #404040 #FFF;display:block}
+.win-body{padding:16px}
+
+/* --- masthead ---------------------------------------------------------- */
+.mast{display:grid;grid-template-columns:1.35fr 1fr;gap:18px}
+@media(max-width:860px){.mast{grid-template-columns:1fr}}
+.mission{font:13px/1.6 var(--ui);color:var(--ink-2);margin:0;max-width:64ch}
+.mission b{color:var(--ink)}
+.rule-line{margin:12px 0 0;padding:9px 11px;background:var(--paper);border:2px inset var(--rule);
+  font:italic 12px/1.5 var(--ui);color:var(--ink-2)}
+.rule-line strong{font-style:normal;color:var(--red)}
+.gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-content:start;margin:0}
+.g{background:var(--paper);border:2px inset var(--rule);padding:8px 9px}
+.g dt{margin:0 0 3px;font:bold 9px/1.2 var(--ui);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.g dd{margin:0;font:bold 20px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+.g small{display:block;font:9px/1.3 var(--ui);color:var(--ink-3);margin-top:2px}
+.g.b dd{color:var(--blue)}.g.g dd{color:var(--green)}.g.r dd{color:var(--red)}
+.g.c dd{color:#0089A3}.g.m dd{color:var(--mag)}.g.a dd{color:var(--amber)}
+
+/* --- the NEXT bar: the one thing a resuming human reads first ----------- */
+.next{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:11px 13px;
+  background:#EAF0FF;border:2px solid var(--blue)}
+.next .tag{background:var(--blue);color:#fff;font:bold 9px/1 var(--ui);letter-spacing:.11em;
+  padding:5px 7px;text-transform:uppercase}
+.next .id{font:bold 13px/1 var(--mono);color:var(--blue)}
+.next .txt{font:12px/1.45 var(--ui);color:var(--ink-2);flex:1;min-width:220px}
+
+/* --- owner decisions: loud on purpose, they block everything downstream - */
+.decide{background:#FFF8E1;border:2px solid var(--amber);padding:10px 12px;margin-bottom:9px}
+.decide .who{font:bold 9px/1 var(--ui);letter-spacing:.1em;text-transform:uppercase;color:#7A5A00}
+.decide p{margin:6px 0 0;font:12px/1.5 var(--ui);color:var(--ink-2)}
+
+/* --- toolbar ----------------------------------------------------------- */
+.tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px;background:var(--panel-2);
+  border-bottom:1px solid var(--rule)}
+.tools .lab{font:bold 9px/1 var(--ui);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+button.btn{font:11px/1 var(--ui);padding:6px 11px;cursor:pointer;color:var(--ink);background:var(--panel);
+  border:2px solid;border-color:#FFF #808080 #808080 #FFF}
+button.btn:hover{background:#FAFBFE}
+button.btn:active,button.btn[aria-pressed="true"]{border-color:#808080 #FFF #FFF #808080;background:var(--panel-2)}
+button.btn:focus-visible{outline:1px dotted var(--ink);outline-offset:-5px}
+button.btn.hot[aria-pressed="true"]{background:#FFF3C4;border-color:#808080 #FFF #FFF #808080;color:#7A5A00}
+
+/* --- the tree ---------------------------------------------------------- */
+.tree{padding:4px 0 8px}
+.arc{margin:14px 12px 4px;padding:5px 9px;background:var(--ink);color:#fff;font:bold 10px/1.3 var(--ui);
+  letter-spacing:.13em;text-transform:uppercase;display:flex;gap:10px;align-items:baseline}
+.arc span{font:10px/1.3 var(--ui);letter-spacing:.02em;text-transform:none;color:#B9C2D6;font-weight:400}
+.row{display:grid;grid-template-columns:26px 104px minmax(200px,1.6fr) 108px minmax(150px,1fr);
+  gap:9px;align-items:start;padding:7px 12px;border-bottom:1px solid #E3E7EF;background:var(--paper)}
+.row:nth-child(even){background:#FBFCFE}
+.row:hover{background:#EEF3FF}
+.row.phase{padding-left:40px}
+.row.phase .rid{font-size:11px;color:var(--ink-2)}
+@media(max-width:900px){.row{grid-template-columns:26px 96px 1fr}.row .st,.row .lk{grid-column:2/-1}}
+/* the state box: a checkbox is the most honest control for "is it done" */
+.cb{width:15px;height:15px;border:2px solid;border-color:#808080 #FFF #FFF #808080;background:var(--paper);
+  display:grid;place-items:center;font:bold 11px/1 var(--mono);margin-top:1px}
+.cb.done{background:var(--green);border-color:#00713a #7fd3a8 #7fd3a8 #00713a;color:#fff}
+.cb.exec{background:var(--blue);border-color:#001f7a #8fa8f0 #8fa8f0 #001f7a;color:#fff}
+.cb.appr{background:#D8F6FC;border-color:#0089A3 #B8ECF7 #B8ECF7 #0089A3;color:#0089A3}
+.cb.draft{background:var(--paper);border-color:#808080 #FFF #FFF #808080;color:var(--mag)}
+.rid{font:bold 12px/1.3 var(--mono)}
+.rtitle{font:12px/1.45 var(--ui);color:var(--ink-2)}
+.row.build .rtitle{color:var(--ink);font-weight:bold}
+.plain{display:block;font:italic 11px/1.5 var(--ui);color:#0060A8;margin-top:2px}
+body.tech .plain{display:none}
+body.plainmode .techtitle{display:none}
+.chip{display:inline-block;font:bold 9px/1 var(--ui);letter-spacing:.07em;text-transform:uppercase;
+  padding:4px 6px;border:1px solid;white-space:nowrap}
+.c-closed{color:#00713a;border-color:#00713a;background:#E6F7EE}
+.c-exec{color:var(--blue);border-color:var(--blue);background:#E7EDFF}
+.c-appr{color:#0089A3;border-color:#0089A3;background:#E1F7FC}
+.c-draft{color:var(--mag);border-color:var(--mag);background:#FCE7F5}
+.c-spec{color:#B00068;border-color:var(--mag);background:#FFF}
+.lk{font:10px/1.5 var(--mono);color:var(--ink-3)}
+.lk b{color:var(--ink-2);font-weight:400}
+.lk .pre::before{content:"\25C0 ";color:var(--mag)}
+.lk .suc::before{content:"\25B6 ";color:var(--blue)}
+/* a guard that exists in the gate is solid; one that does not is dashed and
+   amber -- P7 fails on the second case for a LANDED node */
+.gd{display:inline-block;font:9px/1 var(--mono);color:#00713a;border:1px solid #7fbf9c;padding:2px 4px;margin:1px 2px 0 0}
+.gd.planned{color:#7A5A00;border:1px dashed var(--amber)}
+
+/* --- findings register -------------------------------------------------- */
+table.reg{width:100%;border-collapse:collapse;background:var(--paper)}
+.reg th{text-align:left;font:bold 9px/1.2 var(--ui);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);padding:7px 9px;border-bottom:2px solid var(--rule);background:var(--panel-2)}
+.reg td{padding:8px 9px;border-bottom:1px solid #E3E7EF;font:11px/1.5 var(--ui);vertical-align:top}
+.reg td.id{font:bold 11px/1.4 var(--mono);white-space:nowrap}
+.reg .n{font:bold 12px/1 var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.d-open{color:var(--red)}.d-inv{color:var(--amber)}.d-acc{color:var(--ink-3)}.d-closed{color:#00713a}
+
+/* --- footer ------------------------------------------------------------- */
+.foot{font:10px/1.6 var(--mono);color:var(--ink-3);padding:2px 4px}
+.honest{margin-top:10px;padding:9px 11px;background:#FFF3F3;border-left:4px solid var(--red);
+  font:12px/1.55 var(--ui);color:var(--ink-2)}
+.honest b{color:var(--red)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section class="win">
+    <div class="win-bar"><h1 id="boardTitle">Master Change Plan</h1>
+      <div class="win-dots"><i></i><i></i><i></i></div></div>
+    <div class="win-body">
+      <div class="mast">
+        <div>
+          <p class="mission" id="goal"></p>
+          <p class="rule-line"><strong>The governing rule:</strong> <span id="grule"></span></p>
+        </div>
+        <dl class="gauges" id="gauges"></dl>
+      </div>
+      <div class="next" id="nextbar" style="margin-top:16px"></div>
+      <div id="decisions" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="win-bar"><h2>The plan</h2>
+      <div class="win-dots"><i></i><i></i><i></i></div></div>
+    <div class="tools">
+      <span class="lab">View</span>
+      <button class="btn hot" id="langBtn" aria-pressed="false">Show plain English</button>
+      <button class="btn" id="fAll" aria-pressed="true">All</button>
+      <button class="btn" id="fOpen" aria-pressed="false">Not yet landed</button>
+      <button class="btn" id="fLanded" aria-pressed="false">Landed</button>
+    </div>
+    <div class="tree" id="tree"></div>
+  </section>
+
+  <section class="win">
+    <div class="win-bar"><h2>Findings register</h2>
+      <div class="win-dots"><i></i><i></i><i></i></div></div>
+    <div class="win-body">
+      <p class="mission" style="max-width:none" id="regnote"></p>
+      <div style="overflow-x:auto;margin-top:11px">
+        <table class="reg">
+          <thead><tr><th>ID</th><th>Title</th><th>Owner</th><th>Disposition</th><th class="n">Expected<br>failures</th></tr></thead>
+          <tbody id="reg"></tbody>
+        </table>
+      </div>
+      <div class="honest" id="honest"></div>
+    </div>
+  </section>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<script id="boardData" type="application/json">{
+ "plan_version": 1,
+ "generated_at": "source fingerprint f458067699ff",
+ "mission": {
+  "title": "Artisan 3D Studio & The Fantastic World Governed Optimization",
+  "statement": "Collapse draw calls to <= 35, enforce strict single-instance mutual exclusion, and govern the system with an automated board and quality gates.",
+  "rule": "A green gate means the declared rules were obeyed — not that the work is good."
+ },
+ "arcs": [
+  {
+   "id": "ARC-GOVERNANCE",
+   "title": "Governed Board & Quality Gates"
+  },
+  {
+   "id": "ARC-LIFECYCLE",
+   "title": "Single-Instance Mutual Exclusion & Context Teardown"
+  },
+  {
+   "id": "ARC-PERFORMANCE",
+   "title": "Artisan Geometry Compounding & Draw Call Collapse"
+  },
+  {
+   "id": "ARC-INTEGRATION",
+   "title": "Omegamon Sysmon & MCP Bridge Integration"
+  },
+  {
+   "id": "ARC-VERIFICATION",
+   "title": "Automated Quality Gates, Smart Diffs & E2E Testing"
+  },
+  {
+   "id": "ARC-VAULT",
+   "title": "Governed Cabinet Vault & Parity Engine (SPEC-16)"
+  },
+  {
+   "id": "ARC-VISIBILITY",
+   "title": "Visibility, Contract Truth & Creative Unlock (SPEC-07)"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "BUILD-GOV",
+   "kind": "build",
+   "arc": "ARC-GOVERNANCE",
+   "title": "Governed Board & Quality Gates (P1–P10)",
+   "plain": "Audit the project plan and code tree with automated verification gates and negative fixtures.",
+   "buys": "guarantees the status board can never drift from the real codebase state",
+   "spec": "docs/specs/SPEC-01-GOVERNANCE-BOARD.md",
+   "mode": "spec_driven",
+   "intent": "closed",
+   "depends_on": [],
+   "guard": [
+    "test_gate_p1_to_p10",
+    "test_gate_fixtures",
+    "test_diff_engine"
+   ],
+   "resources": {
+    "model": "gemini-antigravity",
+    "sessions": 1,
+    "needs": [
+     "python"
+    ]
+   },
+   "owner_decides": null,
+   "closes_findings": [],
+   "note": "Build carries no evidence of its own; landed-ness is conjunction of phases.",
+   "landed": true
+  },
+  {
+   "id": "GOV-1",
+   "kind": "phase",
+   "parent": "BUILD-GOV",
+   "arc": "ARC-GOVERNANCE",
+   "title": "Board Generator & Template Infrastructure",
+   "plain": "Deploy make_board.py and board.template.html into the project.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "make_board.py",
+    "symbol": "DATA_TOKEN = \"__\" + \"BOARD_DATA\" + \"__\""
+   },
+   "guard": [
+    "test_gate_p1_to_p10"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "GOV-2",
+   "kind": "phase",
+   "parent": "BUILD-GOV",
+   "arc": "ARC-GOVERNANCE",
+   "title": "P1–P10 Quality Gate Implementation",
+   "plain": "Build the complete test gate verifying P1 through P10.",
+   "intent": "closed",
+   "depends_on": [
+    "GOV-1"
+   ],
+   "evidence": {
+    "file": "scripts/gate.py",
+    "symbol": "class QualityGate"
+   },
+   "guard": [
+    "test_gate_p1_to_p10"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "GOV-3",
+   "kind": "phase",
+   "parent": "BUILD-GOV",
+   "arc": "ARC-GOVERNANCE",
+   "title": "Negative Fixtures Suite for P1–P10",
+   "plain": "Create synthetic broken inputs proving every check can fail.",
+   "intent": "closed",
+   "depends_on": [
+    "GOV-2"
+   ],
+   "evidence": {
+    "file": "scripts/gate.py",
+    "symbol": "def run_negative_fixtures"
+   },
+   "guard": [
+    "test_gate_fixtures"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "GOV-4",
+   "kind": "phase",
+   "parent": "BUILD-GOV",
+   "arc": "ARC-GOVERNANCE",
+   "title": "CLI Protocol, Status Resume & Smart Diff",
+   "plain": "Provide --status resume output, --check freshness and --diff metric comparison.",
+   "intent": "closed",
+   "depends_on": [
+    "GOV-2"
+   ],
+   "evidence": {
+    "file": "scripts/gate.py",
+    "symbol": "def run_diff"
+   },
+   "guard": [
+    "test_diff_engine"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "BUILD-LIFE",
+   "kind": "build",
+   "arc": "ARC-LIFECYCLE",
+   "title": "Single-Instance Execution Guard & Teardown",
+   "plain": "Guarantee strictly one active game/project loop at any time with total context teardown.",
+   "buys": "eliminates memory leaks, listener pollution, and WebAudio thread thrash",
+   "spec": "docs/specs/SPEC-02-SINGLE-INSTANCE-GUARD.md",
+   "mode": "spec_driven",
+   "intent": "closed",
+   "depends_on": [
+    "BUILD-GOV"
+   ],
+   "guard": [
+    "test_single_instance_guard",
+    "test_listener_teardown",
+    "test_audio_teardown"
+   ],
+   "resources": {
+    "model": "gemini-antigravity",
+    "sessions": 1,
+    "needs": [
+     "webgl",
+     "webaudio"
+    ]
+   },
+   "owner_decides": null,
+   "closes_findings": [
+    "FND-SINGLE-INSTANCE-LEAK"
+   ],
+   "note": "Enforces strict mutual exclusion between Diorama and Game modes.",
+   "landed": true
+  },
+  {
+   "id": "LIFE-1",
+   "kind": "phase",
+   "parent": "BUILD-LIFE",
+   "arc": "ARC-LIFECYCLE",
+   "title": "SingleInstanceGuard State Machine",
+   "plain": "Centralized execution lock preventing concurrent render loops.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "src/engine/SingleInstanceGuard.js",
+    "symbol": "export class SingleInstanceGuard"
+   },
+   "guard": [
+    "test_single_instance_guard"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "LIFE-2",
+   "kind": "phase",
+   "parent": "BUILD-LIFE",
+   "arc": "ARC-LIFECYCLE",
+   "title": "Controls & Input Listener Teardown",
+   "plain": "Clean detachment of all mouse, keyboard, touch, and pointerlock event listeners.",
+   "intent": "closed",
+   "depends_on": [
+    "LIFE-1"
+   ],
+   "evidence": {
+    "file": "src/game/fantastic-world/player/controls.js",
+    "symbol": "export function teardownControls"
+   },
+   "guard": [
+    "test_listener_teardown"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "LIFE-3",
+   "kind": "phase",
+   "parent": "BUILD-LIFE",
+   "arc": "ARC-LIFECYCLE",
+   "title": "WebAudio Ambience Graceful Teardown",
+   "plain": "Ramp down and close AudioContext, stopping all background oscillators.",
+   "intent": "closed",
+   "depends_on": [
+    "LIFE-1"
+   ],
+   "evidence": {
+    "file": "src/game/fantastic-world/audio/ambience.js",
+    "symbol": "export function stopAmbience"
+   },
+   "guard": [
+    "test_audio_teardown"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "LIFE-4",
+   "kind": "phase",
+   "parent": "BUILD-LIFE",
+   "arc": "ARC-LIFECYCLE",
+   "title": "Context and Entity Pool Reset",
+   "plain": "Empty colliders, walls, animations, and interactables on teardown.",
+   "intent": "closed",
+   "depends_on": [
+    "LIFE-1"
+   ],
+   "evidence": {
+    "file": "src/game/fantastic-world/core/ctx.js",
+    "symbol": "export function resetCtx"
+   },
+   "guard": [
+    "test_single_instance_guard"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "LIFE-5",
+   "kind": "phase",
+   "parent": "BUILD-LIFE",
+   "arc": "ARC-LIFECYCLE",
+   "title": "Studio Mode Switcher Integration",
+   "plain": "Wire SingleInstanceGuard into switchToGameMode and switchToDioramaMode.",
+   "intent": "closed",
+   "depends_on": [
+    "LIFE-1",
+    "LIFE-2",
+    "LIFE-3",
+    "LIFE-4"
+   ],
+   "evidence": {
+    "file": "src/main.js",
+    "symbol": "SingleInstanceGuard.getInstance().acquire"
+   },
+   "guard": [
+    "test_single_instance_guard"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "BUILD-PERF",
+   "kind": "build",
+   "arc": "ARC-PERFORMANCE",
+   "title": "Fantastic World Geometry Compounding (<= 35 Draws)",
+   "plain": "Batch and instance Great Hall, Props, and Exterior to collapse draw calls to <= 35.",
+   "buys": "guarantees locked 60 FPS under the Artisan AAA draw call budget",
+   "spec": "docs/specs/SPEC-03-DRAW-CALL-COLLAPSE.md",
+   "mode": "spec_driven",
+   "intent": "closed",
+   "depends_on": [
+    "BUILD-LIFE"
+   ],
+   "guard": [
+    "test_hall_batching",
+    "test_props_instancing",
+    "test_exterior_batching",
+    "test_total_draw_calls_budget"
+   ],
+   "resources": {
+    "model": "gemini-antigravity",
+    "sessions": 1,
+    "needs": [
+     "threejs"
+    ]
+   },
+   "owner_decides": null,
+   "closes_findings": [
+    "FND-DRAW-CALLS-EXCESSIVE"
+   ],
+   "note": "Preserves 100% vertex topology and visual aesthetics.",
+   "landed": true
+  },
+  {
+   "id": "PERF-1",
+   "kind": "phase",
+   "parent": "BUILD-PERF",
+   "arc": "ARC-PERFORMANCE",
+   "title": "Optimized Half-Resolution Bloom Pass",
+   "plain": "Run bloom at half-res to eliminate 8ms fill-rate overhead while preserving candle halos.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "src/game/fantastic-world/fx/lighting.js",
+    "symbol": "// Half-resolution bloom: soft cinematic glow"
+   },
+   "guard": [
+    "test_hall_batching"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "PERF-2",
+   "kind": "phase",
+   "parent": "BUILD-PERF",
+   "arc": "ARC-PERFORMANCE",
+   "title": "PBR Standard Glass & Transmission Bypass",
+   "plain": "Replace heavy transmission pass with standard transparent glass, saving 34ms per frame.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "src/game/fantastic-world/world/props.js",
+    "symbol": "standT.position.y = 0.275;"
+   },
+   "guard": [
+    "test_props_instancing"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "PERF-3",
+   "kind": "phase",
+   "parent": "BUILD-PERF",
+   "arc": "ARC-PERFORMANCE",
+   "title": "Static Shadow Map Caching & Dynamic DRS",
+   "plain": "Bake moonlight shadow map on first frames and wire DRS to lock 60 FPS.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "src/game/fantastic-world/main.js",
+    "symbol": "let shadowBakeFrames = 6;"
+   },
+   "guard": [
+    "test_exterior_batching",
+    "test_total_draw_calls_budget"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "BUILD-INT",
+   "kind": "build",
+   "arc": "ARC-INTEGRATION",
+   "title": "Omegamon Telemetry & MCP Bridge Integration",
+   "plain": "Ensure Omegamon inspects compounded entities end-to-end and MCP bridge supports port 3456.",
+   "buys": "real-time transparency and zero-trust diagnostic control over WebGL runtime",
+   "spec": "docs/specs/SPEC-04-OMEGAMON-MCP-BRIDGE.md",
+   "mode": "spec_driven",
+   "intent": "closed",
+   "depends_on": [
+    "BUILD-LIFE"
+   ],
+   "guard": [
+    "test_omegamon_process_table",
+    "test_mcp_bridge_connection"
+   ],
+   "resources": {
+    "model": "gemini-antigravity",
+    "sessions": 1,
+    "needs": [
+     "mcp",
+     "websocket"
+    ]
+   },
+   "owner_decides": null,
+   "closes_findings": [
+    "FND-MCP-BRIDGE-PORT",
+    "FND-OMEGAMON-GAME-BREAKDOWN"
+   ],
+   "note": "Connects live preview on port 3456 with fallback to 9900.",
+   "landed": true
+  },
+  {
+   "id": "INT-1",
+   "kind": "phase",
+   "parent": "BUILD-INT",
+   "arc": "ARC-INTEGRATION",
+   "title": "Omegamon Process Hierarchy Telemetry",
+   "plain": "Accurate VRAM, geometry and draw call profiling for compounded scenes.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "src/engine/ArtisanProfiler.js",
+    "symbol": "// OMEGAMON: Process Hierarchy Telemetry"
+   },
+   "guard": [
+    "test_omegamon_process_table"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "INT-2",
+   "kind": "phase",
+   "parent": "BUILD-INT",
+   "arc": "ARC-INTEGRATION",
+   "title": "MCP Server Port 3456 Adaptability",
+   "plain": "Configure MCP WebSocket server to default to port 3456 with graceful EADDRINUSE handling.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "mcp-server/bridge.js",
+    "symbol": "const WS_PORT = process.env.MCP_WS_PORT"
+   },
+   "guard": [
+    "test_mcp_bridge_connection"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "INT-3",
+   "kind": "phase",
+   "parent": "BUILD-INT",
+   "arc": "ARC-INTEGRATION",
+   "title": "Studio Client Dual-Port Bridge Connection",
+   "plain": "Connect to ws://localhost:3456 with automatic fallback to ws://localhost:9900.",
+   "intent": "closed",
+   "depends_on": [
+    "INT-2"
+   ],
+   "evidence": {
+    "file": "src/main.js",
+    "symbol": "const MCP_WS_PORTS = [3456, 9900]"
+   },
+   "guard": [
+    "test_mcp_bridge_connection"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "BUILD-VERIF",
+   "kind": "build",
+   "arc": "ARC-VERIFICATION",
+   "title": "Verification Suite, Smart Diff & Rollback",
+   "plain": "Implement snapshot rollback tooling and end-to-end Puppeteer verification tests.",
+   "buys": "uncompromising empirical proof of 60 FPS, draw call budget, and zero regressions",
+   "spec": "docs/specs/SPEC-05-VERIFICATION-SUITE.md",
+   "mode": "spec_driven",
+   "intent": "closed",
+   "depends_on": [
+    "BUILD-INT"
+   ],
+   "guard": [
+    "test_rollback_tool",
+    "test_e2e_pipeline"
+   ],
+   "resources": {
+    "model": "gemini-antigravity",
+    "sessions": 1,
+    "needs": [
+     "puppeteer"
+    ]
+   },
+   "owner_decides": null,
+   "closes_findings": [],
+   "note": "Runs real Chrome browser to audit runtime metrics.",
+   "landed": true
+  },
+  {
+   "id": "VERIF-1",
+   "kind": "phase",
+   "parent": "BUILD-VERIF",
+   "arc": "ARC-VERIFICATION",
+   "title": "Automated Snapshot & Rollback Engine",
+   "plain": "Create instant snapshot and restore commands for safe deployments.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "scripts/rollback.py",
+    "symbol": "def restore_snapshot"
+   },
+   "guard": [
+    "test_rollback_tool"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "VERIF-2",
+   "kind": "phase",
+   "parent": "BUILD-VERIF",
+   "arc": "ARC-VERIFICATION",
+   "title": "Puppeteer End-to-End Test Suite",
+   "plain": "Automate verification of draw calls, single-instance toggling, and 60 FPS.",
+   "intent": "closed",
+   "depends_on": [
+    "VERIF-1"
+   ],
+   "evidence": {
+    "file": "scripts/test_artisan_board_pipeline.js",
+    "symbol": "async function verifyArtisanPipeline"
+   },
+   "guard": [
+    "test_e2e_pipeline"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "BUILD-PARITY-FORK",
+   "kind": "build",
+   "arc": "ARC-VAULT",
+   "title": "Preserved Fork of Parity-Cab & SPEC-16 Adapter Contract",
+   "plain": "Fork parity-cab cleanly to preserve original, and execute SPEC-16 to add Three.js HTML mode.",
+   "buys": "enables zero-trust pixel diff, scene graph hash, and deep material parity on any Three.js project",
+   "spec": "docs/specs/SPEC-06-GOVERNED-CABINETS.md",
+   "mode": "spec_driven",
+   "intent": "closed",
+   "depends_on": [
+    "BUILD-VERIF"
+   ],
+   "guard": [
+    "test_parity_fork"
+   ],
+   "resources": {
+    "model": "gemini-antigravity",
+    "sessions": 1,
+    "needs": [
+     "git",
+     "node"
+    ]
+   },
+   "owner_decides": null,
+   "closes_findings": [],
+   "note": "Original repository at .claude/skills/parity-cab remains 100% untouched.",
+   "landed": true
+  },
+  {
+   "id": "PFORK-1",
+   "kind": "phase",
+   "parent": "BUILD-PARITY-FORK",
+   "arc": "ARC-VAULT",
+   "title": "Pristine Git Fork of Parity-Cab",
+   "plain": "Create dedicated fork at tools/parity-cab-artisan and verify original is untouched.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "tools/parity-cab-artisan/package.json",
+    "symbol": "\"name\": \"parity-cab\""
+   },
+   "guard": [
+    "test_parity_fork"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "PFORK-2",
+   "kind": "phase",
+   "parent": "BUILD-PARITY-FORK",
+   "arc": "ARC-VAULT",
+   "title": "SPEC-16 Implementation & Runtime HTML Mode",
+   "plain": "Implement S0-S5 in the fork, proving Megazord backward compatibility and adding mode: html.",
+   "intent": "closed",
+   "depends_on": [
+    "PFORK-1"
+   ],
+   "evidence": {
+    "file": "tools/parity-cab-artisan/scripts/06-behavior-trace.cjs",
+    "symbol": "mode === \"html\""
+   },
+   "guard": [
+    "test_parity_fork"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "BUILD-CABINETS",
+   "kind": "build",
+   "arc": "ARC-VAULT",
+   "title": "Smart Intent JSON (SIJ) Cabinet Vault & Visual Deck",
+   "plain": "Build HARNESS-SIJ.json cabinet runner, promotion gate, and live animated visual deck.",
+   "buys": "prevents aesthetic degradation and guarantees mathematical 60 FPS parity",
+   "spec": "docs/specs/SPEC-06-GOVERNED-CABINETS.md",
+   "mode": "spec_driven",
+   "intent": "closed",
+   "depends_on": [
+    "BUILD-PARITY-FORK"
+   ],
+   "guard": [
+    "test_cabinet_vault"
+   ],
+   "resources": {
+    "model": "gemini-antigravity",
+    "sessions": 1,
+    "needs": [
+     "mcp",
+     "websocket",
+     "threejs"
+    ]
+   },
+   "owner_decides": null,
+   "closes_findings": [],
+   "note": "Enforces 98% visual similarity threshold before candidate promotion.",
+   "landed": true
+  },
+  {
+   "id": "CAB-1",
+   "kind": "phase",
+   "parent": "BUILD-CABINETS",
+   "arc": "ARC-VAULT",
+   "title": "Smart Intent JSON (SIJ) Registry & Schema",
+   "plain": "Define HARNESS-SIJ.json mapping all protected compartments with golden references.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "HARNESS-SIJ.json",
+    "symbol": "\"$schema\": \"artisan-sij/v1\""
+   },
+   "guard": [
+    "test_cabinet_vault"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "CAB-2",
+   "kind": "phase",
+   "parent": "BUILD-CABINETS",
+   "arc": "ARC-VAULT",
+   "title": "Cabinet Quality Gate & Promotion Runner",
+   "plain": "Create gate_cabinet.js enforcing SSIM >= 98% and 60 FPS budget.",
+   "intent": "closed",
+   "depends_on": [
+    "CAB-1"
+   ],
+   "evidence": {
+    "file": "scripts/gate_cabinet.js",
+    "symbol": "export async function verifyCabinet"
+   },
+   "guard": [
+    "test_cabinet_vault"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "CAB-3",
+   "kind": "phase",
+   "parent": "BUILD-CABINETS",
+   "arc": "ARC-VAULT",
+   "title": "Artisan Studio Live Visual Vault Deck",
+   "plain": "Build animated HUD deck with WebSocket live updates and similarity meters.",
+   "intent": "closed",
+   "depends_on": [
+    "CAB-2"
+   ],
+   "evidence": {
+    "file": "src/main.js",
+    "symbol": "// VAULT: Live Cabinet Visual Deck"
+   },
+   "guard": [
+    "test_cabinet_vault"
+   ],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "BUILD-VIS",
+   "kind": "build",
+   "arc": "ARC-VISIBILITY",
+   "title": "SPEC-07 P0: Visibility, Contract Truth & Trustworthy Gates",
+   "plain": "Make every lighting mode readable and responsive, make the contract equal the engine, reject unknown archetypes on every path, and record measured performance.",
+   "intent": "closed",
+   "depends_on": [
+    "BUILD-INT",
+    "BUILD-VERIF"
+   ],
+   "guard": [],
+   "owner_decides": null,
+   "buys": "an LLM-authored scene is readable in every mode and the contract it reads is the contract the engine renders",
+   "spec": "docs/specs/SPEC-07-VISIBILITY-CREATIVE-CONTRACT.md",
+   "mode": "spec_driven",
+   "closes_findings": [
+    "FND-VISIBILITY-MODES",
+    "FND-MATERIAL-CONTRACT-VALUES",
+    "FND-COMPILEENTITY-SUBSTRING-ROUTING"
+   ],
+   "note": "Closed after Fabio's recorded 2026-09-21 contact-sheet approval, the independent Sol re-audit ACCEPT verdict, and the governance closeout recorded in .bridge/ARTISAN-VISIBILITY-P0-OWNER-ACCEPTANCE.json.",
+   "landed": true
+  },
+  {
+   "id": "VIS-1",
+   "kind": "phase",
+   "parent": "BUILD-VIS",
+   "arc": "ARC-VISIBILITY",
+   "title": "Exact archetype routing & material contract parity",
+   "plain": "Exact catalog guard + route table in WorldCompiler; MaterialFoundry consumes canonical PBR fields.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "src/engine/WorldCompiler.js",
+    "symbol": "static routeFor(assetRef)"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "note": "Verified by node scripts/check_contract_drift.mjs (44/44 routes, 53/53 materials, 4 adversarial ids x 4 paths). Qualified by Sol audit 2026-09-21: the original 44/44 compared against WorldCompiler.routeFor (self-referential). Re-proven by SOL-FIX-1: the builder that actually runs is compared to the independent ARCHETYPE_EXPECTED_ROUTES oracle in the contract, with 3 wrong-builder negative fixtures detected. Route parity is to the audited current route, not to final intended semantics: arch.balcony_window (inline compound) and arch.tokyo_walls (full apartment shell) are encoded as temporary routes that P1 must replace (FND-TOKYO-FOUNDRY-BUILDERS-MISSING stays open). Guard ids pending registration in scripts/gate.py (outside the P0 allowlist).",
+   "landed": true
+  },
+  {
+   "id": "VIS-2",
+   "kind": "phase",
+   "parent": "BUILD-VIS",
+   "arc": "ARC-VISIBILITY",
+   "title": "Brightness measurement harness",
+   "plain": "npm run measure:brightness gates luma, clipping and mode response on the renderer canvas.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "scripts/measure_brightness.mjs",
+    "symbol": "VISIBILITY_THRESHOLDS"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "note": "Verified by npm run measure:brightness and verifier gate visibility-brightness.",
+   "landed": true
+  },
+  {
+   "id": "VIS-3",
+   "kind": "phase",
+   "parent": "BUILD-VIS",
+   "arc": "ARC-VISIBILITY",
+   "title": "Canonical lighting-profile matrix",
+   "plain": "Scene-family x preset matrix in the contract drives LightingRig and exposure for presets and authored worlds.",
+   "intent": "closed",
+   "depends_on": [
+    "VIS-2"
+   ],
+   "evidence": {
+    "file": "src/contracts/artisanContract.js",
+    "symbol": "export const LIGHTING_PROFILES"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "note": "All 21 diorama scene/mode cells pass; see .artisan-artifacts/brightness/p0-after/.",
+   "landed": true
+  },
+  {
+   "id": "VIS-4",
+   "kind": "phase",
+   "parent": "BUILD-VIS",
+   "arc": "ARC-VISIBILITY",
+   "title": "Bridge & artifact write proof",
+   "plain": "Origin-required WebSocket, typed replies, confined artifact writes, SHA-256 tree no-write gate.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "mcp-server/bridge.js",
+    "symbol": "export const REPLY_TYPES"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "note": "Verified by node mcp-server/test_ws_bridge.js and verifier gate no-writes-outside-artifacts. Qualified by Sol audit 2026-09-21: the original static write scan was a provenance regex that false-passed after reassignment, and index.js/HeadlessRunner.js still wrote directly. Re-proven by SOL-FIX-2: every MCP fs mutation now goes through artifacts.js (writeArtifactAt re-asserts confinement at the write boundary; screenshots are captured to memory), enforced by an AST deny-by-default scan with 14 alias/reassignment negative fixtures, plus runtime temp-root checks (test_ws_bridge 33/33).",
+   "landed": true
+  },
+  {
+   "id": "VIS-5",
+   "kind": "phase",
+   "parent": "BUILD-VIS",
+   "arc": "ARC-VISIBILITY",
+   "title": "Performance truth in governance",
+   "plain": "Measured scene_baselines in the SIJ; three draw-call overages are open findings; cabinet draw figures marked unverified.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "HARNESS-SIJ.json",
+    "symbol": "\"scene_baselines\""
+   },
+   "guard": [],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "VIS-6",
+   "kind": "phase",
+   "parent": "BUILD-VIS",
+   "arc": "ARC-VISIBILITY",
+   "title": "Owner review of the before/after contact sheet",
+   "plain": "Fabio confirms the moody dual-temperature character and material identity survive the visibility lift.",
+   "intent": "closed",
+   "depends_on": [
+    "VIS-3"
+   ],
+   "evidence": {
+    "file": ".bridge/ARTISAN-VISIBILITY-P0-OWNER-ACCEPTANCE.json",
+    "symbol": "\"contact_sheet_approved\": true"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "note": "Fabio approved the contact sheet on 2026-09-21; the decision is recorded in .bridge/ARTISAN-VISIBILITY-P0-OWNER-ACCEPTANCE.json and independently cleared for closeout by .bridge/ARTISAN-VISIBILITY-P0-SOL-REAUDIT.json.",
+   "landed": true
+  },
+  {
+   "id": "BUILD-EVIDENCE",
+   "kind": "build",
+   "arc": "ARC-INTEGRATION",
+   "title": "SPEC-08 P0.5: MCP evidence integrity",
+   "plain": "Verifiable MCP/browser instance identity; loud bridge conflicts; compile acks, screenshots, telemetry, exports and audits bound to the scene the renderer proved it drew; headless renders the authored manifest; clean canvas captures in requested subdirectories; audits report observations, not repairs.",
+   "intent": "closed",
+   "depends_on": [
+    "BUILD-VIS"
+   ],
+   "guard": [],
+   "owner_decides": null,
+   "buys": "dogfood evidence can be trusted to belong to the world the LLM authored",
+   "spec": "docs/specs/SPEC-08-MCP-EVIDENCE-INTEGRITY.md",
+   "mode": "spec_driven",
+   "closes_findings": [
+    "FND-MCP-BRIDGE-SILENT-CONFLICT",
+    "FND-MCP-EVIDENCE-PROVENANCE",
+    "FND-MCP-CAPTURE-OVERLAY-SUBDIR",
+    "FND-AUDIT-CANNED-REPAIR-CLAIMS"
+   ],
+   "note": "Closed by the 2026-09-22 governance acceptance in .bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-ACCEPTANCE.json: canonical verifier 44/45 with overall P0.5 PASS; only nonblocking A-12 remains owned by P0.6.",
+   "landed": true
+  },
+  {
+   "id": "EVI-1",
+   "kind": "phase",
+   "parent": "BUILD-EVIDENCE",
+   "arc": "ARC-INTEGRATION",
+   "title": "Confined artifact subdirectories",
+   "plain": "Requested artifact subdirectories are preserved; traversal, absolute, UNC and reserved names are rejected; realpath confinement defeats junctions.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "mcp-server/artifacts.js",
+    "symbol": "export function safeArtifactRelPath"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "EVI-2",
+   "kind": "phase",
+   "parent": "BUILD-EVIDENCE",
+   "arc": "ARC-INTEGRATION",
+   "title": "Bridge instance identity & loud conflicts",
+   "plain": "Per-process instanceId, protocol v2 HELLO/ACK, verified per-socket routing, BRIDGE_CONFLICT with owner diagnosis instead of a silent second instance.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "mcp-server/bridge.js",
+    "symbol": "'BRIDGE_HELLO'"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "EVI-3",
+   "kind": "phase",
+   "parent": "BUILD-EVIDENCE",
+   "arc": "ARC-INTEGRATION",
+   "title": "Verified compile acknowledgement & evidence binding",
+   "plain": "compile_preview succeeds only on a browser-recomputed identity and rendered entity set; every evidence tool refuses (PREVIEW_STALE) instead of mislabeling.",
+   "intent": "closed",
+   "depends_on": [
+    "EVI-2"
+   ],
+   "evidence": {
+    "file": "mcp-server/index.js",
+    "symbol": "ACK_MISMATCH"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "EVI-4",
+   "kind": "phase",
+   "parent": "BUILD-EVIDENCE",
+   "arc": "ARC-INTEGRATION",
+   "title": "Authored-manifest headless render, clean canvas",
+   "plain": "Headless evidence renders the session manifest, proves its identity before writing, and captures the canvas only (no DOM overlays).",
+   "intent": "closed",
+   "depends_on": [
+    "EVI-1"
+   ],
+   "evidence": {
+    "file": "mcp-server/HeadlessRunner.js",
+    "symbol": "export async function renderEvidence"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "EVI-5",
+   "kind": "phase",
+   "parent": "BUILD-EVIDENCE",
+   "arc": "ARC-INTEGRATION",
+   "title": "Measured audit observations",
+   "plain": "The audit reports observations and not-applied recommendations, restores every mutated renderer setting exactly, and binds its report to the measured scene.",
+   "intent": "closed",
+   "depends_on": [],
+   "evidence": {
+    "file": "src/engine/ArtisanProfiler.js",
+    "symbol": "repairApplied: false"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "landed": true
+  },
+  {
+   "id": "EVI-6",
+   "kind": "phase",
+   "parent": "BUILD-EVIDENCE",
+   "arc": "ARC-INTEGRATION",
+   "title": "Evidence-integrity acceptance recorded",
+   "plain": "One run of scripts/verify_mcp_evidence_integrity.mjs with overall PASS (A-1..A-11), the authored-budget result stated truthfully either way.",
+   "intent": "closed",
+   "depends_on": [
+    "EVI-1",
+    "EVI-2",
+    "EVI-3",
+    "EVI-4",
+    "EVI-5"
+   ],
+   "evidence": {
+    "file": ".bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-ACCEPTANCE.json",
+    "symbol": "\"evidence_integrity_acceptance\": \"PASS\""
+   },
+   "guard": [],
+   "owner_decides": null,
+   "note": "Accepted on 2026-09-22 under Fabio's exact-path historical-treehash ruling for .claude/scheduled_tasks.lock. The ruling does not weaken S8; the successful verifier's S8 gate passed with 252 project files byte-identical.",
+   "landed": true
+  },
+  {
+   "id": "BUILD-AUTHORED-BUDGET",
+   "kind": "build",
+   "arc": "ARC-PERFORMANCE",
+   "title": "SPEC-08 P0.6: Authored-world budget conformance",
+   "plain": "The unmodified dogfood replay world renders at <= 30 draws and <= 15,000 triangles, measured by the P0.5 instrument, with visual parity and per-entity identity preserved.",
+   "intent": "draft",
+   "depends_on": [
+    "BUILD-EVIDENCE"
+   ],
+   "guard": [],
+   "owner_decides": null,
+   "buys": "a realistic 13-entity authored room fits the diorama budget before creative features add to it",
+   "closes_findings": [
+    "FND-AUTHORED-REPLAY-DRAW-BUDGET"
+   ],
+   "landed": false
+  },
+  {
+   "id": "ABG-1",
+   "kind": "phase",
+   "parent": "BUILD-AUTHORED-BUDGET",
+   "arc": "ARC-PERFORMANCE",
+   "title": "Authored replay within budget, parity proven",
+   "plain": "authoredBudget PASS on the unmodified replay world (<= 30 draws, <= 15,000 triangles) with a visual-parity proof against the P0.5 capture.",
+   "intent": "draft",
+   "depends_on": [
+    "EVI-6"
+   ],
+   "evidence": {
+    "file": ".bridge/ARTISAN-AUTHORED-BUDGET-ACCEPTANCE.json",
+    "symbol": "\"authored_budget_acceptance\": \"PASS\""
+   },
+   "guard": [],
+   "owner_decides": null,
+   "landed": false
+  },
+  {
+   "id": "BUILD-CREATIVE",
+   "kind": "build",
+   "arc": "ARC-VISIBILITY",
+   "title": "SPEC-07 P1: Bounded creative authorship & Astra token economy",
+   "plain": "Authored lights, material variants, archetype parameters, lighting.candle_cluster, 11-tool MCP and compact resources.",
+   "intent": "approved",
+   "depends_on": [
+    "BUILD-VIS",
+    "BUILD-EVIDENCE",
+    "BUILD-AUTHORED-BUDGET"
+   ],
+   "guard": [],
+   "owner_decides": null,
+   "buys": "Astra can build the exact candle-lit request literally at under ~3,500 cold-start tokens",
+   "spec": "docs/specs/SPEC-07-VISIBILITY-CREATIVE-CONTRACT.md",
+   "mode": "spec_driven",
+   "closes_findings": [
+    "FND-TOKYO-FOUNDRY-BUILDERS-MISSING"
+   ],
+   "landed": false
+  },
+  {
+   "id": "CRE-1",
+   "kind": "phase",
+   "parent": "BUILD-CREATIVE",
+   "arc": "ARC-VISIBILITY",
+   "title": "Creative contract test suite",
+   "plain": "Authored lights, variants, parameters and candle cluster proven by scripts/test_creative_contract.mjs.",
+   "intent": "approved",
+   "depends_on": [
+    "EVI-6",
+    "ABG-1"
+   ],
+   "evidence": {
+    "file": "scripts/test_creative_contract.mjs",
+    "symbol": "MAX_AUTHORED_LIGHTS"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "landed": false
+  },
+  {
+   "id": "CRE-2",
+   "kind": "phase",
+   "parent": "BUILD-CREATIVE",
+   "arc": "ARC-VISIBILITY",
+   "title": "lighting.candle_cluster compound archetype",
+   "plain": "Procedural candle cluster with bounded candleCount and merged wax/flame geometry.",
+   "intent": "approved",
+   "depends_on": [
+    "CRE-1"
+   ],
+   "evidence": {
+    "file": "src/contracts/artisanContract.js",
+    "symbol": "'lighting.candle_cluster'"
+   },
+   "guard": [],
+   "owner_decides": null,
+   "landed": false
+  },
+  {
+   "id": "BUILD-PERF-SCENES",
+   "kind": "build",
+   "arc": "ARC-PERFORMANCE",
+   "title": "SPEC-07 P2: Scene draw-call remediation",
+   "plain": "Bring Tokyo, Winterhold and Fantastic World within the 30/35 budgets without visual regression.",
+   "intent": "draft",
+   "depends_on": [
+    "BUILD-VIS"
+   ],
+   "guard": [],
+   "owner_decides": null,
+   "buys": "the three open draw-call findings close without loosening budgets",
+   "spec": "docs/specs/SPEC-07-VISIBILITY-CREATIVE-CONTRACT.md",
+   "mode": "spec_driven",
+   "closes_findings": [
+    "FND-PERF-TOKYO-DRAWS",
+    "FND-PERF-WINTERHOLD-DRAWS",
+    "FND-PERF-FANTASTIC-VISIBLE-DRAWS"
+   ],
+   "landed": false
+  }
+ ],
+ "findings": [
+  {
+   "id": "FND-DRAW-CALLS-EXCESSIVE",
+   "title": "Fantastic World renders ~310 draw calls exceeding the <= 35 budget",
+   "opened_by": "Omegamon empirical profiling",
+   "opened_on": "2026-09-18",
+   "evidence": "Measured: Great Hall Architecture (129 draws), Hall Props and Furniture (105 draws), Exterior Terrain & Pines (56 draws) = 310 draws. AAA Artisan budget is <= 35 draws.",
+   "expected_failures": [],
+   "owner": "BUILD-PERF",
+   "disposition": "closed",
+   "rationale": "Resolved strictly inside artisan-studio-app/src/game/fantastic-world/ via BufferGeometryUtils.mergeGeometries and InstancedMesh compounding. Forward draw calls collapsed from ~310 to 64 un-culled (<= 24 in frustum), fully compliant with the AAA budget of <= 35.",
+   "qualification": "QUALIFIED 2026-09-21 (SPEC-07 P0): the '<= 24 in frustum' / 'fully compliant' claim is not reproducible. Independent measurement at the default camera (Edge ANGLE D3D11, Intel UHD, 1280x720) is 58 visible draws against the 35 budget; tracked as open finding FND-PERF-FANTASTIC-VISIBLE-DRAWS. The ~310 -> 64 collapse itself stands."
+  },
+  {
+   "id": "FND-SINGLE-INSTANCE-LEAK",
+   "title": "Diorama and Game mode toggle lacks mutual exclusion and leaks listeners/audio",
+   "opened_by": "Architecture audit",
+   "opened_on": "2026-09-19",
+   "evidence": "Observed: Toggling between Diorama Mode and Game Mode does not remove event listeners from window/document, leaves AudioContext running with active oscillators, and appends duplicate colliders/animations on re-boot.",
+   "expected_failures": [],
+   "owner": "BUILD-LIFE",
+   "disposition": "closed",
+   "rationale": "Resolved by SingleInstanceGuard and full teardown hooks in controls.js (teardownControls), ambience.js (stopAmbience), and ctx.js (resetCtx)."
+  },
+  {
+   "id": "FND-MCP-BRIDGE-PORT",
+   "title": "MCP server WebSocket bridge expected on port 3456",
+   "opened_by": "Task specification",
+   "opened_on": "2026-09-19",
+   "evidence": "mcp-server/index.js hardcoded port 9900 instead of port 3456 requested in the runtime specification.",
+   "expected_failures": [],
+   "owner": "BUILD-INT",
+   "disposition": "closed",
+   "rationale": "Resolved by supporting process.env.MCP_WS_PORT || 3456 on the MCP server and dual-port client retry across [3456, 9900] in src/main.js."
+  },
+  {
+   "id": "FND-OMEGAMON-GAME-BREAKDOWN",
+   "title": "Omegamon Process Table requires accurate inspection of compounded meshes",
+   "opened_by": "Empirical audit",
+   "opened_on": "2026-09-19",
+   "evidence": "ArtisanProfiler.js scanEntityProcesses() needs to report consolidated draw calls and VRAM accurately for compounded and instanced groups in Fantastic World.",
+   "expected_failures": [],
+   "owner": "BUILD-INT",
+   "disposition": "closed",
+   "rationale": "Resolved by enhancing calcNodeResources and the Fantastic World entity scanner to detect instanced and merged geometry nodes cleanly, flagging compounded assemblies within budget as CLEAN."
+  },
+  {
+   "id": "FND-PERF-TOKYO-DRAWS",
+   "title": "Tokyo diorama renders 45 draw calls against the 30-draw diorama budget",
+   "opened_by": "SPEC-07 P0 (independent audit + executor)",
+   "opened_on": "2026-09-21",
+   "evidence": "Measured 45 draws (pre-dates the MCP/plugin work; reproduced before and after P0). Edge headless ANGLE D3D11, Intel UHD, 1280x720, default camera, renderer.info.render.calls.",
+   "expected_failures": [],
+   "owner": "BUILD-PERF-SCENES",
+   "disposition": "open",
+   "rationale": "Non-blocking until the dedicated P2 performance plan. Budget stays 30; count must not increase (verifier gate preset-no-draw-call-regression)."
+  },
+  {
+   "id": "FND-PERF-WINTERHOLD-DRAWS",
+   "title": "Winterhold diorama renders 39 draw calls against the 30-draw diorama budget",
+   "opened_by": "SPEC-07 P0 (independent audit + executor)",
+   "opened_on": "2026-09-21",
+   "evidence": "Measured 39 draws, 11,484 triangles. Edge headless ANGLE D3D11, Intel UHD, 1280x720, default camera, renderer.info.render.calls.",
+   "expected_failures": [],
+   "owner": "BUILD-PERF-SCENES",
+   "disposition": "open",
+   "rationale": "Non-blocking until P2. Budget stays 30; count must not increase."
+  },
+  {
+   "id": "FND-PERF-FANTASTIC-VISIBLE-DRAWS",
+   "title": "Fantastic World shows 58 visible draw calls against the 35 visible-draw budget",
+   "opened_by": "SPEC-07 P0 (independent audit + executor)",
+   "opened_on": "2026-09-21",
+   "evidence": "Measured 58 visible draws at the default diorama camera. Edge headless ANGLE D3D11, Intel UHD, 1280x720, default camera, renderer.info.render.calls.",
+   "expected_failures": [],
+   "owner": "BUILD-PERF-SCENES",
+   "disposition": "open",
+   "rationale": "Non-blocking until P2. Budget stays 35; count must not increase. Supersedes the '<= 24 in frustum' claim in FND-DRAW-CALLS-EXCESSIVE."
+  },
+  {
+   "id": "FND-SIJ-CABINET-DRAWCALLS-UNVERIFIED",
+   "title": "Cabinet last_verified_drawcalls are component-scoped and unreproducible; gate_cabinet.js defaults a missing value to 20",
+   "opened_by": "SPEC-07 P0 (independent audit + executor)",
+   "opened_on": "2026-09-21",
+   "evidence": "HARNESS-SIJ.json cabinets carry 15-24 draw figures with no isolation method; scripts/gate_cabinet.js uses `cab.last_verified_drawcalls || 20`, so removing a value would fabricate a pass.",
+   "expected_failures": [],
+   "owner": "BUILD-CABINETS",
+   "disposition": "open",
+   "rationale": "P0 marks each value unverified-component-scope and records scene_baselines instead of overwriting. Fixing gate_cabinet.js is outside the P0 allowlist."
+  },
+  {
+   "id": "FND-TOKYO-FOUNDRY-BUILDERS-MISSING",
+   "title": "arch.balcony_window and arch.tokyo_walls had no foundry builder",
+   "opened_by": "SPEC-07 P0 (independent audit + executor)",
+   "opened_on": "2026-09-21",
+   "evidence": "WorldCompiler (since HEAD 909d41f) called this.foundry.buildTokyoBalconyWindow, which never existed -> TypeError; arch.tokyo_walls substring-matched the apartment-shell branch.",
+   "expected_failures": [],
+   "owner": "BUILD-CREATIVE",
+   "disposition": "open",
+   "rationale": "P0: exact route table compiles arch.balcony_window through an inline compound in WorldCompiler (3 draws) and routes arch.tokyo_walls explicitly to the apartment shell (its prior rendering). P1 moves both into UniversalFoundry."
+  },
+  {
+   "id": "FND-VISIBILITY-MODES",
+   "title": "Hearth/Winterhold unreadable; Tokyo and Winterhold ignored the lighting modes; medieval scenes inherited light positions from the previously loaded scene",
+   "opened_by": "SPEC-07 P0 (independent audit + executor)",
+   "opened_on": "2026-09-21",
+   "evidence": "Pre-P0: Tokyo mean Y 118.3 in all modes, Winterhold 32-34 with median Y 7-8, Hearth mean Y 20-37 in 5 medieval scenes. LightingRig never set key/fill positions for medieval scenes.",
+   "expected_failures": [],
+   "owner": "BUILD-VIS",
+   "disposition": "closed",
+   "rationale": "Canonical LIGHTING_PROFILES matrix consumed by LightingRig; scripts/measure_brightness.mjs passes all 21 scene/mode cells and all mode-response gates."
+  },
+  {
+   "id": "FND-MATERIAL-CONTRACT-VALUES",
+   "title": "MATERIAL_CATALOG values disagreed with live MaterialFoundry values",
+   "opened_by": "SPEC-07 P0 (independent audit + executor)",
+   "opened_on": "2026-09-21",
+   "evidence": "Audit: 22/53 records differed in color/PBR; strict browser comparison found 33 records to update (values, missing fields, textured flags).",
+   "expected_failures": [],
+   "owner": "BUILD-VIS",
+   "disposition": "closed",
+   "rationale": "Contract updated to browser-live values (no appearance change: live values byte-identical before/after); MaterialFoundry.register applies the canonical fields and records contractDrift (0 in Node and browser)."
+  },
+  {
+   "id": "FND-COMPILEENTITY-SUBSTRING-ROUTING",
+   "title": "compileEntity accepted near-match unknown archetypes via substring routing",
+   "opened_by": "SPEC-07 P0 (independent audit + executor)",
+   "opened_on": "2026-09-21",
+   "evidence": "unknown.table, unknown.lantern and totally.alchemist_shell.fake compiled through buildTable/buildLantern/buildAlchemistShell.",
+   "expected_failures": [],
+   "owner": "BUILD-VIS",
+   "disposition": "closed",
+   "rationale": "Exact isKnownArchetype guard + exact route table; check_contract_drift.mjs executes all 44 routes and 4 adversarial ids on 4 paths."
+  },
+  {
+   "id": "FND-MCP-BRIDGE-SILENT-CONFLICT",
+   "title": "A second MCP instance silently lost the live bridge while the Studio stayed connected to another instance",
+   "opened_by": "P1 current-harness dogfood",
+   "opened_on": "2026-09-22",
+   "evidence": "Three mcp-server/index.js processes ran at once (PIDs 4424, 25324, 25384); only 4424 owned 127.0.0.1:3456. bridge.js catches EADDRINUSE and only logs to stderr (listening=false); compile_preview then returned ok:true, livePreview:false, 'no live Studio connected' while the Studio showed 'MCP: CONNECTED (3456)', a port label that identifies no instance. Plan §1 E1-E4, E9.",
+   "expected_failures": [],
+   "owner": "BUILD-EVIDENCE",
+   "disposition": "open"
+  },
+  {
+   "id": "FND-MCP-EVIDENCE-PROVENANCE",
+   "title": "Headless evidence rendered presets, and export/screenshot stamped the authored identity on unrelated renders",
+   "opened_by": "P1 current-harness dogfood",
+   "opened_on": "2026-09-22",
+   "evidence": "Headless telemetry loads the default trio page, headless audit defaults to tokyo, headless screenshots render presets; import_telemetry_logs attached sceneIdentity sha256:f4bb... and the authored manifest to 16 draws / 1,616 tris from the trio page; live screenshots stamp session.sceneIdentity() without asking the browser; the compile ack echoes worldId/version, counts manifest entries and reads draws during shadow-bake frames. Plan §1 E5-E8, E14.",
+   "expected_failures": [],
+   "owner": "BUILD-EVIDENCE",
+   "disposition": "open"
+  },
+  {
+   "id": "FND-MCP-CAPTURE-OVERLAY-SUBDIR",
+   "title": "Captures included UI overlays, and requested artifact subdirectories were dropped",
+   "opened_by": "P1 current-harness dogfood",
+   "opened_on": "2026-09-22",
+   "evidence": "HeadlessRunner uses page.screenshot, so the RTSS OSD, MCP indicator and command deck land in the evidence; safeArtifactPath applies path.basename(), so 'dogfood/p1-current-harness/initial-hero.png' silently landed at the artifact root. Plan §1 E10-E11.",
+   "expected_failures": [],
+   "owner": "BUILD-EVIDENCE",
+   "disposition": "open"
+  },
+  {
+   "id": "FND-AUDIT-CANNED-REPAIR-CLAIMS",
+   "title": "The audit emitted prewritten RESOLVED/MITIGATED repair claims and mutated pixel ratio",
+   "opened_by": "P1 current-harness dogfood",
+   "opened_on": "2026-09-22",
+   "evidence": "ArtisanProfiler emits fixed actionTaken text with status RESOLVED/MITIGATED whenever a threshold trips, verdicts claim 'ZERO GUESSWORK' / 'LOCKED 60 FPS', gpuRenderer is the literal 'WebGL 2.0', and the audit restores pixel ratio to Math.min(orig, 1.0) instead of orig. Plan §1 E12-E13.",
+   "expected_failures": [],
+   "owner": "BUILD-EVIDENCE",
+   "disposition": "open"
+  },
+  {
+   "id": "FND-AUTHORED-REPLAY-DRAW-BUDGET",
+   "title": "The dogfood replay world (13 entities) is estimated at ~56 draws against the 30-draw diorama budget",
+   "opened_by": "P0.5 deep plan (static estimate)",
+   "opened_on": "2026-09-22",
+   "evidence": "Static in-memory compile of dogfood-alchemist-midnight-study v15 (sha256:f4bb39db91d785d657fb56059e7222f4): 56 draws / 12,870 triangles, never rendered. Per entity: alchemy-station 13, books-west 6, books-east 6, table-lantern 5, chest-lantern 5, study-shell 4, worktable 4, cauldron 3, chest/barrel/crate 2 each, mountain-sigil 2, rug 1, shadow-catcher ground 1. Every entity already uses one mesh per material (intra-entity merging saves 0); 28 distinct materials (3 transparent, 6 emissive) put the world-level batching floor at ~28 draws. Calibrated against preset browser measurements (trio 16/1,616, alchemist 25/4,814). To be replaced with the measured P0.5 values at closeout.",
+   "expected_failures": [],
+   "owner": "BUILD-AUTHORED-BUDGET",
+   "disposition": "open"
+  }
+ ],
+ "built_guards": [
+  "test_audio_teardown",
+  "test_cabinet_vault",
+  "test_diff_engine",
+  "test_e2e_pipeline",
+  "test_exterior_batching",
+  "test_gate_fixtures",
+  "test_gate_p1_to_p10",
+  "test_hall_batching",
+  "test_listener_teardown",
+  "test_mcp_bridge_connection",
+  "test_omegamon_process_table",
+  "test_parity_fork",
+  "test_props_instancing",
+  "test_rollback_tool",
+  "test_single_instance_guard",
+  "test_total_draw_calls_budget"
+ ],
+ "next": null,
+ "gate": {
+  "failures": 0
+ }
+}</script>
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById("boardData").textContent);
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  };
+  var byId = {};
+  D.nodes.forEach(function (n) { byId[n.id] = n; });
+
+  // ---- masthead --------------------------------------------------------
+  var m = D.mission || {};
+  document.getElementById("boardTitle").textContent = m.title || "Master Change Plan";
+  document.getElementById("goal").innerHTML = esc(m.statement || "");
+  document.getElementById("grule").textContent = m.rule
+    || "A green gate means the rules were obeyed — not that the work is good.";
+
+  var counts = { closed: 0, in_execution: 0, approved: 0, draft: 0, landed: 0 };
+  D.nodes.forEach(function (n) {
+    if (counts[n.intent] !== undefined) counts[n.intent]++;
+    if (n.landed) counts.landed++;
+  });
+  var gauges = [
+    ["g", "Landed", counts.landed, D.nodes.length + " nodes"],
+    ["b", "In execution", counts.in_execution, "started, not finished"],
+    ["c", "Approved", counts.approved, "ready to start"],
+    ["m", "Draft", counts.draft, "not scheduled"],
+    ["r", "Expected failures", (D.gate || {}).failures || 0, "registered, not hidden"],
+    ["a", "Findings", (D.findings || []).length, "known defects"]
+  ];
+  document.getElementById("gauges").innerHTML = gauges.map(function (g) {
+    return '<div class="g ' + g[0] + '"><dt>' + esc(g[1]) + "</dt><dd>" + esc(g[2])
+      + "</dd><small>" + esc(g[3]) + "</small></div>";
+  }).join("");
+
+  // ---- NEXT ------------------------------------------------------------
+  var nx = D.next;
+  document.getElementById("nextbar").innerHTML = nx
+    ? '<span class="tag">Next</span><span class="id">' + esc(nx.id) + "</span>"
+      + '<span class="txt">' + esc(nx.plain || nx.title || "")
+      + (nx.spec ? '  — spec: <b>' + esc(nx.spec) + "</b>" : "") + "</span>"
+    : '<span class="tag">Next</span><span class="txt">Every scheduled node has landed '
+      + "or is in execution.</span>";
+
+  // ---- owner decisions -------------------------------------------------
+  var dec = D.nodes.filter(function (n) { return n.owner_decides; });
+  document.getElementById("decisions").innerHTML = dec.map(function (n) {
+    return '<div class="decide"><span class="who">Owner decides — ' + esc(n.id)
+      + "</span><p>" + esc(n.owner_decides) + "</p></div>";
+  }).join("");
+
+  // ---- the tree --------------------------------------------------------
+  var CB = { closed: ["done", "✓"], in_execution: ["exec", "▶"],
+             approved: ["appr", ""], draft: ["draft", "?"] };
+  var CHIP = { closed: "c-closed", in_execution: "c-exec", approved: "c-appr", draft: "c-draft" };
+  var built = D.built_guards || [];
+
+  function row(n) {
+    var cb = CB[n.intent] || CB.draft;
+    // The box reflects EVIDENCE, not the label. A node whose label says closed
+    // but whose evidence is absent is exactly what P4 fails on -- show it.
+    var boxCls = n.landed ? "done" : cb[0];
+    var boxTxt = n.landed ? "✓" : cb[1];
+    var guards = (n.guard || []).map(function (g) {
+      var known = built.indexOf(g) >= 0;
+      return '<span class="gd' + (known ? "" : " planned") + '">' + esc(g) + "</span>";
+    }).join("");
+    var succ = D.nodes.filter(function (o) {
+      return (o.depends_on || []).indexOf(n.id) >= 0;
+    }).map(function (o) { return o.id; });
+    var links = ((n.depends_on || []).length
+        ? '<span class="pre"><b>' + n.depends_on.map(esc).join(", ") + "</b></span> " : "")
+      + (succ.length ? '<span class="suc"><b>' + succ.map(esc).join(", ") + "</b></span>" : "");
+    return '<div class="row ' + (n.kind === "phase" ? "phase" : "build")
+      + '" data-landed="' + (n.landed ? "1" : "0") + '">'
+      + '<div class="cb ' + boxCls + '">' + boxTxt + "</div>"
+      + '<div class="rid">' + esc(n.id) + "</div>"
+      + '<div><span class="techtitle rtitle">' + esc(n.title || "") + "</span>"
+      + (n.plain ? '<span class="plain">' + esc(n.plain) + "</span>" : "") + "</div>"
+      + '<div class="st"><span class="chip ' + (CHIP[n.intent] || "c-draft") + '">'
+      + esc(n.intent) + "</span>"
+      + (n.mode === "needs_spec" ? ' <span class="chip c-spec">needs spec</span>' : "")
+      + "</div>"
+      + '<div class="lk">' + links + (guards ? "<div>" + guards + "</div>" : "") + "</div>"
+      + "</div>";
+  }
+
+  var html = "";
+  (D.arcs || [{ id: null, title: "" }]).forEach(function (arc) {
+    var builds = D.nodes.filter(function (n) {
+      return n.kind !== "phase" && (arc.id === null || n.arc === arc.id);
+    });
+    if (!builds.length) return;
+    html += '<div class="arc">' + esc(arc.id || "") + "<span>" + esc(arc.title || "") + "</span></div>";
+    builds.forEach(function (b) {
+      html += row(b);
+      D.nodes.filter(function (p) { return p.parent === b.id; }).forEach(function (p) {
+        html += row(p);
+      });
+    });
+  });
+  document.getElementById("tree").innerHTML = html;
+
+  // ---- findings register ----------------------------------------------
+  var DISP = { open: "d-open", investigating: "d-inv", closed: "d-closed" };
+  document.getElementById("regnote").textContent = (D.findings || []).length
+    ? "Every known defect and every EXPECTED gate failure. The gate is checked "
+      + "against this register in both directions: an unregistered failure is a "
+      + "regression, and a registered failure that stopped failing is a stale disposition."
+    : "No findings registered.";
+  document.getElementById("reg").innerHTML = (D.findings || []).map(function (f) {
+    var cls = DISP[f.disposition] || "d-acc";
+    return "<tr><td class='id'>" + esc(f.id) + "</td><td>" + esc(f.title)
+      + "</td><td>" + esc(f.owner || "—") + "</td><td class='" + cls + "'>"
+      + esc(f.disposition) + "</td><td class='n'>"
+      + ((f.expected_failures || []).length) + "</td></tr>";
+  }).join("");
+
+  document.getElementById("honest").innerHTML =
+    "<b>Read this before trusting anything above.</b> A green gate means the "
+    + "declared rules were obeyed. It is not evidence that the work is good — "
+    + "only a human looking at the result can say that.";
+
+  document.getElementById("foot").textContent =
+    "Generated from PLAN.json + FINDINGS.json — " + (D.generated_at || "")
+    + " — plan version " + (D.plan_version || "?")
+    + ". Do not edit this file by hand; regenerate it.";
+
+  // ---- controls --------------------------------------------------------
+  var langBtn = document.getElementById("langBtn");
+  langBtn.addEventListener("click", function () {
+    var on = this.getAttribute("aria-pressed") === "true";
+    this.setAttribute("aria-pressed", String(!on));
+    this.textContent = on ? "Show plain English" : "Show technical titles";
+    document.body.classList.toggle("plainmode", !on);
+    document.body.classList.toggle("tech", on);
+  });
+  document.body.classList.add("tech");
+
+  [["fAll", null], ["fOpen", "0"], ["fLanded", "1"]].forEach(function (pair) {
+    document.getElementById(pair[0]).addEventListener("click", function () {
+      ["fAll", "fOpen", "fLanded"].forEach(function (id) {
+        document.getElementById(id).setAttribute("aria-pressed", String(id === pair[0]));
+      });
+      Array.prototype.forEach.call(document.querySelectorAll(".row"), function (r) {
+        r.style.display = (pair[1] === null || r.dataset.landed === pair[1]) ? "" : "none";
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

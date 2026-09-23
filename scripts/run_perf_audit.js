@@ -177,9 +177,9 @@ async function run() {
       ...(report.smokingGuns.map(sg => [
         `### 🔥 ${sg.severity}: ${sg.culprit}`,
         `- **Empirical Frame Penalty**: \`+${sg.impactMs.toFixed(2)} ms\` (Jitter variance: \`+${sg.jitterMs ? sg.jitterMs.toFixed(2) : 0} ms\`)`,
-        `- **Root Cause**: ${sg.rootCause}`,
-        `- **Corrective Engineering Action**: ${sg.actionTaken}`,
-        `- **Resolution Status**: \`${sg.status}\``,
+        `- **Observation**: ${sg.observation}`,
+        `- **Recommendation (not applied)**: ${sg.recommendation}`,
+        `- **Status**: \`${sg.status}\` (repair applied: ${sg.repairApplied})`,
         ``
       ].join('\n')))
     ];
@@ -189,7 +189,7 @@ async function run() {
     console.log(`✓ Saved Markdown report: ${mdPath}`);
 
     console.log('================================================================');
-    console.log('AUDIT COMPLETED SUCCESSFULLY WITH ZERO GUESSWORK.');
+    console.log(`AUDIT COMPLETED: ${report.smokingGuns.length} observation(s) above threshold (measured; nothing was changed).`);
     console.log('================================================================');
 
   } finally {

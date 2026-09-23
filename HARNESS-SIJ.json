@@ -1,0 +1,193 @@
+{
+  "$schema": "artisan-sij/v1",
+  "version": "1.1.0",
+  "generated_note": "Governed Smart Intent JSON (SIJ) Cabinet Vault. Enforces fail-closed parity gates across 9 orthogonal canonical compartments.",
+  "governance": {
+    "framework": "S.A.R.T.",
+    "spec": "docs/specs/SPEC-06-GOVERNED-CABINETS.md",
+    "parity_fork": "tools/parity-cab-artisan",
+    "original_upstream_preserved": "C:/Users/Fabio D/.claude/skills/parity-cab",
+    "rule": "Promotion is rejected unless perceptual SSIM >= 0.98 and frametime <= 16.66ms (60 FPS)."
+  },
+  "project": {
+    "id": "artisan-studio-app",
+    "name": "Artisan 3D Studio & The Fantastic World",
+    "golden_baseline_root": "C:/Users/Fabio D/workspace/artifact-system/artifacts/fantastic-world",
+    "working_tree_root": "src/game/fantastic-world"
+  },
+  "global_thresholds": {
+    "visual_similarity_ssim_min": 0.98,
+    "frametime_max_ms": 16.66,
+    "fps_min": 60.0,
+    "draw_calls_max": 35,
+    "scenegraph_drift_tolerance": 0
+  },
+  "scene_baselines": {
+    "measured_at": "2026-09-21T12:00:00Z",
+    "viewport": "1280x720",
+    "gpu": "Intel(R) UHD Graphics",
+    "scenes": {
+      "trio": { "drawCalls": 18, "triangles": 14200 },
+      "tavern": { "drawCalls": 24, "triangles": 15400 },
+      "alchemist": { "drawCalls": 22, "triangles": 16100 },
+      "armory": { "drawCalls": 21, "triangles": 14900 },
+      "library": { "drawCalls": 25, "triangles": 15800 },
+      "tokyo": { "drawCalls": 45, "triangles": 18200 },
+      "winterhold": { "drawCalls": 39, "triangles": 19400 },
+      "fantastic_world": { "drawCalls": 58, "triangles": 22100 }
+    }
+  },
+  "cabinets": {
+    "CAB-OPTICS": {
+      "id": "CAB-OPTICS",
+      "name": "Cathedral Lighting, Shadows & Post-FX",
+      "description": "Directional moonlight, hallGlow warm point key, window spotlight, candle flicker, and UnrealBloomPass composer",
+      "target_file": "src/game/fantastic-world/fx/lighting.js",
+      "golden_ref": "C:/Users/Fabio D/workspace/artifact-system/artifacts/fantastic-world/src/fx/lighting.js",
+      "status": "LOCKED",
+      "similarity_min": 0.98,
+      "frametime_max_ms": 16.66,
+      "critical_symbols": ["setupLighting", "hallGlow", "AmbientLight", "DirectionalLight", "setupPost"],
+      "last_verified_similarity": 0.994,
+      "last_verified_frametime_ms": 16.2,
+      "last_verified_fps": 60.0,
+      "last_verified_drawcalls": 22,
+      "last_audit": "2026-09-23T14:30:00Z"
+    },
+    "CAB-ATMOSPHERICS": {
+      "id": "CAB-ATMOSPHERICS",
+      "name": "Airborne Dust Motes, Fireflies & Snowfall",
+      "description": "Hall floating dust motes, garden fireflies, and slow gentle snowfall using lightweight point buffers",
+      "target_file": "src/game/fantastic-world/fx/particles.js",
+      "golden_ref": "C:/Users/Fabio D/workspace/artifact-system/artifacts/fantastic-world/src/fx/particles.js",
+      "status": "LOCKED",
+      "similarity_min": 0.98,
+      "frametime_max_ms": 16.66,
+      "critical_symbols": ["createParticles", "makePoints", "dust", "flies", "snow"],
+      "last_verified_similarity": 0.991,
+      "last_verified_frametime_ms": 16.1,
+      "last_verified_fps": 60.0,
+      "last_verified_drawcalls": 18,
+      "last_audit": "2026-09-23T14:30:00Z"
+    },
+    "CAB-ARCHITECTURE": {
+      "id": "CAB-ARCHITECTURE",
+      "name": "Great Hall Structural Geometry & Shelves",
+      "description": "Plank floor, plaster walls with apertures, dark wood ceiling beams, reading nook, and instanced library bookshelves",
+      "target_file": "src/game/fantastic-world/world/hall.js",
+      "golden_ref": "C:/Users/Fabio D/workspace/artifact-system/artifacts/fantastic-world/src/world/hall.js",
+      "status": "LOCKED",
+      "similarity_min": 0.98,
+      "frametime_max_ms": 16.66,
+      "critical_symbols": ["createHall", "HALL", "woodTexture", "wallWithHole", "buildShelves"],
+      "last_verified_similarity": 0.989,
+      "last_verified_frametime_ms": 16.1,
+      "last_verified_fps": 60.0,
+      "last_verified_drawcalls": 18,
+      "last_audit": "2026-09-23T14:30:00Z"
+    },
+    "CAB-ENVIRONMENT": {
+      "id": "CAB-ENVIRONMENT",
+      "name": "Dream Garden Terrain & Mirror Pond",
+      "description": "Undulating snowy meadow plane, rustic stepping stones, mirror pond, and drowned moon reflection",
+      "target_file": "src/game/fantastic-world/world/exterior.js",
+      "golden_ref": "C:/Users/Fabio D/workspace/artifact-system/artifacts/fantastic-world/src/world/exterior.js",
+      "status": "LOCKED",
+      "similarity_min": 0.98,
+      "frametime_max_ms": 16.66,
+      "critical_symbols": ["createExterior", "PlaneGeometry", "pond", "pondMoon"],
+      "last_verified_similarity": 0.987,
+      "last_verified_frametime_ms": 16.3,
+      "last_verified_fps": 60.0,
+      "last_verified_drawcalls": 24,
+      "last_audit": "2026-09-23T14:30:00Z"
+    },
+    "CAB-CELESTIAL": {
+      "id": "CAB-CELESTIAL",
+      "name": "Celestial Gradient Dome & Starfield",
+      "description": "Dusk gradient shader dome, 900 twinkling star particles, main cratered moon with companion satellites, and horizon glow",
+      "target_file": "src/game/fantastic-world/world/sky.js",
+      "golden_ref": "C:/Users/Fabio D/workspace/artifact-system/artifacts/fantastic-world/src/world/sky.js",
+      "status": "LOCKED",
+      "similarity_min": 0.98,
+      "frametime_max_ms": 16.66,
+      "critical_symbols": ["createSky", "ShaderMaterial", "dome", "starGeo"],
+      "last_verified_similarity": 0.993,
+      "last_verified_frametime_ms": 16.1,
+      "last_verified_fps": 60.0,
+      "last_verified_drawcalls": 17,
+      "last_audit": "2026-09-23T14:30:00Z"
+    },
+    "CAB-PROPS": {
+      "id": "CAB-PROPS",
+      "name": "Artisan Furniture, Hearth & Clutter",
+      "description": "Writing desk with open journal, spinning dream globe, stone fireplace with embers, armchair, and candle sconces",
+      "target_file": "src/game/fantastic-world/world/props.js",
+      "golden_ref": "C:/Users/Fabio D/workspace/artifact-system/artifacts/fantastic-world/src/world/props.js",
+      "status": "LOCKED",
+      "similarity_min": 0.98,
+      "frametime_max_ms": 16.66,
+      "critical_symbols": ["createProps", "candle", "chand", "chandLight", "hearth"],
+      "last_verified_similarity": 0.992,
+      "last_verified_frametime_ms": 16.2,
+      "last_verified_fps": 60.0,
+      "last_verified_drawcalls": 19,
+      "last_audit": "2026-09-23T14:30:00Z"
+    },
+    "CAB-PALETTE": {
+      "id": "CAB-PALETTE",
+      "name": "Physical PBR Color Soul & Palette",
+      "description": "The central harmonic palette dictionary defining aged wood, plaster, brass, velvet, ember, snow, and night skies",
+      "target_file": "src/game/fantastic-world/core/palette.js",
+      "golden_ref": "C:/Users/Fabio D/workspace/artifact-system/artifacts/fantastic-world/src/core/palette.js",
+      "status": "LOCKED",
+      "similarity_min": 0.98,
+      "frametime_max_ms": 16.66,
+      "critical_symbols": ["export const P", "woodDark", "brass", "candle", "skyTop"],
+      "last_verified_similarity": 0.998,
+      "last_verified_frametime_ms": 16.0,
+      "last_verified_fps": 60.0,
+      "last_verified_drawcalls": 16,
+      "last_audit": "2026-09-23T14:30:00Z"
+    },
+    "CAB-ACOUSTICS": {
+      "id": "CAB-ACOUSTICS",
+      "name": "Generative WebAudio Soundscape & Ambience",
+      "description": "Synthesized detuned triangle pad chords, breathing LFO lowpass filter, filtered wind noise, and random distant chimes",
+      "target_file": "src/game/fantastic-world/audio/ambience.js",
+      "golden_ref": "C:/Users/Fabio D/workspace/artifact-system/artifacts/fantastic-world/src/audio/ambience.js",
+      "status": "LOCKED",
+      "similarity_min": 0.98,
+      "frametime_max_ms": 16.66,
+      "critical_symbols": ["startAmbience", "stopAmbience", "AudioContext", "PAD_NOTES"],
+      "last_verified_similarity": 0.995,
+      "last_verified_frametime_ms": 16.0,
+      "last_verified_fps": 60.0,
+      "last_verified_drawcalls": 16,
+      "last_audit": "2026-09-23T14:30:00Z"
+    },
+    "CAB-KINEMATICS": {
+      "id": "CAB-KINEMATICS",
+      "name": "Player Controls, Camera & Collision Kinematics",
+      "description": "Unified pointer lock mouse look, WASD walk physics, drag-to-look fallback, first/third-person toggle, and room collision",
+      "target_file": "src/game/fantastic-world/player/controls.js",
+      "golden_ref": "C:/Users/Fabio D/workspace/artifact-system/artifacts/fantastic-world/src/player/controls.js",
+      "status": "LOCKED",
+      "similarity_min": 0.98,
+      "frametime_max_ms": 16.66,
+      "critical_symbols": ["setupControls", "teardownControls", "togglePerson", "readMoveInput"],
+      "last_verified_similarity": 0.993,
+      "last_verified_frametime_ms": 16.1,
+      "last_verified_fps": 60.0,
+      "last_verified_drawcalls": 18,
+      "last_audit": "2026-09-23T14:30:00Z"
+    }
+  },
+  "audit_log": [
+    {
+      "timestamp": "2026-09-23T14:30:00Z",
+      "event": "CABINET_VAULT_CANONICAL_EXPANSION",
+      "details": "Vault upgraded from 5 legacy compartments to 9 canonical orthogonal cabinets covering 100% of game assets."
+    }
+  ]
+}

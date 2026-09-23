@@ -1,0 +1,182 @@
+{
+  "handoff": "P0.5 MCP Evidence Integrity (BUILD-EVIDENCE / SPEC-08) — governance closeout complete; accepted",
+  "date": "2026-09-22",
+  "executor": "claude-opus-5 (Session A: Phases 0-3; Session B: Phases 4-6 edits; verification/closeout-prep session: reconciliation); Codex governance closeout",
+  "closeout_executor": "Codex, 2026-09-22",
+  "reconciled": {
+    "at": "2026-09-22T11:12:56.090Z",
+    "reason": "The Session A handoff (end of Phase 3) was stale relative to worklog seq 8-10. Reconciled against the live worklog and the two external review handoffs (SOL-1-P05-PLAN-SO-FAR.md, SOL-2-P05-EXECUTED-SO-FAR.md). No source code changed by the reconciliation.",
+    "sources": [
+      ".bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-WORKLOG.jsonl (seq 1-10)",
+      "SOL-1-P05-PLAN-SO-FAR.md",
+      "SOL-2-P05-EXECUTED-SO-FAR.md",
+      ".artisan-artifacts/verify-evidence/latest/evidence_integrity_report.json (skip-p0 run 2026-09-22T10:40:38Z)"
+    ]
+  },
+  "plan": ".bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-PLAN.md",
+  "baseline": ".bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-BASELINE.json",
+  "worklog": ".bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-WORKLOG.jsonl (seq 1-13)",
+  "resume_command": "P0.5 is complete. Next recommended fresh-task route: GPT-5.6 Sol High; plan-only, read-only Fantastic Hall Reference Pass.",
+  "standing_prohibitions": [
+    "no P1 creative features; no commits unless the owner asks; no publishing",
+    "no access to C:/Users/Fabio D/Desktop/THREEJS_HARNESSING",
+    "never kill/restart/reconfigure MCP processes or ports the executor did not start (ports 3456/5173/9900 and every MCP/Studio process the executor did not start stay untouched; the 3456 owner changes over time — re-check it before each run, never assume a PID)",
+    "never edit repo files while verify_astra_harness.mjs or verify_mcp_evidence_integrity.mjs is running (their SHA-256 tree gates catch it: happened once in Session A, run discarded)",
+    "no access to C:/Users/Fabio D/Desktop/THREEJS_HARNESSING",
+    "do not start P0.6 or P1 without separate owner authorization"
+  ],
+  "phase_status": {
+    "Phase 0": "DONE — snapshot pre_p05_evidence_integrity; baseline hashes; fixture 8/8; replay reproduces f4bb v15 13 entities 0/0; governance blocker (BUILD-EVIDENCE + EVI-1..6 approved, BUILD-AUTHORED-BUDGET + ABG-1 draft, BUILD-CREATIVE/CRE-1 edges, 5 findings, SPEC-08); red run recorded (node 16/17 FAIL + guard PASS; browser/static 13/13 FAIL; no unexpected pass); P0 harness baseline 29/30, 0 blocking, 1 non-blocking (preset-profile-budgets)",
+    "Phase 1": "DONE — EVI-1 closed. T-ART-1..5 PASS",
+    "Phase 2": "DONE — T-BRW-1..3 PASS (browser identity f4bb; 13/13 rendered; canvas 0.000% magenta vs 100% page.screenshot control)",
+    "Phase 3": "DONE — EVI-2 closed. T-BRG-1..7 PASS; T-BRW-4 PASS (WRONG INSTANCE, studioClients 0)",
+    "Phase 4": "DONE (worklog seq 8) — EVI-3, EVI-4 closed. renderEvidence (manifest via page.evaluate arg, identity proven before/after, canvas-only, write-after-proof, STUDIO_UNREACHABLE); evidence resolution + envelopes; PREVIEW_STALE; field-by-field ACK_MISMATCH; lastVerifiedRender; EVIDENCE_UNVERIFIED; settled budget on draws AND triangles; 3 description edits (schema 7,942 chars). T-EVD-1..8 PASS",
+    "Phase 5": "DONE (worklog seq 9) — EVI-5 closed. Audit observations (OBSERVED, repairApplied:false), measured verdict, real GPU string, scene binding, exact state restore; run_perf_audit prints observation. T-AUD-1..4 PASS",
+    "Phase 6": "DONE. Acceptance run 1 remains preserved as the correctly rejected S8 run. The canonical latest run (2026-09-22T13:06:39.933Z) is authenticated by sha256 451c8ff5...19a3: 44/45, integrity PASS, budget instrument PASS, P0 preservation PASS, overall P0.5 PASS, A-1 through A-11 PASS, S8 PASS; only nonblocking A-12 fails.",
+    "Phase 6b": "TODO (owner-requested) — pre-Astra MCP rehearsal (SOL-1 §Remaining steps 3); not part of this verification session",
+    "Phase 7": "DONE — owner ruling recorded; acceptance file created; EVI-6 and BUILD-EVIDENCE closed; board and governance gate regenerated; historical repair-baseline treehash removed [] and unapproved []. Authored budget remains truthfully failed and deferred to P0.6."
+  },
+  "snapshots": [
+    ".snapshots/pre_p05_evidence_integrity.zip",
+    ".snapshots/pre_p05_phase1.zip",
+    ".snapshots/pre_p05_phase2.zip",
+    ".snapshots/pre_p05_phase3.zip",
+    ".snapshots/pre_p05_phase4.zip",
+    ".snapshots/pre_p05_phase5.zip"
+  ],
+  "current_test_state": {
+    "gate.py": "P1-P10 PASS (EVI-1..EVI-5 closed; EVI-6 approved, evidence absent until acceptance)",
+    "check_contract_drift": "70/70 (68 + 2 additive P0.5 static checks)",
+    "test_stdio_client": "64/64, tool schema 7,942 chars (cap 7,960)",
+    "test_ws_bridge": "35/35 (v2 fake Studio)",
+    "test_evidence_integrity": "17/17",
+    "verify_mcp_evidence_integrity --skip-p0": "40/43 (2026-09-22T10:40:38Z): integrity PASS, budgetInstrument PASS, p0 SKIPPED (flag), overall FAIL (by construction), authoredBudget FAIL 56/30 draws. Non-passing: S7-p0-harness (skipped), A-10 (depends on S7), A-12 (non-blocking, P0.6). S6-estimator-calibration is non-blocking and passed.",
+    "verify_mcp_evidence_integrity (no flags)": "Canonical latest run: 44/45 — integrity PASS, budgetInstrument PASS, p0 PASS, overall P0.5 PASS; A-1 through A-11 PASS; only A-12 authoredBudget FAIL 56/30 (non-blocking). Report sha256 451c8ff5...19a3. Run 1 remains preserved at .artisan-artifacts/verify-evidence/preserved-acceptance-run1-2026-09-22T111321Z."
+  },
+  "measured_results": {
+    "authored_replay": {
+      "drawCalls": 56,
+      "triangles": 12870,
+      "fps": 59.08,
+      "frametimeMeanMs": 16.65,
+      "frametimeP95Ms": 16.9,
+      "source": "headless settled 120 frames 1280x720 DPR1 hero",
+      "live_equals_headless": true,
+      "gpu": "Intel UHD 0x9B41 (ANGLE D3D11, hardware)"
+    },
+    "control_world": {
+      "entities": [
+        "study-shell",
+        "worktable",
+        "water-barrel"
+      ],
+      "drawCalls": 11,
+      "triangles": 1590,
+      "withinBudget": true
+    },
+    "static_estimate": {
+      "drawCalls": 56,
+      "triangles": 12870
+    },
+    "authored_budget": "FAIL 56/30 draws (triangles pass) — non-blocking for P0.5; owned by BUILD-AUTHORED-BUDGET / P0.6; BUILD-AUTHORED-BUDGET stays draft, P1 stays blocked"
+  },
+  "implemented_contracts": {
+    "bridge_api": "startBridge({studioUrl, sijFile, log, serverVersion, getWorld}) -> {instanceId, pid, startedAt, protocol, port, host, ready(), state(): 'starting'|'listening'|'conflict', owner(), reacquire(), remediation(), conflictMessage(), describeOwner(), pinnedStudioUrl(port?), isListening(), clientCount() (verified), unverifiedCount(), handshakesInFlight(), clients(), primaryClientId(), setPrimary(clientId), broadcast(vault only), sendToAll, publishWorld(manifest), request(type, payload, timeoutMs, {clientId, verifyIdentity=true}) -> {msg, clientId, connectionId}, close()}. MANIFEST without clientId goes to ALL verified clients; index.js must call bridge.setPrimary(clientId) after a verified ack (not done yet).",
+    "index_helpers_already_present": "bridgeInfo() ({state, instanceId, port, owner?} or {state:'disabled'}), ask(type,payload,timeout,opts) -> msg, hasLiveClient(), worldIdentity(), previewBridgeCapabilities(). compile_preview already handles disabled / conflict (reacquire + BRIDGE_CONFLICT) / STUDIO_UNVERIFIED (2 s handshake grace) / no client (pinned studioUrl); the verified-client branch still uses the OLD unverified ack pick — Phase 4 replaces it with §3.6 field verification (ACK_MISMATCH issue paths: ok, instanceId, clientId, sceneIdentity, worldId, version, entityCount, renderedEntityIds) using ack.render.* and ack.* fields, then setPrimary.",
+    "browser_replies (src/main.js setupMCPBridge)": {
+      "MANIFEST_RESULT": "{type,id,instanceId,clientId, ok, worldId, version, sceneIdentity, identityError, entityCount (= rendered count), renderedEntityIds, drawCalls, triangles, settled, warnings, render:{sceneIdentity, epoch, worldId, version, renderedEntityIds, drawCalls, triangles, settled}} (error reply: ok:false, error)",
+      "TELEMETRY_RESULT": "{..., telemetry, epochStart, render}; msg.probe:true -> instant rtss telemetry (use as the identity probe); otherwise waitForSettled + measureRender({frames: msg.frames||60}) merged: drawCalls/triangles (max), frametimeMs (mean), frametimeP95Ms, fps, gpu, isSoftwareRasterizer, pixelRatio, viewport, camera, frames, complete, settled",
+      "SCREENSHOT_RESULT": "{..., dataUrl, width, height, settled, camera, inFrustum:[entity ids], epochStart, render} or {error:'EPOCH_CHANGED: ...', render}",
+      "AUDIT_RESULT": "{..., report, render}",
+      "SCENE_RESULT": "{..., scene, render}",
+      "WORLD_UPDATE": "no reply (applyAuthoredManifest)"
+    },
+    "window.__artisan": "applyAuthoredManifest(manifest) -> {sceneIdentity, identityError, worldId, version, manifestEntityCount, renderedEntityIds, epoch, warnings}; getRenderState() -> {sceneIdentity, epoch, worldId, version, renderedEntityIds, authored, identityError, clientId, appMode, counters}; waitForSettled({quietFrames=10, timeoutMs=8000}) -> {settled, frames, waitedMs}; measureRender({frames=60}); captureCanvas({angle, settle=true}) -> {dataUrl, width, height, settled, camera, inFrustum, epochStart, render}; computeSceneIdentity; plus existing applyDPRPreset, setCameraAngle, loadScene, profiler, rtss, activeWorldGroup (now updated by applyAuthoredManifest)",
+    "headless_determinism_for_Phase_4": "renderEvidence must: open STUDIO_URL?mcpBridge=off at 1280x720 DPR1, applyDPRPreset('balanced'), applyAuthoredManifest(manifest via page.evaluate ARG) or loadScene(scene), check browser identity + renderedEntityIds set-equal BEFORE any write (else HEADLESS_IDENTITY_MISMATCH), setCameraAngle(angle || 'hero' for authored; presets keep their camera unless angle given), waitForSettled, then measureRender({frames:120}) / captureCanvas / profiler.runAudit; never page.screenshot; map net::ERR_CONNECTION_REFUSED to STUDIO_UNREACHABLE; keep >= 5 writeArtifact/writeArtifactAt call sites across mcp-server (currently HeadlessRunner 3 + index 3)",
+    "what_the_verifier_checks (scripts/verify_mcp_evidence_integrity.mjs authoredVerified())": "structuredContent.ok, top-level sceneIdentity === measured f4bb, evidence.{sceneIdentity, identityVerified:true, authored:true, source:'live'|'headless', worldId, version:15, entityCount:13, renderer:{kind:'live-studio'|'headless-studio', instanceId, clientId (live), connectionId, headlessRunId}, camera, measuredAt, bridge:{state, owner?}, inFrustum (capture)}; conflict responses: evidence.bridge.state 'conflict' AND text starting with '[headless; live bridge owned by'; capture response: requestedFilename, path, bytes, pngSha256, width, height, normalized; import file {timestamp, evidence, telemetry, manifest}; audit JSON artifact carries `evidence` and report.scene; get_telemetry adds lastVerifiedRender {sceneIdentity, source, instanceId, clientId, at}; get_engine_telemetry telemetry includes settled + frametimeP95Ms; budget {profile, drawCallsMax, trianglesTarget, drawCalls, triangles, settled, withinBudget (draws<=max && tris<=target; null when unsettled)}; preset capture: evidence.sceneIdentity 'preset:alchemist', authored:false, no f4bb anywhere, no manifest key."
+  },
+  "deviations_from_plan": [
+    "test_ws_bridge.js (a §5.2 file) was updated in Phases 1 and 3 instead of Phase 6, so the P0 ws suite stays green at every phase boundary. Check names replaced one-for-one: 'screenshot confined to artifacts dir' -> 'screenshot traversal filename rejected (INVALID_FILENAME), no file anywhere'; 'manifest broadcast on create_world' -> 'WORLD_UPDATE published to the verified Studio on create_world'; added 'screenshot keeps requested subdirectory inside artifacts dir' and 'unverified socket gets no WORLD_UPDATE or commands and is not counted' (33 -> 35).",
+    "index.js was touched in Phases 1 and 3 (capture filename through safeArtifactRelPath; bridge state/conflict/STUDIO_UNVERIFIED/publishWorld/capabilities) because T-ART-1/2 tool checks and T-BRG-2/5/7 run through index.js. 'ACK_MISMATCH' is deliberately absent until Phase 4 (EVI-3 evidence symbol).",
+    "HeadlessRunner.captureHeadlessScreenshot gained a `target` parameter in Phase 1 (legacy wrapper; renderEvidence replaces the internals in Phase 4).",
+    "main.js fetchVaultStatus(port) now uses the pinned bridge port, so pinned verification pages never contact 127.0.0.1:3456.",
+    "scripts/verify_mcp_evidence_integrity.mjs: one bug fixed before the recorded red run (units/ dir); added gate S6-no-page-errors.",
+    "Plan ambiguity resolved: a MANIFEST_RESULT with a wrong instanceId yields ACK_MISMATCH (compile resolves on the same-socket reply with verifyIdentity:false, then verifies fields); other commands ignore foreign-identity replies (timeout). Satisfies T-EVD-1 and T-BRG-6.",
+    "evaluateBudget requires draws <= max AND triangles <= target, withinBudget null when unsettled.",
+    "main.js live AUDIT_RESULT includes the Markdown so live audits also write perf_audit_report.md.",
+    "Profiler: removed the unmeasured causal phrase \"(OrbitControls Trigger)\"; entity bisection limited to the page entity groups; one requestShadowBake(2) after restoring casters.",
+    "Legacy HeadlessRunner exports kept as thin, labeled preset wrappers over renderEvidence (getHeadlessTelemetry defaults to trio).",
+    "ABG-1 given intent draft (plan table silent). T-BRW-4 went green in Phase 3 (needs the server HELLO).",
+    "Session split: Phases 4-6 ran in the same session as Session B at the owner request."
+  ],
+  "residuals": [
+    "scripts/run_perf_audit.js still prints a hardcoded BEFORE FIX / AFTER FIX table (outside the plan one-line scope; not a claim token). Owner decision.",
+    "artisan://governance resource counts a non-existent status field (plan §16, deferred).",
+    "Audit/import output filenames remain fixed/timestamped at the artifact root (plan §16); content carries the evidence envelope.",
+    "Real Astra session pre-flight is an owner action (see runtime_observation)."
+  ],
+  "runtime_observation": "Superseded fact: PID 4424 (and 25324/25384) are no longer running. At reconciliation 127.0.0.1:3456 is owned by PID 17020, a REPAIRED protocol-2 Artisan MCP (instanceId e65d156c-0757-4fa2-a377-946bc29cdb2a, started 2026-09-22T10:26:42Z, 0 verified clients, untitled_world v1), spawned by the Codex app-server (PID 25344), which also spawned PID 19064 (a second repo MCP; expected bridge state conflict). Both started before the last index.js/main.js edits (07:33 local), so they may run slightly older P0.5 code until the owner restarts the Codex session. Nothing listens on 5173 or 9900. The executor did not and will not touch these processes.",
+  "p1_status": "BUILD-CREATIVE remains approved and unstarted; BUILD-EVIDENCE is closed, but BUILD-CREATIVE and P1 remain mechanically blocked by unfinished BUILD-AUTHORED-BUDGET / ABG-1 (gate P3).",
+  "governance_closeout": {
+    "date": "2026-09-22",
+    "verdict": "ACCEPT",
+    "owner_ruling": "For this closeout only, .claude/scheduled_tasks.lock is an exact-path exception in the historical repair-baseline comparison; no other .claude path is allowed and S8 is unchanged.",
+    "acceptance": ".bridge/ARTISAN-MCP-EVIDENCE-INTEGRITY-ACCEPTANCE.json",
+    "nodes_closed": ["EVI-6", "BUILD-EVIDENCE"],
+    "nodes_left_unfinished": ["BUILD-AUTHORED-BUDGET", "ABG-1"],
+    "treehash": {"removed": [], "unapproved": [], "result": "PASS"},
+    "scope": "Governance only; no source, P0.6, Fantastic Hall, Vault hardening, P1, commit, publish, CTX, or THREEJS_HARNESSING work."
+  },
+  "acceptance_run_1": {
+    "command": "node scripts/verify_mcp_evidence_integrity.mjs",
+    "startedAt": "2026-09-22T11:13:22.363Z",
+    "durationSec": 450,
+    "exit_code": 1,
+    "gates": "43/45",
+    "verdict": {
+      "integrity": "FAIL",
+      "budgetInstrument": "PASS",
+      "p0": "PASS",
+      "overall": "FAIL",
+      "authoredBudget": "FAIL"
+    },
+    "blocking_failures": [
+      "S8-tree-unchanged: .claude/scheduled_tasks.lock (executor harness artifact; git-excluded; acquiredAt 11:13:25.448Z, session ce0c5d6b)"
+    ],
+    "non_blocking_failures": [
+      "A-12 authored budget 56/30 draws, 12,870/15,000 tris, 60.05 FPS (P0.6)",
+      "S7 harness non-blocking preset-profile-budgets (pre-existing)"
+    ],
+    "report": ".artisan-artifacts/verify-evidence/latest/evidence_integrity_report.json",
+    "report_sha256": "53b1abc59054191bcf6ea6cc31ea5733bc1867ce9a8c51aa1ce8a1d5538a5d10",
+    "preserved": ".artisan-artifacts/verify-evidence/preserved-acceptance-run1-2026-09-22T111321Z",
+    "ports": {
+      "vite": 5189,
+      "units": 3481,
+      "live": 3482,
+      "decoy": 3483,
+      "wsTest": 3484
+    },
+    "instances": {
+      "units_headless": "914b3cdf",
+      "live_A": "43a4e1b8 (client f613b8d9)",
+      "conflict_B": "022b220c"
+    }
+  },
+  "acceptance_run_2": {
+    "command": "Authenticated existing canonical report; verifier was not rerun during governance closeout.",
+    "startedAt": "2026-09-22T13:06:39.933Z",
+    "durationSec": 505,
+    "exit_code": 0,
+    "gates": "44/45",
+    "verdict": {"integrity":"PASS","budgetInstrument":"PASS","p0":"PASS","overall":"PASS","authoredBudget":"FAIL"},
+    "blocking_failures": [],
+    "non_blocking_failures": ["A-12 authored budget 56/30 draws, 12,870/15,000 tris, 59.08 FPS (P0.6)"],
+    "report": ".artisan-artifacts/verify-evidence/latest/evidence_integrity_report.json",
+    "report_sha256": "451c8ff5567b83184140285c28729bf50ae505ecf7c405eb1c62b0a07c6119a3",
+    "s8": "PASS — 252 project files byte-identical before/after (artifact root excluded)"
+  },
+  "lessons": [
+    "Any Claude Code tool that persists session state in the project (.claude/scheduled_tasks.lock via ScheduleWakeup/cron/loop) mutates the tree and fails S8; do not arm it while a tree-hashing verifier runs."
+  ]
+}

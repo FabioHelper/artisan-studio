@@ -1,0 +1,152 @@
+{
+  "auditor": "Sol",
+  "date": "2026-09-21",
+  "verdict": "ACCEPT_WITH_FIXES",
+  "commands_run": [
+    {
+      "command": "node .artisan-artifacts/p0-evidence/treehash.mjs compare . .bridge/ARTISAN-VISIBILITY-CREATIVE-BASELINE.json <P0 allowlist plus handoff/worklog/letter>",
+      "result": "PASS: 15 changed, 5 added, 0 removed, unapproved: []."
+    },
+    {
+      "command": "node scripts/check_contract_drift.mjs",
+      "result": "PASS: 41/41 reported. Independent adversarial review found weaknesses in three proof implementations; see q1 and SOL-FIX-1/SOL-FIX-2."
+    },
+    {
+      "command": "node mcp-server/test_ws_bridge.js",
+      "result": "PASS: 29/29, including loopback-only listening, foreign/missing WebSocket Origin rejection, typed reply matching, traversal rejection, configured-root confinement, and bridge release."
+    },
+    {
+      "command": "npm run measure:brightness -- --tag sol-audit --compare-to .artisan-artifacts/brightness/p0-before",
+      "result": "PASS: all 7 scenes x 3 modes and all 7 mode-response checks; maximum clipped 0.08%, maximum triangles 11,484. Draws: trio 16, tavern 17, alchemist 25, armory 22, library 28, Tokyo 45, Winterhold 39."
+    },
+    {
+      "command": "python make_board.py",
+      "result": "NOT RUN IN-PLACE: it overwrites board.html and conflicts with the letter's read-only rule. The safer python scripts/gate.py run invokes make_board.py --check --out board.html for P10 and proved byte identity with a fresh regeneration."
+    },
+    {
+      "command": "python scripts/gate.py",
+      "result": "PASS: P1-P10 green; P10 specifically reports board.html matches a fresh regeneration."
+    },
+    {
+      "command": "node scripts/verify_astra_harness.mjs (through Synapse)",
+      "result": "PASS WITH DECLARED WARNING: 29/30, 0 blocking failures, 1 non-blocking preset-profile-budgets warning (Tokyo 45/30, Winterhold 39/30, Fantastic 58/35), 306 seconds. no-writes-outside-artifacts reports 234 project files SHA-256 byte-identical before/after."
+    },
+    {
+      "command": "git rev-parse HEAD",
+      "result": "PASS: 909d41f182b2c4446411af6e19251f04257e13bf."
+    },
+    {
+      "command": "custom runtime near-match probe through validateWorld, SpatialValidator, compile, and compileEntity",
+      "result": "PASS: 14/14 additional cases rejected, including prefix/suffix, case, whitespace, Tokyo near-matches, __proto__, constructor, toString, empty, null, and undefined; known furniture.table control compiled to 4 meshes; asset-less room root remained valid."
+    },
+    {
+      "command": "custom in-memory negative fixtures against check_contract_drift.mjs static patterns",
+      "result": "FAIL AS PROOF: the scene-branch regex missed double-quoted equality, switch, and includes forms; the substring regex missed assetRef.includes/indexOf/match; the write scan accepted four writes after a safeArtifactPath variable was reassigned outside the root. No project source was mutated."
+    },
+    {
+      "command": "SHA-256 compare .artisan-artifacts/p0-evidence/mat_browser.json vs mat_browser_after.json",
+      "result": "PASS: both E4B2E69CE0A41F94FCAC389145720B1BEC433E965A9CABF41A094D565D545349; browser-live comparable material values are byte-identical before/after."
+    },
+    {
+      "command": "visual inspection of .artisan-artifacts/brightness/p0-after/before_after.png",
+      "result": "AUDITOR PASS, OWNER STILL OPEN: readability is materially improved while dark wood, iron, stone, firelight, and Winterhold's blue identity remain. Winterhold's warm-neutral key is visible as controlled contrast rather than a stylistic takeover."
+    }
+  ],
+  "gates": [
+    {
+      "gate": 1,
+      "status": "PASS",
+      "evidence": "Independent sol-audit run passed all 21 numeric cells and all 7 response checks. The exact default acceptance command is substantive; partial --scenes invocations need clearer labeling but did not affect this run."
+    },
+    {
+      "gate": 2,
+      "status": "PASS",
+      "evidence": "Tokyo means 118.33/108.50/151.94 with pair RMS 33.06/36.79/54.07; Winterhold means 66.07/53.57/72.73 with pair RMS 17.83/10.59/27.82. Both now respond to all modes."
+    },
+    {
+      "gate": 3,
+      "status": "PASS",
+      "evidence": "Independent maximum clipped highlight percentage was 0.08%, well below 2%."
+    },
+    {
+      "gate": 4,
+      "status": "PARTIAL",
+      "evidence": "Sol's visual assessment is positive, but this gate explicitly requires Fabio's approval. No owner-acceptance file exists yet and BUILD-VIS/VIS-6 correctly remain in_execution."
+    },
+    {
+      "gate": 5,
+      "status": "PASS",
+      "evidence": "Node contract check and fresh browser verifier report 53/53 with construction drift 0. Pre/post browser dumps have identical SHA-256, proving no comparable material appearance change."
+    },
+    {
+      "gate": 6,
+      "status": "PARTIAL",
+      "evidence": "All 44 catalog ids compile to non-empty compounds and the observed builder call matches WorldCompiler.routeFor. However routeFor reads the same ARCHETYPE_ROUTES table that performs the build, so it is not an independent oracle. arch.balcony_window is a valid new inline compound repairing a pre-existing crash; arch.tokyo_walls intentionally preserves the historical full-shell route rather than implementing walls-only semantics."
+    },
+    {
+      "gate": 7,
+      "status": "PASS",
+      "evidence": "The four named adversarial ids pass the repository test, five pass the verifier test, and Sol's 14-case extension rejected every near-match on all four paths."
+    },
+    {
+      "gate": 8,
+      "status": "PASS",
+      "evidence": "Fresh verifier and brightness run reproduce 16/17/25/22/28/45/39/58; no passing preset regressed and the three over-budget scenes did not exceed their historical ceilings."
+    },
+    {
+      "gate": 9,
+      "status": "PASS",
+      "evidence": "Fresh maximum diorama triangle count is Winterhold at 11,484, below 15,000."
+    },
+    {
+      "gate": 10,
+      "status": "PASS",
+      "evidence": "Fresh 29/29 bridge/artifact suite covers required Origin, wrong reply type, traversal, and configured-root behavior. Current four non-helper write sites are path-confined, though the static proof must be hardened."
+    },
+    {
+      "gate": 11,
+      "status": "PASS",
+      "evidence": "Baseline compare reports removed: [], unapproved: []; verifier independently reports 234 project files byte-identical during execution. The sole post-audit addition is this explicitly authorized verdict file."
+    },
+    {
+      "gate": 12,
+      "status": "PASS",
+      "evidence": "Fresh full verifier: 29/30, zero blocking failures, one permitted non-blocking draw-budget warning only."
+    },
+    {
+      "gate": 13,
+      "status": "PASS",
+      "evidence": "python scripts/gate.py passed P1-P10; P10 ran make_board.py in --check mode and proved board.html is byte-identical to fresh regeneration. Plain make_board.py was deliberately not run because the audit letter forbids project writes."
+    }
+  ],
+  "answers": {
+    "q1": "The important runtime gates are real, not decorative: the default brightness command rendered 7x3 real frames, the runtime compiler rejected every extra near-match, bridge tests exercised live sockets and temp-root writes, and the full verifier's before/after tree hash stayed clean. Three proof details are nevertheless too weak. First, the routing test derives its expected route from the same route table it tests. Second, the LightingRig/source substring checks are narrow regexes and miss easy equivalent syntax. Third, the static write scan proves only that an identifier was once initialized by an artifact helper, not that the write still uses a confined value. The exact brightness run is non-vacuous, but --scenes can produce a green partial report without declaring itself partial. These are gate-harness defects; I found no present runtime escape or unknown-archetype fallback.",
+    "q2": "Record gate 6 as PARTIAL. The balcony fix is technically and aesthetically legitimate: the old foundry call never existed, the new implementation is compound rather than primitive fallback, and it batches to three materials/draws. But it is a newly authored inline route, not proof that the old intended foundry route worked. Tokyo walls explicitly reproduces the old reachable behavior because the earlier apartment-shell branch shadowed the walls branch; it is historically faithful but semantically broader than a walls archetype. P1 should give both explicit foundry ownership and an independent expected-route contract.",
+    "q3": "Acceptable as a temporary P0 safety result, not as final proof. The four current writes receive paths from safeArtifactPath, the temp-root tests pass, and the SHA-256 runtime gate found no project writes. Yet index.js and HeadlessRunner.js still perform the writes themselves, so the literal consolidation requested by the plan is incomplete, and the static scan can false-pass after reassignment. Complete the routing and proof hardening before P1 expands the write surface.",
+    "q4": "Yes: browser-live values are the correct production source of truth because textured browser materials use real canvas textures while Node intentionally builds fallbacks. The implementation is safe because register records construction disagreement before applying canonical fields, the fresh browser gate reports construction drift 0, and the pre/post browser dumps are byte-identical. The contract must remain the authoring source going forward; future mismatches should fail via contractDrift rather than be silently re-baselined from live output.",
+    "q5": "Sol's recommendation is approve. Dusk is clearly readable, Hearth remains deliberately dramatic, and Sol is brighter without flattening the palette. Winterhold's warm-neutral key makes the armillary, books, lectern, and masonry readable while the cyan witchlight, ice, and aurora still dominate its identity. Fabio remains the final authority and gate 4 must stay open until that decision is recorded.",
+    "q6": "Governance is mostly admirably honest: BUILD-VIS and VIS-6 remain in_execution, the three draw overages are open, cabinet values are marked unverified-component-scope, BUILD-CREATIVE is approved rather than landed, and BUILD-PERF-SCENES is draft. Two closed phase notes are slightly stronger than the proof: VIS-1 says intended-route parity despite the self-referential oracle, and VIS-4 implies robust write proof despite the regex weakness/direct-write deviation. Qualify or re-close those after SOL-FIX-1/SOL-FIX-2; no performance claim should be reopened or softened."
+  },
+  "required_fixes_before_P1": [
+    {
+      "id": "SOL-FIX-1",
+      "file": "src/contracts/artisanContract.js; src/engine/WorldCompiler.js; scripts/check_contract_drift.mjs",
+      "problem": "The 44-route builder-spy uses WorldCompiler.routeFor, which reads the same ARCHETYPE_ROUTES table being exercised, so a semantically wrong route can agree with itself and pass.",
+      "expected": "Create an implementation-independent expected-route oracle (canonical route metadata or an explicit audited fixture), compare every actual builder/inline route to it, and explicitly encode the temporary balcony inline route and Tokyo full-shell route until P1 replaces them. Add a negative fixture showing that a known id deliberately mapped to the wrong real builder fails."
+    },
+    {
+      "id": "SOL-FIX-2",
+      "file": "scripts/check_contract_drift.mjs; mcp-server/artifacts.js; mcp-server/index.js; mcp-server/HeadlessRunner.js; mcp-server/test_ws_bridge.js",
+      "problem": "The static LightingRig and artifact-write scans are regex/provenance heuristics that Sol broke in memory without changing behavior: equivalent scene branches were missed, and a confined variable reassigned to an outside path still passed.",
+      "expected": "Replace scene-branch text matching with behavioral verification that every scene/preset applies exactly its canonical profile. Route all MCP fs writes through artifacts.js helpers and make screenshot confinement explicit at the write boundary. Use runtime temp-root/instrumented tests or an AST check that fails reassignment/alias negative fixtures. Amend the P1 allowlist for HeadlessRunner.js, artifacts.js, and test_ws_bridge.js before touching them."
+    }
+  ],
+  "p1_amendments": [
+    "Do not start P1 until SOL-FIX-1 and SOL-FIX-2 pass the full P0 command set and Fabio records the gate-4 contact-sheet decision.",
+    "Add mcp-server/artifacts.js, mcp-server/HeadlessRunner.js, and mcp-server/test_ws_bridge.js to the P1 allowlist so write consolidation and its runtime proof are authorized rather than implicit.",
+    "Make scripts/measure_brightness.mjs mark --scenes runs as partial and prevent a partial report from satisfying the verifier; a gated/full run must assert exactly the seven canonical dioramas x three presets.",
+    "Do not close FND-TOKYO-FOUNDRY-BUILDERS-MISSING merely because both ids compile. P1 must deliver a foundry-owned balcony compound and intentional walls-only semantics (or explicitly rename/deprecate arch.tokyo_walls if full-shell semantics are truly desired).",
+    "Keep the P0 brightness thresholds and contact-sheet mood as non-regression gates while adding creative lights, material variants, and candle clusters."
+  ],
+  "notes_for_claude": "P0 behavior is substantially successful and the visual lift is good. This verdict is ACCEPT_WITH_FIXES because the remaining issues are proof quality and one semantic routing caveat, not a request to retune lighting or rewrite the architecture. Apply only SOL-FIX-1 and SOL-FIX-2 in a fresh P0 repair session, preserve the dirty tree, write one worklog entry per fix, rerun the exact audit commands, do not commit, and do not begin P1. Fabio separately decides gate 4."
+}

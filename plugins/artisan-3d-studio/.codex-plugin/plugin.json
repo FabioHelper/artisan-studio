@@ -1,0 +1,24 @@
+{
+  "name": "artisan-3d-studio",
+  "version": "2.0.0",
+  "description": "Private local Artisan 3D Studio harness: a deterministic World Compass MCP (stdio) plus the Artisan authoring skill for artisan-grade Three.js scenes.",
+  "author": { "name": "Fabio D" },
+  "license": "UNLICENSED",
+  "keywords": ["threejs", "3d", "procedural", "mcp", "local"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Artisan 3D Studio",
+    "shortDescription": "Author artisan-grade 3D worlds through a deterministic local MCP",
+    "longDescription": "Declarative World Compass authoring for Three.js: catalog archetypes, locked PBR materials, spatial laws, live loopback preview, telemetry and screenshots. Local and private; nothing is published.",
+    "developerName": "Fabio D",
+    "category": "Coding",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "Build a candle-lit alchemist corner in Artisan Studio",
+      "Audit the Winterhold scene against its draw-call budget",
+      "Preview and screenshot my current Artisan world"
+    ],
+    "brandColor": "#E58E3E"
+  }
+}

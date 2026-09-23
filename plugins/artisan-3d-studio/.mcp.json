@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "artisan-3d": {
+      "command": "node",
+      "args": ["C:/Users/Fabio D/.gemini/antigravity/scratch/artisan-studio-app/mcp-server/index.js"],
+      "cwd": "C:/Users/Fabio D/.gemini/antigravity/scratch/artisan-studio-app/mcp-server",
+      "env": {
+        "ARTISAN_STUDIO_URL": "http://127.0.0.1:5173/"
+      },
+      "startup_timeout_sec": 20,
+      "tool_timeout_sec": 120
+    }
+  }
+}

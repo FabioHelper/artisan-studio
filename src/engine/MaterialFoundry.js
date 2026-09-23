@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MATERIAL_CATALOG } from '../contracts/artisanContract.js';
 
 /**
  * ARTISAN MATERIAL FOUNDRY
@@ -7,6 +8,8 @@ import * as THREE from 'three';
 export class MaterialFoundry {
   constructor() {
     this.materials = new Map();
+    // Construction values that disagreed with the canonical contract (should stay empty; see register()).
+    this.contractDrift = [];
     this.initCoreMaterials();
   }
 
@@ -84,21 +87,16 @@ export class MaterialFoundry {
       metalness: 0.05
     }));
 
-    this.register('cloth.woven_cushion', new THREE.MeshPhysicalMaterial({
+    this.register('cloth.woven_cushion', new THREE.MeshStandardMaterial({
       color: 0x8a402a,
-      roughness: 0.92,
-      sheen: 0.70,
-      sheenColor: new THREE.Color(0xb2563a),
-      sheenRoughness: 0.50
+      roughness: 0.90,
+      metalness: 0.0
     }));
 
-    this.register('ceramic.dish', new THREE.MeshPhysicalMaterial({
+    this.register('ceramic.dish', new THREE.MeshStandardMaterial({
       color: 0x1c1f24, // Glazed deep charcoal/onyx ceramic
-      roughness: 0.14,
-      metalness: 0.04,
-      clearcoat: 0.92,
-      clearcoatRoughness: 0.06,
-      ior: 1.52
+      roughness: 0.20,
+      metalness: 0.05
     }));
 
     // Emissive / Energy
@@ -118,13 +116,10 @@ export class MaterialFoundry {
     // ==========================================
     // MODERN JAPANESE & NINTENDO MATERIALS
     // ==========================================
-    this.register('wood.birch_light', new THREE.MeshPhysicalMaterial({
+    this.register('wood.birch_light', new THREE.MeshStandardMaterial({
       color: 0xdfcbaf, // Clean natural Japanese blonde birch / hinoki
-      roughness: 0.50,
-      metalness: 0.0,
-      sheen: 0.38,
-      sheenColor: new THREE.Color(0xfff1de),
-      sheenRoughness: 0.42
+      roughness: 0.55,
+      metalness: 0.0
     }));
 
     this.register('metal.matte_black', new THREE.MeshStandardMaterial({
@@ -141,22 +136,16 @@ export class MaterialFoundry {
       envMapIntensity: 1.40
     }));
 
-    this.register('plastic.joycon_red', new THREE.MeshPhysicalMaterial({
+    this.register('plastic.joycon_red', new THREE.MeshStandardMaterial({
       color: 0xff3b20, // Iconic Nintendo Neon Red
       roughness: 0.36,
-      metalness: 0.04,
-      clearcoat: 0.16,
-      clearcoatRoughness: 0.25,
-      envMapIntensity: 0.85
+      metalness: 0.04
     }));
 
-    this.register('plastic.joycon_blue', new THREE.MeshPhysicalMaterial({
+    this.register('plastic.joycon_blue', new THREE.MeshStandardMaterial({
       color: 0x0ab8e6, // Iconic Nintendo Neon Blue
       roughness: 0.36,
-      metalness: 0.04,
-      clearcoat: 0.16,
-      clearcoatRoughness: 0.25,
-      envMapIntensity: 0.85
+      metalness: 0.04
     }));
 
     // Realistic Procedural VS Code IDE Screen with syntax-highlighted Nintendo C++ code
@@ -168,13 +157,10 @@ export class MaterialFoundry {
     // Tokyo Twilight / Night Skyline Window Backdrop with glowing skyscrapers and Tokyo Tower
     this.register('skyline.tokyo_night', this.createTokyoSkylineMaterial());
 
-    this.register('fabric.tatami', new THREE.MeshPhysicalMaterial({
+    this.register('fabric.tatami', new THREE.MeshStandardMaterial({
       color: 0xcbbd90, // Natural woven rush grass
-      roughness: 0.86,
-      metalness: 0.0,
-      sheen: 0.85,     // Silky fabric graze across woven igusa straw
-      sheenColor: new THREE.Color(0xe6dcb6),
-      sheenRoughness: 0.45
+      roughness: 0.84,
+      metalness: 0.0
     }));
 
     this.register('fabric.tatami_border', new THREE.MeshStandardMaterial({
@@ -195,13 +181,10 @@ export class MaterialFoundry {
       metalness: 0.0
     }));
 
-    this.register('ceramic.white', new THREE.MeshPhysicalMaterial({
+    this.register('ceramic.white', new THREE.MeshStandardMaterial({
       color: 0xf8f6f0, // Clean vitrified white porcelain
-      roughness: 0.12,
-      metalness: 0.0,
-      clearcoat: 0.95, // Glazed specular reflection
-      clearcoatRoughness: 0.05,
-      ior: 1.52
+      roughness: 0.18,
+      metalness: 0.05
     }));
 
     this.register('metal.brass_gold', new THREE.MeshStandardMaterial({
@@ -345,7 +328,29 @@ export class MaterialFoundry {
     this.register('skyline.village_sunset', this.createVillageSunsetMaterial());
   }
 
+  /**
+   * Registers a pooled base material and applies the canonical comparable PBR fields from
+   * MATERIAL_CATALOG (color, roughness, metalness, emissive, emissiveIntensity), so the contract is the
+   * single source of those values. Textures and shaders stay procedural here. Any construction value
+   * that disagreed with the contract is recorded in `contractDrift` (gated by check_contract_drift.mjs
+   * in Node and by the verifier in the browser). Headless Node builds of textured materials use
+   * canvas-free fallbacks, so their construction values are not compared there.
+   */
   register(name, material) {
+    const spec = MATERIAL_CATALOG[name];
+    if (spec) {
+      const compare = !(spec.textured && typeof document === 'undefined');
+      const apply = (field, canonical, current, set) => {
+        if (compare && current !== canonical) this.contractDrift.push({ id: name, field, constructed: current, canonical });
+        set(canonical);
+      };
+      const hex = (c) => `#${c.getHexString().toUpperCase()}`;
+      apply('color', spec.color, hex(material.color), v => material.color.set(v));
+      apply('roughness', spec.roughness, material.roughness, v => { material.roughness = v; });
+      apply('metalness', spec.metalness, material.metalness, v => { material.metalness = v; });
+      apply('emissive', spec.emissive || '#000000', hex(material.emissive), v => material.emissive.set(v));
+      if (spec.emissive) apply('emissiveIntensity', spec.emissiveIntensity, material.emissiveIntensity, v => { material.emissiveIntensity = v; });
+    }
     this.materials.set(name, material);
   }
 

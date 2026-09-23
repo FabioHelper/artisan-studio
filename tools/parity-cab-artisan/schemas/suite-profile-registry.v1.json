@@ -1,0 +1,191 @@
+{
+  "schema_version": "1.0.0",
+  "schema_kind": "modularization-suite/gate-profile-registry",
+  "authority": {
+    "suite_run_schema_owner": "parity-cab",
+    "fact_writer": "transformer",
+    "final_verdict_writer": "verifier",
+    "readers": ["transformer", "verifier", "artifact-system"]
+  },
+  "publication": {
+    "method": "atomic-temp-flush-rename",
+    "current_pointer_advances_only_after": "schema-and-provenance-validation",
+    "completed_attempts_immutable": true,
+    "retry_creates_new_attempt_id": true,
+    "cancelled_attempt_late_writes": "reject"
+  },
+  "exit_meanings": { "0": "GO", "1": "NO-GO", "2": "INCOMPLETE" },
+  "profiles": {
+    "library": {
+      "required_gate_ids": ["01", "02", "03", "04", "05b", "09", "10", "11", "11b", "11c", "11d", "05"],
+      "optional_gate_ids": ["06", "07", "08", "09b", "12", "13", "14", "15"],
+      "conditional_required": [
+        { "gate_ids": ["08"], "predicate": { "kind": "signal_true", "signal": "module_state_or_lifecycle" } },
+        { "gate_ids": ["09b"], "predicate": { "kind": "signal_true", "signal": "jsx_or_html" } },
+        { "gate_ids": ["06", "07"], "predicate": { "kind": "signal_true", "signal": "declared_side_effects" } }
+      ]
+    },
+    "web-app": {
+      "base_profile": "library",
+      "required_gate_ids": ["01", "02", "03", "04", "05b", "09", "10", "11", "11b", "11c", "11d", "06", "07", "08", "09b", "05"],
+      "optional_gate_ids": ["12", "13", "14", "15"],
+      "conditional_required": []
+    },
+    "threejs": {
+      "base_profile": "web-app",
+      "required_gate_ids": ["01", "02", "03", "04", "05b", "09", "10", "11", "11b", "11c", "11d", "06", "07", "08", "09b", "12", "13", "14", "15", "05"],
+      "optional_gate_ids": [],
+      "conditional_required": []
+    },
+    "custom": {
+      "allowed_base_profiles": ["library", "web-app", "threejs"],
+      "base_profile_required": true,
+      "forbid_empty_profile": true,
+      "forbid_unknown_gates": true,
+      "forbid_base_gate_exclusion": true,
+      "require_signed_not_applicable": true
+    }
+  },
+  "gate_catalog": {
+    "01": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/01-inventory.cjs"],
+      "prerequisites": ["bound-input-manifest"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "inventory.{side}.sij.json", "output_schema": { "kind": "parity-cab/inventory", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-01-zero-observations"
+    },
+    "02": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/02-classify.cjs"],
+      "prerequisites": ["01"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "inventory.{side}.tagged.sij.json", "output_schema": { "kind": "parity-cab/inventory-tagged", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-02-zero-observations"
+    },
+    "03": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/03-diff.cjs"],
+      "prerequisites": ["01", "02"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "parity-report.sij.json", "output_schema": { "kind": "parity-cab/parity-report", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-03-zero-observations"
+    },
+    "04": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/04-rfc-gen.cjs"],
+      "prerequisites": ["03"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "rfc-set.sij.json", "output_schema": { "kind": "parity-cab/rfc-set", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-04-zero-observations"
+    },
+    "05b": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/05b-scaffold-check.cjs"],
+      "prerequisites": ["candidate-artifact"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "scaffold-check.sij.json", "output_schema": { "kind": "parity-cab/scaffold-check", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-05b-zero-observations"
+    },
+    "06": {
+      "profile_status": { "library": "conditional", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/06-behavior-trace.cjs"],
+      "prerequisites": ["browser-runtime", "same-run-boot"], "applicability_predicate": { "kind": "signal_true", "signal": "runtime_required" },
+      "evidence_filename": "behavior-capture.sij.json", "output_schema": { "kind": "parity-cab/behavior-capture", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-06-zero-observations"
+    },
+    "07": {
+      "profile_status": { "library": "conditional", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/07-trace-diff.cjs"],
+      "prerequisites": ["06", "same-run-monolith-and-candidate-captures"], "applicability_predicate": { "kind": "signal_true", "signal": "runtime_required" },
+      "evidence_filename": "behavior-trace.sij.json", "output_schema": { "kind": "parity-cab/behavior-trace", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-07-zero-observations"
+    },
+    "08": {
+      "profile_status": { "library": "conditional", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/08-singleton-scan.cjs"],
+      "prerequisites": ["candidate-artifact"], "applicability_predicate": { "kind": "signal_true", "signal": "module_state_or_lifecycle" },
+      "evidence_filename": "singleton-lifetime-report.sij.json", "output_schema": { "kind": "parity-cab/singleton-lifetime-report", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-08-zero-observations"
+    },
+    "09": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/09-coverage-scan.cjs"],
+      "prerequisites": ["same-run-source-and-candidate"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "coverage-inventory.sij.json", "output_schema": { "kind": "parity-cab/coverage-inventory", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-09-zero-observations"
+    },
+    "09b": {
+      "profile_status": { "library": "conditional", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/09b-jsx-coverage.cjs"],
+      "prerequisites": ["jsx-or-html-detected"], "applicability_predicate": { "kind": "signal_true", "signal": "jsx_or_html" },
+      "evidence_filename": "jsx-coverage.sij.json", "output_schema": { "kind": "parity-cab/jsx-coverage", "version": "1.0.0" },
+      "accepted_decisions": ["pass", "not_applicable"], "minimum_observations": 1, "planted_negative_fixture": "gate-09b-zero-observations"
+    },
+    "10": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/10-coverage-gate.cjs"],
+      "prerequisites": ["09", "04"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "coverage-verdict.json", "output_schema": { "kind": "parity-cab/coverage-verdict", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-10-zero-observations"
+    },
+    "11": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/11-ast-xray.cjs"],
+      "prerequisites": ["same-run-source-and-candidate"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "ast-xray.sij.json", "output_schema": { "kind": "parity-cab/ast-xray", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-11-zero-observations"
+    },
+    "11b": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/11b-block-diff.cjs"],
+      "prerequisites": ["11"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "block-diff.sij.json", "output_schema": { "kind": "parity-cab/block-diff", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-11b-zero-observations"
+    },
+    "11c": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/11c-remendo-scan.cjs"],
+      "prerequisites": ["11"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "remendo-scan.sij.json", "output_schema": { "kind": "parity-cab/remendo-scan", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-11c-zero-observations"
+    },
+    "11d": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/11d-new-block-triage.cjs"],
+      "prerequisites": ["11"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "new-block-triage.sij.json", "output_schema": { "kind": "parity-cab/new-block-triage", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-11d-zero-observations"
+    },
+    "12": {
+      "profile_status": { "library": "optional", "web-app": "optional", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/12-pixel-diff.cjs"],
+      "prerequisites": ["fixed-scene-clock-seed-camera-viewport-renderer"], "applicability_predicate": { "kind": "profile_in", "profiles": ["threejs"] },
+      "evidence_filename": "pixel-diff.sij.json", "output_schema": { "kind": "parity-cab/pixel-diff", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-12-zero-observations"
+    },
+    "13": {
+      "profile_status": { "library": "optional", "web-app": "optional", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/13-scenegraph-hash.cjs"],
+      "prerequisites": ["fixed-scene-clock-seed-camera-viewport-renderer"], "applicability_predicate": { "kind": "profile_in", "profiles": ["threejs"] },
+      "evidence_filename": "scene-graph.sij.json", "output_schema": { "kind": "parity-cab/scene-graph", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-13-zero-observations"
+    },
+    "14": {
+      "profile_status": { "library": "optional", "web-app": "optional", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/14-materials-deep.cjs"],
+      "prerequisites": ["fixed-scene-clock-seed-camera-viewport-renderer"], "applicability_predicate": { "kind": "profile_in", "profiles": ["threejs"] },
+      "evidence_filename": "materials-deep.sij.json", "output_schema": { "kind": "parity-cab/materials-deep", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-14-zero-observations"
+    },
+    "15": {
+      "profile_status": { "library": "optional", "web-app": "optional", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/15-anim-series.cjs"],
+      "prerequisites": ["fixed-scene-clock-seed-camera-viewport-renderer"], "applicability_predicate": { "kind": "profile_in", "profiles": ["threejs"] },
+      "evidence_filename": "anim-series.sij.json", "output_schema": { "kind": "parity-cab/anim-series", "version": "1.0.0" },
+      "accepted_decisions": ["pass"], "minimum_observations": 1, "planted_negative_fixture": "gate-15-zero-observations"
+    },
+    "05": {
+      "profile_status": { "library": "required", "web-app": "required", "threejs": "required" },
+      "executable": "node", "argv": ["scripts/05-cab-gate.cjs"],
+      "prerequisites": ["all-required-gates-completed-and-validated"], "applicability_predicate": { "kind": "always" },
+      "evidence_filename": "aggregate-verdict.sij.json", "output_schema": { "kind": "parity-cab/aggregate-verdict", "version": "1.0.0" },
+      "accepted_decisions": ["GO"], "minimum_observations": 1, "planted_negative_fixture": "gate-05-non-go-or-zero-observations"
+    }
+  }
+}

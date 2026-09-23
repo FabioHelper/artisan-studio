@@ -1,0 +1,9 @@
+{
+  "_comment": "parity-cab DEMO config — a safe, self-contained sandbox. NO artifact_system_sink → fully standalone (no server needed). Run the SOURCE-based gates from this folder.",
+  "project": "demo",
+  "monolith": { "root": "./monolith.jsx", "kind": "single-file" },
+  "modular": { "root": "./modular", "kind": "directory" },
+  "out_dir": "./.parity",
+  "thresholds": { "parity_score_min": 0.85, "max_high_open": 0 },
+  "risk_overrides": {}
+}

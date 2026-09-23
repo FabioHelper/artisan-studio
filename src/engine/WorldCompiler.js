@@ -2,6 +2,126 @@ import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SpatialValidator } from './SpatialValidator.js';
 import { UniversalFoundry } from './UniversalFoundry.js';
+import { isKnownArchetype } from '../contracts/artisanContract.js';
+
+// Exact archetype -> builder routes (SPEC-07 P0.1). Keys equal ARCHETYPE_CATALOG ids exactly (no
+// substring matching). `route` is this table's own label only; scripts/check_contract_drift.mjs spies
+// on the builders, executes every route, and compares the builder that actually ran against the
+// independent ARCHETYPE_EXPECTED_ROUTES oracle in the contract (SOL-FIX-1), never against this label.
+const ARCHETYPE_ROUTES = {
+  'arch.winterhold_shell': { route: 'buildWinterholdShell', build(g, m) { this.foundry.buildWinterholdShell(g, m(0, 'stone.winterhold_masonry'), m(1, 'stone.nordic_carved'), m(2, 'magic.arcane_rune'), m(3, 'banner.winterhold'), m(4, 'metal.forged_iron'), m(5, 'skyline.winterhold_aurora'), m(6, 'magic.witchlight_blue'), m(7, 'ice.glacial')); } },
+  'arch.library_shell': { route: 'buildLibraryShell', build(g, m) { this.foundry.buildLibraryShell(g, m(0, 'stone.rough_local'), m(1, 'wood.dark_oak'), m(2, 'glass.window'), m(3, 'skyline.misty_mountains')); } },
+  'arch.alchemist_shell': { route: 'buildAlchemistShell', build(g, m) { this.foundry.buildAlchemistShell(g, m(0, 'stone.rough_local'), m(1, 'wood.dark_oak'), m(2, 'glass.window'), m(3, 'skyline.cobblestone_alley')); } },
+  'arch.armory_shell': { route: 'buildArmoryShell', build(g, m) { this.foundry.buildArmoryShell(g, m(0, 'stone.rough_local'), m(1, 'metal.forged_iron'), m(2, 'wood.weathered_oak'), m(3, 'skyline.stormy_bastion')); } },
+  'arch.forge_pavilion': { route: 'buildForgePavilionShell', build(g, m) { this.foundry.buildForgePavilionShell(g, m(0, 'stone.rough_local'), m(1, 'wood.dark_oak'), m(2, 'skyline.twilight_valley')); } },
+  'arch.tavern_hall': { route: 'buildTavernHallShell', build(g, m) { this.foundry.buildTavernHallShell(g, m(0, 'plaster.lime_warm'), m(1, 'wood.dark_oak'), m(2, 'stone.rough_local'), m(3, 'glass.window'), m(4, 'skyline.village_sunset')); } },
+  'workshop.arcane_enchanter': { route: 'buildArcaneEnchanter', build(g, m) { this.foundry.buildArcaneEnchanter(g, m(0, 'stone.winterhold_masonry'), m(1, 'stone.nordic_carved'), m(2, 'crystal.soul_gem'), m(3, 'crystal.soul_gem_cyan'), m(4, 'metal.forged_iron'), m(5, 'metal.brass_gold'), m(6, 'magic.witchlight_blue'), m(7, 'book.grimoire_page'), m(8, 'bone.weathered_ivory'), m(9, 'bone.horn_dark'), m(10, 'wax.candle'), m(11, 'ember')); } },
+  'storage.arcanaeum_bookshelf': { route: 'buildArcanaeumBookshelf', build(g, m) { this.foundry.buildArcanaeumBookshelf(g, m(0, 'wood.dark_oak'), m(1, 'metal.forged_iron'), m(2, 'leather.spellbook_navy'), m(3, 'leather.spellbook_crimson'), m(4, 'book.grimoire_page')); } },
+  'prop.armillary_sphere': { route: 'buildArmillarySphere', build(g, m) { this.foundry.buildArmillarySphere(g, m(0, 'stone.nordic_carved'), m(1, 'metal.brass_gold'), m(2, 'crystal.soul_gem_cyan')); } },
+  'lighting.winterhold_brazier': { route: 'buildWinterholdBrazier', build(g, m) { this.foundry.buildWinterholdBrazier(g, m(0, 'metal.forged_iron'), m(1, 'magic.witchlight_blue'), m(2, 'magic.witchlight_coals')); } },
+  'prop.spell_lectern': { route: 'buildSpellLectern', build(g, m) { this.foundry.buildSpellLectern(g, m(0, 'stone.nordic_carved'), m(1, 'metal.brass_gold'), m(2, 'leather.spellbook_navy'), m(3, 'book.grimoire_page'), m(4, 'crystal.soul_gem_cyan')); } },
+  'arch.tokyo_apartment_shell': { route: 'buildTokyoApartmentShell', build(g, m) { buildTokyoShell.call(this, g, m); } },
+  // UniversalFoundry has no walls-only builder; the walls ship inside the apartment shell, which is
+  // what this id rendered as before SPEC-07. A walls-only foundry builder is a P1 item.
+  'arch.tokyo_walls': { route: 'buildTokyoApartmentShell', build(g, m) { buildTokyoShell.call(this, g, m); } },
+  'arch.tatami_floor': { route: 'buildTatamiFloor', build(g, m) { this.foundry.buildTatamiFloor(g, m(0, 'fabric.tatami'), m(1, 'fabric.tatami_border')); } },
+  // UniversalFoundry never had buildTokyoBalconyWindow (the pre-SPEC-07 route threw a TypeError);
+  // the compound is built here until P1 moves it into the foundry.
+  'arch.balcony_window': { route: 'compileBalconyWindow', build(g, m) { INLINE_BUILDERS.compileBalconyWindow(g, m(0, 'metal.matte_black'), m(1, 'glass.window'), m(2, 'skyline.tokyo_night')); } },
+  'furniture.tokyo_desk': { route: 'buildTokyoDesk', build(g, m) { this.foundry.buildTokyoDesk(g, m(0, 'wood.birch_light'), m(1, 'metal.matte_black')); } },
+  'prop.nintendo_rig': { route: 'buildNintendoRig', build(g, m) { this.foundry.buildNintendoRig(g, m(0, 'screen.dev_glow'), m(1, 'screen.mario_glow'), m(2, 'metal.matte_black'), m(3, 'plastic.joycon_red'), m(4, 'plastic.joycon_blue'), m(5, 'ceramic.white')); } },
+  'furniture.ergonomic_chair': { route: 'buildErgonomicChair', build(g, m) { this.foundry.buildErgonomicChair(g, m(0, 'fabric.tatami_border'), m(1, 'metal.matte_black')); } },
+  'arch.shoji_window': { route: 'buildShojiWindow', build(g, m) { this.foundry.buildShojiWindow(g, m(0, 'wood.birch_light'), m(1, 'paper.shoji')); } },
+  'decor.bonsai': { route: 'buildBonsai', build(g, m) { this.foundry.buildBonsai(g, m(0, 'ceramic.white'), m(1, 'plant.bonsai'), m(2, 'wood.dark_oak')); } },
+  'furniture.game_shelf': { route: 'buildGameShelf', build(g, m) { this.foundry.buildGameShelf(g, m(0, 'wood.birch_light'), m(1, 'plastic.joycon_red')); } },
+  'painting.sun_mountain_01': { route: 'compileFramedPanel', build(g, m) { INLINE_BUILDERS.compileFramedPanel(g, m(1, 'wood.dark_oak'), m(0, 'cloth.painted_panel')); } },
+  'decor.nintendo_art': { route: 'compileFramedPanel', build(g, m) { INLINE_BUILDERS.compileFramedPanel(g, m(1, 'metal.matte_black'), m(0, 'decor.nintendo_art')); } },
+  'forge.stone_chimney_family': { route: 'buildHearth', build(g, m) { this.foundry.buildHearth(g, m(0, 'stone.hearth'), m(1, 'plaster.lime_warm'), m(2, 'ember')); } },
+  'arch.fireplace': { route: 'buildFireplace', build(g, m) { this.foundry.buildFireplace(g, m(0, 'stone.hearth'), m(1, 'ember')); } },
+  'arch.hearth': { route: 'buildFireplace', build(g, m) { this.foundry.buildFireplace(g, m(0, 'stone.hearth'), m(1, 'ember')); } },
+  'hearth.stone_family': { route: 'buildFireplace', build(g, m) { this.foundry.buildFireplace(g, m(0, 'stone.hearth'), m(1, 'ember')); } },
+  'anvil.forged_iron_01': { route: 'buildAnvil', build(g, m) { this.foundry.buildAnvil(g, m(0, 'metal.forged_iron'), m(1, 'metal.polished_iron'), m(2, 'wood.weathered_oak')); } },
+  'bellows.leather_iron_01': { route: 'buildBellows', build(g, m) { this.foundry.buildBellows(g, m(0, 'wood.dark_oak'), m(1, 'leather.worn'), m(2, 'metal.forged_iron')); } },
+  'furniture.bookshelf': { route: 'buildBookshelf', build(g, m) { this.foundry.buildBookshelf(g, m(0, 'wood.dark_oak')); } },
+  'workshop.weapon_rack': { route: 'buildWeaponRack', build(g, m) { this.foundry.buildWeaponRack(g, m(0, 'wood.dark_oak'), m(1, 'metal.forged_iron')); } },
+  'kitchen.cauldron': { route: 'buildCauldron', build(g, m) { this.foundry.buildCauldron(g, m(0, 'metal.forged_iron'), m(1, 'ember')); } },
+  'furniture.table': { route: 'buildTable', build(g, m) { this.foundry.buildTable(g, m(0, 'wood.dark_oak'), m(1, 'ceramic.dish')); } },
+  'table.domestic_oak_01': { route: 'buildTable', build(g, m) { this.foundry.buildTable(g, m(0, 'wood.dark_oak'), m(1, 'ceramic.dish')); } },
+  'furniture.desk': { route: 'buildTable', build(g, m) { this.foundry.buildTable(g, m(0, 'wood.dark_oak'), m(1, 'ceramic.dish')); } },
+  'storage.chest': { route: 'buildChest', build(g, m) { this.foundry.buildChest(g, m(0, 'wood.weathered_oak'), m(1, 'metal.forged_iron')); } },
+  'chest.storage_strapped_01': { route: 'buildChest', build(g, m) { this.foundry.buildChest(g, m(0, 'wood.weathered_oak'), m(1, 'metal.forged_iron')); } },
+  'storage.barrel': { route: 'buildBarrel', build(g, m) { this.foundry.buildBarrel(g, m(0, 'wood.weathered_oak'), m(1, 'metal.forged_iron')); } },
+  'storage.crate': { route: 'buildCrate', build(g, m) { this.foundry.buildCrate(g, m(0, 'wood.weathered_oak'), m(1, 'metal.forged_iron')); } },
+  'lighting.lantern': { route: 'buildLantern', build(g, m) { this.foundry.buildLantern(g, m(0, 'metal.forged_iron'), m(1, 'ember')); } },
+  'furniture.bench': { route: 'buildBench', build(g, m) { this.foundry.buildBench(g, m(0, 'wood.dark_oak'), m(1, 'cloth.woven_cushion')); } },
+  'arch.floor': { route: 'buildFloor', build(g, m) { this.foundry.buildFloor(g, m(0, 'wood.floor_oak')); } },
+  'arch.wall': { route: 'buildWall', build(g, m) { this.foundry.buildWall(g, m(0, 'plaster.lime_warm'), m(1, 'wood.dark_oak')); } },
+  'decor.woven_rug': { route: 'compileRug', build(g, m) { INLINE_BUILDERS.compileRug(g, m(0, 'cloth.woven_rug')); } }
+};
+
+// Inline compounds are called through this object (not directly) so the drift check can observe
+// which inline builder actually ran, exactly as it does for UniversalFoundry build* methods.
+const INLINE_BUILDERS = { compileBalconyWindow, compileFramedPanel, compileRug };
+
+function buildTokyoShell(g, m) {
+  this.foundry.buildTokyoApartmentShell(g, m(0, 'plaster.tokyo_wall'), m(1, 'wood.birch_light'), m(2, 'fabric.tatami'), m(3, 'fabric.tatami_border'), m(4, 'glass.window'), m(5, 'metal.matte_black'), m(6, 'skyline.tokyo_night'), m(7, 'ceramic.white'));
+}
+
+function compileFramedPanel(group, frameMat, canvasMat) {
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.05, 0.04), frameMat);
+  frame.castShadow = true;
+  group.add(frame);
+  const canvas = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.98), canvasMat);
+  canvas.position.z = 0.025;
+  group.add(canvas);
+}
+
+function compileRug(group, rugMat) {
+  const rug = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.4), rugMat);
+  rug.rotation.x = -Math.PI / 2;
+  rug.position.y = 0.01;
+  rug.receiveShadow = true;
+  group.add(rug);
+}
+
+/**
+ * Tokyo floor-to-ceiling balcony slider (catalog footprint 3.2 x 2.4 x 0.08 m, origin at floor centre).
+ * Macro: aluminium frame + two overlapping sliding panes. Meso: meeting stiles, floor track, balcony
+ * railing with balusters. Backdrop: night skyline card behind the railing. Merges to 3 draws (frame, glass, skyline).
+ */
+function compileBalconyWindow(group, frameMat, glassMat, skylineMat) {
+  const W = 3.2, H = 2.4, F = 0.07;
+  const box = (w, h, d, mat, x, y, z) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = mat === frameMat;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  };
+  // Outer frame and floor track
+  box(W, F, 0.08, frameMat, 0, H - F / 2, 0);
+  box(W, 0.03, 0.16, frameMat, 0, 0.015, 0);
+  box(F, H, 0.08, frameMat, -W / 2 + F / 2, H / 2, 0);
+  box(F, H, 0.08, frameMat, W / 2 - F / 2, H / 2, 0);
+  // Two sliding panes on offset tracks, overlapping at the centre meeting stiles
+  const paneW = (W - 2 * F) / 2 + 0.03, paneH = H - F - 0.03;
+  for (const side of [-1, 1]) {
+    const x = side * (paneW / 2 - 0.015), z = side * 0.018;
+    box(paneW - 0.06, paneH - 0.06, 0.008, glassMat, x, 0.03 + paneH / 2, z);
+    box(0.04, paneH, 0.03, frameMat, x - side * (paneW / 2 - 0.02), 0.03 + paneH / 2, z);
+    box(paneW, 0.035, 0.03, frameMat, x, 0.03 + paneH - 0.0175, z);
+    box(paneW, 0.05, 0.03, frameMat, x, 0.055, z);
+  }
+  // Balcony railing outside the glass
+  const railZ = -0.42;
+  box(W, 0.04, 0.05, frameMat, 0, 1.05, railZ);
+  box(W, 0.03, 0.04, frameMat, 0, 0.12, railZ);
+  for (let i = 0; i <= 12; i++) box(0.018, 0.93, 0.018, frameMat, -W / 2 + 0.05 + i * ((W - 0.1) / 12), 0.585, railZ);
+  // Night skyline card
+  const sky = new THREE.Mesh(new THREE.PlaneGeometry(W + 0.4, H + 0.2), skylineMat);
+  sky.position.set(0, H / 2, -0.75);
+  group.add(sky);
+}
 
 /**
  * WORLD COMPILER (World Compass v2)
@@ -13,6 +133,7 @@ export class WorldCompiler {
     this.materials = materialFoundry;
     this.validator = new SpatialValidator(materialFoundry);
     this.foundry = new UniversalFoundry(materialFoundry);
+    this.routes = ARCHETYPE_ROUTES;
   }
 
   compile(worldManifest) {
@@ -48,6 +169,13 @@ export class WorldCompiler {
   }
 
   compileEntity(entity) {
+    // Exact catalog guard BEFORE any routing: unknown or near-match ids (unknown.table,
+    // totally.alchemist_shell.fake, primitive.box) never reach a builder or a raw primitive.
+    const isRoomRoot = entity.kind === 'room' && entity.assetRef === undefined;
+    if (!isRoomRoot && !isKnownArchetype(entity.assetRef)) {
+      throw new Error(`Unknown archetype "${entity.assetRef}" for entity "${entity.id}" has no procedural builder.`);
+    }
+
     const group = new THREE.Group();
     group.name = entity.id;
 
@@ -64,209 +192,32 @@ export class WorldCompiler {
     );
     group.scale.set(scale[0], scale[1], scale[2]);
 
+    if (isRoomRoot) return group; // Room root: pure grouping node
+
     const getMat = (index = 0, defaultMat = 'wood.dark_oak') => {
       const ref = entity.materialRefs?.[index] || defaultMat;
       return this.materials.get(ref);
     };
 
-    const ref = (entity.assetRef || entity.id).toLowerCase();
-
-    // Route to Universal Foundry by semantic archetype (Specific archetypes FIRST)
-    if (ref.includes('winterhold_shell') || ref.includes('winterhold_room') || ref.includes('mage_quarters') || ref.includes('arcanaeum_hall')) {
-      this.foundry.buildWinterholdShell(
-        group,
-        getMat(0, 'stone.winterhold_masonry'),
-        getMat(1, 'stone.nordic_carved'),
-        getMat(2, 'magic.arcane_rune'),
-        getMat(3, 'banner.winterhold'),
-        getMat(4, 'metal.forged_iron'),
-        getMat(5, 'skyline.winterhold_aurora'),
-        getMat(6, 'magic.witchlight_blue'),
-        getMat(7, 'ice.glacial')
-      );
-    } else if (ref.includes('library_shell') || ref.includes('scriptorium_shell') || ref.includes('monastery_shell')) {
-      this.foundry.buildLibraryShell(
-        group,
-        getMat(0, 'stone.rough_local'),
-        getMat(1, 'wood.dark_oak'),
-        getMat(2, 'glass.window'),
-        getMat(3, 'skyline.misty_mountains')
-      );
-    } else if (ref.includes('alchemist_shell') || ref.includes('laboratory_shell')) {
-      this.foundry.buildAlchemistShell(
-        group,
-        getMat(0, 'stone.rough_local'),
-        getMat(1, 'wood.dark_oak'),
-        getMat(2, 'glass.window'),
-        getMat(3, 'skyline.cobblestone_alley')
-      );
-    } else if (ref.includes('armory_shell') || ref.includes('dungeon_shell') || ref.includes('garrison_shell')) {
-      this.foundry.buildArmoryShell(
-        group,
-        getMat(0, 'stone.rough_local'),
-        getMat(1, 'metal.forged_iron'),
-        getMat(2, 'wood.weathered_oak'),
-        getMat(3, 'skyline.stormy_bastion')
-      );
-    } else if (ref.includes('forge_pavilion') || ref.includes('blacksmith_shell') || ref.includes('forge_shell')) {
-      this.foundry.buildForgePavilionShell(
-        group,
-        getMat(0, 'stone.rough_local'),
-        getMat(1, 'wood.dark_oak'),
-        getMat(2, 'skyline.twilight_valley')
-      );
-    } else if (ref.includes('tavern_hall') || ref.includes('tavern_shell') || ref.includes('medieval_house_shell')) {
-      this.foundry.buildTavernHallShell(
-        group,
-        getMat(0, 'plaster.lime_warm'),
-        getMat(1, 'wood.dark_oak'),
-        getMat(2, 'stone.rough_local'),
-        getMat(3, 'glass.window'),
-        getMat(4, 'skyline.village_sunset')
-      );
-    } else if (ref.includes('arcane_enchanter') || ref.includes('enchanter') || ref.includes('enchanting_table')) {
-      this.foundry.buildArcaneEnchanter(
-        group,
-        getMat(0, 'stone.winterhold_masonry'),
-        getMat(1, 'stone.nordic_carved'),
-        getMat(2, 'crystal.soul_gem'),
-        getMat(3, 'crystal.soul_gem_cyan'),
-        getMat(4, 'metal.forged_iron'),
-        getMat(5, 'metal.brass_gold'),
-        getMat(6, 'magic.witchlight_blue'),
-        getMat(7, 'book.grimoire_page'),
-        getMat(8, 'bone.weathered_ivory'),
-        getMat(9, 'bone.horn_dark'),
-        getMat(10, 'wax.candle'),
-        getMat(11, 'ember')
-      );
-    } else if (ref.includes('arcanaeum_bookshelf') || ref.includes('mage_bookshelf') || ref.includes('grimoire_shelf')) {
-      this.foundry.buildArcanaeumBookshelf(
-        group,
-        getMat(0, 'wood.dark_oak'),
-        getMat(1, 'metal.forged_iron'),
-        getMat(2, 'leather.spellbook_navy'),
-        getMat(3, 'leather.spellbook_crimson'),
-        getMat(4, 'book.grimoire_page')
-      );
-    } else if (ref.includes('armillary') || ref.includes('orrery') || ref.includes('astrolabe')) {
-      this.foundry.buildArmillarySphere(
-        group,
-        getMat(0, 'stone.nordic_carved'),
-        getMat(1, 'metal.brass_gold'),
-        getMat(2, 'crystal.soul_gem_cyan')
-      );
-    } else if (ref.includes('winterhold_brazier') || ref.includes('witchlight_brazier')) {
-      this.foundry.buildWinterholdBrazier(
-        group,
-        getMat(0, 'metal.forged_iron'),
-        getMat(1, 'magic.witchlight_blue'),
-        getMat(2, 'magic.witchlight_coals')
-      );
-    } else if (ref.includes('spell_lectern') || ref.includes('grimoire_stand') || ref.includes('pedestal_tome')) {
-      this.foundry.buildSpellLectern(
-        group,
-        getMat(0, 'stone.nordic_carved'),
-        getMat(1, 'metal.brass_gold'),
-        getMat(2, 'leather.spellbook_navy'),
-        getMat(3, 'book.grimoire_page'),
-        getMat(4, 'crystal.soul_gem_cyan')
-      );
-    } else if (ref.includes('apartment_shell') || ref.includes('tokyo_room') || ref.includes('tokyo_walls')) {
-      this.foundry.buildTokyoApartmentShell(
-        group,
-        getMat(0, 'plaster.tokyo_wall'),
-        getMat(1, 'wood.birch_light'),
-        getMat(2, 'fabric.tatami'),
-        getMat(3, 'fabric.tatami_border'),
-        getMat(4, 'glass.window'),
-        getMat(5, 'metal.matte_black'),
-        getMat(6, 'skyline.tokyo_night'),
-        getMat(7, 'ceramic.white')
-      );
-    } else if (ref.includes('tatami')) {
-      this.foundry.buildTatamiFloor(group, getMat(0, 'fabric.tatami'), getMat(1, 'fabric.tatami_border'));
-    } else if (ref.includes('tokyo_window') || ref.includes('balcony_window') || ref.includes('city_window')) {
-      this.foundry.buildTokyoBalconyWindow(group, getMat(0, 'metal.matte_black'), getMat(1, 'glass.window'), getMat(2, 'skyline.tokyo_night'));
-    } else if (ref.includes('tokyo_walls') || ref.includes('apartment_walls')) {
-      this.foundry.buildTokyoApartmentWalls(group, getMat(0, 'plaster.lime_warm'), getMat(1, 'wood.birch_light'), getMat(2, 'ceramic.white'));
-    } else if (ref.includes('tokyo_desk') || ref.includes('nintendo_desk') || ref.includes('birch_desk')) {
-      this.foundry.buildTokyoDesk(group, getMat(0, 'wood.birch_light'), getMat(1, 'metal.matte_black'));
-    } else if (ref.includes('nintendo_rig') || ref.includes('computer') || ref.includes('workstation')) {
-      this.foundry.buildNintendoRig(
-        group,
-        getMat(0, 'screen.dev_glow'),
-        getMat(1, 'screen.mario_glow'),
-        getMat(2, 'metal.matte_black'),
-        getMat(3, 'plastic.joycon_red'),
-        getMat(4, 'plastic.joycon_blue'),
-        getMat(5, 'ceramic.white')
-      );
-    } else if (ref.includes('office_chair') || ref.includes('ergonomic_chair') || ref.includes('task_chair')) {
-      this.foundry.buildErgonomicChair(group, getMat(0, 'fabric.tatami_border'), getMat(1, 'metal.matte_black'));
-    } else if (ref.includes('shoji') || ref.includes('japanese_window')) {
-      this.foundry.buildShojiWindow(group, getMat(0, 'wood.birch_light'), getMat(1, 'paper.shoji'));
-    } else if (ref.includes('bonsai')) {
-      this.foundry.buildBonsai(group, getMat(0, 'ceramic.white'), getMat(1, 'plant.bonsai'), getMat(2, 'wood.dark_oak'));
-    } else if (ref.includes('game_shelf') || ref.includes('nintendo_shelf')) {
-      this.foundry.buildGameShelf(group, getMat(0, 'wood.birch_light'), getMat(1, 'plastic.joycon_red'));
-    } else if (ref.includes('painting') || ref.includes('nintendo_art') || ref.includes('poster')) {
-      const isNintendo = ref.includes('nintendo') || ref.includes('poster');
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.05, 0.04), getMat(1, isNintendo ? 'metal.matte_black' : 'wood.dark_oak'));
-      frame.castShadow = true;
-      group.add(frame);
-      const canvas = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.98), getMat(0, isNintendo ? 'decor.nintendo_art' : 'cloth.painted_panel'));
-      canvas.position.z = 0.025;
-      group.add(canvas);
-    } else if (ref.includes('chimney') || ref.includes('forge_hearth')) {
-      this.foundry.buildHearth(group, getMat(0, 'stone.hearth'), getMat(1, 'plaster.lime_warm'), getMat(2, 'ember'));
-    } else if (ref.includes('fireplace') || ref.includes('hearth')) {
-      this.foundry.buildFireplace(group, getMat(0, 'stone.hearth'), getMat(1, 'ember'));
-    } else if (ref.includes('anvil')) {
-      this.foundry.buildAnvil(group, getMat(0, 'metal.forged_iron'), getMat(1, 'metal.polished_iron'), getMat(2, 'wood.weathered_oak'));
-    } else if (ref.includes('bellows')) {
-      this.foundry.buildBellows(group, getMat(0, 'wood.dark_oak'), getMat(1, 'leather.worn'), getMat(2, 'metal.forged_iron'));
-    } else if (ref.includes('bookshelf') || ref.includes('library')) {
-      this.foundry.buildBookshelf(group, getMat(0, 'wood.dark_oak'));
-    } else if (ref.includes('weapon_rack') || ref.includes('armory')) {
-      this.foundry.buildWeaponRack(group, getMat(0, 'wood.dark_oak'), getMat(1, 'metal.forged_iron'));
-    } else if (ref.includes('cauldron') || ref.includes('pot')) {
-      this.foundry.buildCauldron(group, getMat(0, 'metal.forged_iron'), getMat(1, 'ember'));
-    } else if (ref.includes('table') || ref.includes('desk')) {
-      this.foundry.buildTable(group, getMat(0, 'wood.dark_oak'), getMat(1, 'ceramic.dish'));
-    } else if (ref.includes('chest')) {
-      this.foundry.buildChest(group, getMat(0, 'wood.weathered_oak'), getMat(1, 'metal.forged_iron'));
-    } else if (ref.includes('barrel')) {
-      this.foundry.buildBarrel(group, getMat(0, 'wood.weathered_oak'), getMat(1, 'metal.forged_iron'));
-    } else if (ref.includes('crate')) {
-      this.foundry.buildCrate(group, getMat(0, 'wood.weathered_oak'), getMat(1, 'metal.forged_iron'));
-    } else if (ref.includes('lantern')) {
-      this.foundry.buildLantern(group, getMat(0, 'metal.forged_iron'), getMat(1, 'ember'));
-    } else if (ref.includes('bench')) {
-      this.foundry.buildBench(group, getMat(0, 'wood.dark_oak'), getMat(1, 'cloth.woven_cushion'));
-    } else if (ref.includes('floor')) {
-      this.foundry.buildFloor(group, getMat(0, 'wood.floor_oak'));
-    } else if (ref.includes('wall')) {
-      this.foundry.buildWall(group, getMat(0, 'plaster.lime_warm'), getMat(1, 'wood.dark_oak'));
-    } else if (ref.includes('rug')) {
-      const rug = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.4), getMat(0, 'cloth.woven_rug'));
-      rug.rotation.x = -Math.PI / 2;
-      rug.position.y = 0.01;
-      rug.receiveShadow = true;
-      group.add(rug);
-    } else if (entity.kind === 'room') {
-      // Room root
-    } else {
-      // Parametric chamfered artisan block
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), getMat(0));
-      mesh.position.y = 0.25;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      group.add(mesh);
+    const route = Object.prototype.hasOwnProperty.call(this.routes, entity.assetRef) ? this.routes[entity.assetRef] : null;
+    if (!route) {
+      // Non-reduction invariant: a catalog id without an exact route is a contract defect, never a primitive.
+      throw new Error(`Archetype "${entity.assetRef}" is in the catalog but has no exact compiler route.`);
     }
-
+    route.build.call(this, group, getMat);
     return this.optimizeEntityGroup(group);
   }
+
+  /** Name of the exact builder route for an archetype id (null when unknown/unroutable). */
+  static routeFor(assetRef) {
+    return isKnownArchetype(assetRef) ? (ARCHETYPE_ROUTES[assetRef]?.route ?? null) : null;
+  }
+
+  /** The production route table (read by tests that build deliberately mis-mapped negative fixtures). */
+  static get ROUTES() { return ARCHETYPE_ROUTES; }
+
+  /** Inline compound builders, exposed so tests can spy on which one ran. */
+  static get INLINE_BUILDERS() { return INLINE_BUILDERS; }
 
   /**
    * Automated Material-Batching Compounding Pass

@@ -1,0 +1,96 @@
+{
+  "fixture_version": "1.0.0",
+  "schema_kind": "modularization-suite/suite-contract-fixtures",
+  "known_good": {
+    "schema_version": "1.0.0",
+    "schema_kind": "modularization-suite/suite-run",
+    "family_id": "modularization-parity-studio",
+    "project_id": "fixture-library",
+    "run_id": "run-20260911-a",
+    "parent_run_id": "run-20260911-a",
+    "paths": {
+      "monolith_root": "C:/fixtures/library/monolith",
+      "isolated_modular_target": "C:/fixtures/library/worktrees/run-20260911-a",
+      "target_kind": "worktree"
+    },
+    "bindings": {
+      "source_commit": "1111111111111111111111111111111111111111",
+      "source_tree_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "target_commit": "2222222222222222222222222222222222222222",
+      "target_tree_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "toolchain": [
+        { "role": "transformer", "invoked_path": "C:/tools/modularize-monolith", "git_head": "3333333333333333333333333333333333333333", "package_version": "2.0.0", "content_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" },
+        { "role": "verifier", "invoked_path": "C:/tools/parity-cab", "git_head": "4444444444444444444444444444444444444444", "package_version": "1.0.0", "content_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" }
+      ]
+    },
+    "attempts": [
+      { "attempt_id": "attempt-1", "sequence": 1, "immutable": true, "status": "completed", "content_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "created_at": "2026-09-11T00:00:00.000Z" }
+    ],
+    "attempt": { "attempt_id": "attempt-1", "sequence": 1, "immutable": true, "status": "completed", "content_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "created_at": "2026-09-11T00:00:00.000Z" },
+    "state": "GO",
+    "state_history": [
+      { "sequence": 1, "state": "planned", "at": "2026-09-11T00:00:00.000Z", "writer": "transformer" },
+      { "sequence": 2, "state": "approved", "at": "2026-09-11T00:01:00.000Z", "writer": "transformer" },
+      { "sequence": 3, "state": "extracting", "at": "2026-09-11T00:02:00.000Z", "writer": "transformer" },
+      { "sequence": 4, "state": "candidate_ready", "at": "2026-09-11T00:03:00.000Z", "writer": "transformer" },
+      { "sequence": 5, "state": "verifying", "at": "2026-09-11T00:04:00.000Z", "writer": "verifier" },
+      { "sequence": 6, "state": "GO", "at": "2026-09-11T00:05:00.000Z", "writer": "verifier" }
+    ],
+    "profile_resolution": {
+      "profile": "library",
+      "required_gate_ids": ["01", "02", "03", "04", "05b", "09", "10", "11", "11b", "11c", "11d", "05"],
+      "optional_gate_ids": ["06", "07", "08", "09b", "12", "13", "14", "15"],
+      "applicability_signals": { "module_state_or_lifecycle": false, "jsx_or_html": false, "declared_side_effects": false, "runtime_required": false }
+    },
+    "gate_summary": {
+      "required": ["01", "02", "03", "04", "05b", "09", "10", "11", "11b", "11c", "11d", "05"],
+      "optional": ["06", "07", "08", "09b", "12", "13", "14", "15"],
+      "skipped": [], "failed": [],
+      "completed": ["01", "02", "03", "04", "05b", "09", "10", "11", "11b", "11c", "11d", "05"]
+    },
+    "authority": {
+      "schema_owner": "parity-cab", "fact_writer": "transformer", "final_verdict_writer": "verifier",
+      "readers": ["transformer", "verifier", "artifact-system"]
+    },
+    "provenance": {
+      "snapshot_kind": "committed",
+      "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "toolchain_hash": "9999999999999999999999999999999999999999999999999999999999999999",
+      "captured_at": "2026-09-11T00:04:00.000Z"
+    },
+    "gate_results": [
+      { "gate_id": "01", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "pass", "observations": ["inventory"], "artifact": { "path": "evidence/inventory.monolith.sij.json", "schema_kind": "parity-cab/inventory", "schema_version": "1.0.0", "sha256": "0101010101010101010101010101010101010101010101010101010101010101", "captured_at": "2026-09-11T00:04:01.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+      { "gate_id": "02", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "pass", "observations": ["classification"], "artifact": { "path": "evidence/inventory.monolith.tagged.sij.json", "schema_kind": "parity-cab/inventory-tagged", "schema_version": "1.0.0", "sha256": "0202020202020202020202020202020202020202020202020202020202020202", "captured_at": "2026-09-11T00:04:02.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+      { "gate_id": "03", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "pass", "observations": ["diff"], "artifact": { "path": "evidence/parity-report.sij.json", "schema_kind": "parity-cab/parity-report", "schema_version": "1.0.0", "sha256": "0303030303030303030303030303030303030303030303030303030303030303", "captured_at": "2026-09-11T00:04:03.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+      { "gate_id": "04", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "pass", "observations": ["rfc-set"], "artifact": { "path": "evidence/rfc-set.sij.json", "schema_kind": "parity-cab/rfc-set", "schema_version": "1.0.0", "sha256": "0404040404040404040404040404040404040404040404040404040404040404", "captured_at": "2026-09-11T00:04:04.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+      { "gate_id": "05b", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "pass", "observations": ["scaffold"], "artifact": { "path": "evidence/scaffold-check.sij.json", "schema_kind": "parity-cab/scaffold-check", "schema_version": "1.0.0", "sha256": "0505050505050505050505050505050505050505050505050505050505050505", "captured_at": "2026-09-11T00:04:05.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+      { "gate_id": "09", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "pass", "observations": ["coverage"], "artifact": { "path": "evidence/coverage-inventory.sij.json", "schema_kind": "parity-cab/coverage-inventory", "schema_version": "1.0.0", "sha256": "0909090909090909090909090909090909090909090909090909090909090909", "captured_at": "2026-09-11T00:04:06.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+      { "gate_id": "10", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "pass", "observations": ["coverage-verdict"], "artifact": { "path": "evidence/coverage-verdict.json", "schema_kind": "parity-cab/coverage-verdict", "schema_version": "1.0.0", "sha256": "1010101010101010101010101010101010101010101010101010101010101010", "captured_at": "2026-09-11T00:04:07.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+      { "gate_id": "11", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "pass", "observations": ["ast"], "artifact": { "path": "evidence/ast-xray.sij.json", "schema_kind": "parity-cab/ast-xray", "schema_version": "1.0.0", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "captured_at": "2026-09-11T00:04:08.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+      { "gate_id": "11b", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "pass", "observations": ["block-diff"], "artifact": { "path": "evidence/block-diff.sij.json", "schema_kind": "parity-cab/block-diff", "schema_version": "1.0.0", "sha256": "1212121212121212121212121212121212121212121212121212121212121212", "captured_at": "2026-09-11T00:04:09.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+      { "gate_id": "11c", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "pass", "observations": ["remendo-scan"], "artifact": { "path": "evidence/remendo-scan.sij.json", "schema_kind": "parity-cab/remendo-scan", "schema_version": "1.0.0", "sha256": "1313131313131313131313131313131313131313131313131313131313131313", "captured_at": "2026-09-11T00:04:10.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+      { "gate_id": "11d", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "pass", "observations": ["triage"], "artifact": { "path": "evidence/new-block-triage.sij.json", "schema_kind": "parity-cab/new-block-triage", "schema_version": "1.0.0", "sha256": "1414141414141414141414141414141414141414141414141414141414141414", "captured_at": "2026-09-11T00:04:11.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } },
+      { "gate_id": "05", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "status": "completed", "applicability": "required", "decision": "GO", "observations": ["aggregate"], "artifact": { "path": "evidence/aggregate-verdict.sij.json", "schema_kind": "parity-cab/aggregate-verdict", "schema_version": "1.0.0", "sha256": "1515151515151515151515151515151515151515151515151515151515151515", "captured_at": "2026-09-11T00:05:00.000Z", "run_id": "run-20260911-a", "attempt_id": "attempt-1", "parent_run_id": "run-20260911-a", "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "candidate_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "config_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "tool_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" } }
+    ],
+    "final_decision": { "writer": "verifier", "decision": "GO", "aggregate_gate_id": "05", "exit_code": 0, "at": "2026-09-11T00:05:00.000Z" }
+  },
+  "negative_cases": {
+    "unknown_schema": { "expected_reason": "unknown_schema", "mutations": [["schema_version", "9.0.0"]] },
+    "legacy_evidence": { "expected_reason": "legacy_evidence", "mutations": [["provenance", null, "delete"]] },
+    "stale_parent": { "expected_reason": "stale_or_mixed_parent", "mutations": [["gate_results.0.parent_run_id", "prior-run"]] },
+    "mixed_parent": { "expected_reason": "stale_or_mixed_parent", "mutations": [["gate_results.1.run_id", "another-run"]] },
+    "corrupt_input": { "expected_reason": "corrupt_input", "raw": "{\"schema_version\":" },
+    "empty_profile": { "expected_reason": "empty_profile", "mutations": [["profile_resolution", { "profile": "custom", "base_profile": "library", "required_gate_ids": [], "optional_gate_ids": [], "applicability_signals": {}, "not_applicable_declarations": [] }]] },
+    "excluded_base_gate": { "expected_reason": "excluded_base_gate", "mutations": [["profile_resolution", { "profile": "custom", "base_profile": "library", "required_gate_ids": ["01"], "optional_gate_ids": [], "applicability_signals": {}, "not_applicable_declarations": [] }]] },
+    "zero_observation_required": { "expected_reason": "zero_or_insufficient_observations", "mutations": [["gate_results.0.observations", []]] },
+    "unknown_custom_gate": { "expected_reason": "unknown_gate", "mutations": [["profile_resolution", { "profile": "custom", "base_profile": "library", "required_gate_ids": ["01", "02", "03", "04", "05b", "09", "10", "11", "11b", "11c", "11d", "05", "99"], "optional_gate_ids": [], "applicability_signals": {}, "not_applicable_declarations": [] }]] },
+    "invalid_state_transition": { "expected_reason": "invalid_state_transition", "mutations": [["state_history.2.state", "verifying"]] },
+    "mutable_attempt": { "expected_reason": "attempt_not_immutable", "mutations": [["attempts.0.immutable", false]] },
+    "duplicate_attempt_id": { "expected_reason": "duplicate_attempt_id", "mutations": [["attempts.1", { "attempt_id": "attempt-1", "sequence": 2, "immutable": true, "status": "completed", "content_hash": "8888888888888888888888888888888888888888888888888888888888888888", "created_at": "2026-09-11T00:06:00.000Z", "parent_attempt_id": "attempt-1" }]] },
+    "unsigned_not_applicable": { "expected_reason": "unsigned_not_applicable", "mutations": [["gate_results.0.applicability", "not_applicable"], ["gate_results.0.decision", "not_applicable"]] },
+    "cancelled_attempt_late_write": { "expected_reason": "cancelled_attempt_late_write", "mutations": [["attempts.0.status", "cancelled"], ["attempt.status", "cancelled"]] }
+  }
+}

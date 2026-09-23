@@ -1,0 +1,15 @@
+interface:
+  display_name: "Artisan 3D Studio"
+  short_description: "Deterministic artisan-grade 3D world authoring"
+  brand_color: "#E58E3E"
+  default_prompt: "Use $artisan-3d-studio to build and preview a candle-lit alchemist corner."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "artisan-3d"
+      description: "Local Artisan 3D Studio MCP server (stdio) from this plugin"
+      transport: "stdio"
+
+policy:
+  allow_implicit_invocation: true

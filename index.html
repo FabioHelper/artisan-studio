@@ -40,8 +40,24 @@
           <span class="stat-unit">FPS</span>
         </div>
       </div>
+      <div class="mode-switcher" style="display: flex; gap: 4px; background: rgba(0,0,0,0.4); padding: 3px; border-radius: 20px; border: 1px solid var(--brass-border);">
+        <button class="pill-btn mode-btn active" id="btn-mode-diorama" style="font-size: 11px; padding: 4px 12px; border-radius: 16px;">🏛️ Dioramas</button>
+        <button class="pill-btn mode-btn" id="btn-mode-game" style="font-size: 11px; padding: 4px 12px; border-radius: 16px; color: #38bdf8; border-color: rgba(56,189,248,0.5);">🎮 Play Game (As-Is)</button>
+      </div>
       <button class="stat-pill rtss-toggle-btn active" id="btn-toggle-rtss" title="Toggle Chronometric Telemetry (F3 / `)">
         <span>⏱ HOROLOGY MONITOR</span>
+      </button>
+      <button class="stat-pill" id="btn-header-dpr" title="Cycle Graphic Quality (Hotkey: F2) — Auto 60 FPS / Performance / Balanced / Ultra" style="cursor: pointer; border-color: var(--brass-border);">
+        <span class="stat-lbl">QUALITY</span>
+        <span class="stat-val" id="header-dpr-val" style="color: #38bdf8; font-weight: 700;">AUTO 60</span>
+      </button>
+      <button class="stat-pill settings-toggle-btn" id="btn-toggle-settings" title="Engine Preferences & DRS Configuration (Hotkey: P / F4)" style="cursor: pointer; border-color: var(--brass-border);">
+        <span class="stat-lbl">CONFIG</span>
+        <span class="stat-val" style="color: var(--gold); font-weight: 700;">⚙ SETTINGS</span>
+      </button>
+      <button class="stat-pill" id="btn-toggle-vault" title="Governed Cabinet Vault & Parity Engine (SPEC-06/16)" style="cursor: pointer; border-color: rgba(52, 211, 153, 0.4);">
+        <span class="stat-lbl" style="color: #34d399;">VAULT</span>
+        <span class="stat-val" id="vault-pill-val" style="color: #34d399; font-weight: 700;">9/9 LOCKED</span>
       </button>
       <div class="stat-pill mcp-pill" id="mcp-indicator">
         <span id="mcp-dot" class="sync-dot"></span>
@@ -154,6 +170,7 @@
       <div class="dock-buttons">
         <button class="pill-btn" id="btn-scene-tokyo">⛩️ Tokyo</button>
         <button class="pill-btn" id="btn-scene-winterhold">❄️ Winterhold</button>
+        <button class="pill-btn" id="btn-scene-fantastic">✨ Fantastic</button>
         <button class="pill-btn active" id="btn-scene-trio">⚔️ Hero Trio</button>
         <button class="pill-btn" id="btn-scene-tavern">🍺 Tavern</button>
         <button class="pill-btn" id="btn-scene-alchemist">🧪 Alchemist</button>
@@ -208,6 +225,7 @@
     <div class="drawer-tabs">
       <div class="drawer-tab active" data-tab="manifest">World Manifest</div>
       <div class="drawer-tab" data-tab="taskmgr" style="color: #38bdf8;">⚡ Task Manager</div>
+      <div class="drawer-tab" data-tab="vault" style="color: #34d399;">🛡️ Cabinet Vault</div>
       <div class="drawer-tab" data-tab="roi">Token ROI & Math</div>
       <div class="drawer-tab" data-tab="llm">LLM Prompt Engine</div>
     </div>
@@ -288,16 +306,54 @@
     <!-- Task Manager & Smoking Gun Sysmon -->
     <div class="drawer-content" id="tab-taskmgr" style="display: none;">
       <div class="roi-card" style="border-color: rgba(56, 189, 248, 0.4); background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(0,0,0,0.3));">
-        <div class="roi-title" style="color: #38bdf8;">⚡ Mainframe Subsystem Profiler</div>
-        <div class="roi-sub">Zero-trust microsecond timings. Strict 16.6ms frame budget monitoring.</div>
-        <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: baseline;">
-          <span style="font-size: 11px; color: var(--text-dim);">Total CPU Time:</span>
-          <span id="taskmgr-total-cpu" style="font-size: 14px; font-weight: 700; font-family: monospace; color: #4ade80;">1.85 ms / 16.6 ms</span>
+        <div class="roi-title" style="color: #38bdf8;">⚡ Mainframe Subsystem Profiler & VRAM Telemetry</div>
+        <div class="roi-sub">Zero-trust microsecond timings. Real-time GPU buffer & VRAM allocations.</div>
+        
+        <div class="vram-grid">
+          <div class="vram-card">
+            <div class="vram-card-title">Total VRAM Allocation</div>
+            <div class="vram-card-val" id="taskmgr-vram-total">0.0 MB</div>
+            <div class="vram-card-sub">VBOs + Textures + Targets</div>
+          </div>
+          <div class="vram-card">
+            <div class="vram-card-title">Geometry Buffers (VBO)</div>
+            <div class="vram-card-val" id="taskmgr-vram-geom" style="color: #4ade80;">0.0 MB</div>
+            <div class="vram-card-sub">TypedArray Vertex Memory</div>
+          </div>
+          <div class="vram-card">
+            <div class="vram-card-title">Textures & Targets</div>
+            <div class="vram-card-val" id="taskmgr-vram-tex" style="color: #fbbf24;">0.0 MB</div>
+            <div class="vram-card-sub" id="taskmgr-vram-targets">Shadow + Post Targets</div>
+          </div>
+          <div class="vram-card">
+            <div class="vram-card-title">GPU Shaders & Heap</div>
+            <div class="vram-card-val" id="taskmgr-shaders-count" style="color: #c084fc;">0 Programs</div>
+            <div class="vram-card-sub">JS Heap: <span id="taskmgr-js-heap">-- MB</span></div>
+          </div>
         </div>
-        <div style="margin-top: 4px; display: flex; justify-content: space-between; align-items: baseline;">
+
+        <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px;">
+          <span style="font-size: 11px; color: var(--text-dim);">Frame Budget Execution:</span>
+          <span id="taskmgr-total-cpu" style="font-size: 13px; font-weight: 700; font-family: monospace; color: #4ade80;">1.85 ms / 16.6 ms</span>
+        </div>
+        <div style="margin-top: 3px; display: flex; justify-content: space-between; align-items: baseline;">
           <span style="font-size: 11px; color: var(--text-dim);">rAF / V-Sync Gap:</span>
-          <span id="taskmgr-val-raf" style="font-size: 12px; font-family: monospace; color: #94a3b8;">16.6 ms (60 FPS)</span>
+          <span id="taskmgr-val-raf" style="font-size: 11px; font-family: monospace; color: #94a3b8;">16.6 ms (60 FPS)</span>
         </div>
+      </div>
+
+      <!-- Interactive Subsystem Hardware Toggles -->
+      <div class="taskmgr-section">
+        <label class="drawer-label">Live Subsystem Hardware Controls</label>
+        <div class="subsys-controls-row">
+          <button class="subsys-btn active" id="btn-subsys-shadows">🌘 Shadows: ON</button>
+          <button class="subsys-btn active" id="btn-subsys-bloom">🌸 Bloom FX: ON</button>
+          <button class="subsys-btn active" id="btn-subsys-particles">❄️ Particles: ON</button>
+          <button class="subsys-btn active" id="btn-subsys-fog">🌫️ Fog: ON</button>
+          <button class="subsys-btn" id="btn-subsys-clay">🧊 Clay: OFF</button>
+          <button class="subsys-btn" id="btn-subsys-wireframe">📐 Wireframe: OFF</button>
+        </div>
+        <div class="taskmgr-subsys-status" id="taskmgr-subsys-feedback">All Subsystems Nominal (60 FPS)</div>
       </div>
 
       <!-- Live Subsystem Waterfall -->
@@ -372,21 +428,366 @@
 
       <!-- Process Table (Scene Hierarchy Resource Utilization) -->
       <div class="taskmgr-section">
-        <label class="drawer-label">Process & Hierarchy Table (Omegamon)</label>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label class="drawer-label" style="margin-bottom: 0;">Process & Hierarchy Table (Omegamon)</label>
+        </div>
+        <input type="text" class="taskmgr-search-bar" id="taskmgr-search-input" placeholder="🔍 Search entity or subsystem (e.g. hall, terrain, light, avatar)...">
         <div class="taskmgr-table-container">
           <table class="taskmgr-table">
             <thead>
               <tr>
-                <th style="text-align: left;">Process / Entity</th>
-                <th>Draws</th>
-                <th>Tris</th>
-                <th>Status</th>
+                <th style="text-align: left;" class="sortable" data-sort="name">Process / Entity ↕</th>
+                <th class="sortable" data-sort="drawCalls">Draws ↕</th>
+                <th class="sortable" data-sort="triangles">Tris ↕</th>
+                <th class="sortable" data-sort="geomMemoryKb">VRAM ↕</th>
+                <th>Material</th>
+                <th class="sortable" data-sort="status">Status ↕</th>
               </tr>
             </thead>
             <tbody id="taskmgr-process-rows">
               <!-- Dynamically populated by ArtisanProfiler -->
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Governed Cabinet Vault & Parity Engine (SPEC-06 / SPEC-16) -->
+    <div class="drawer-content" id="tab-vault" style="display: none; flex-direction: column; gap: 14px;">
+      <div class="roi-card" style="border-color: rgba(52, 211, 153, 0.4); background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(0,0,0,0.3));">
+        <div class="roi-title" style="color: #34d399; display: flex; align-items: center; justify-content: space-between;">
+          <span>🛡️ Governed Cabinet Vault</span>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #6ee7b7; font-size: 10px; padding: 2px 8px; border-radius: 12px;" id="vault-gate-status">9/9 LOCKED (100%)</span>
+        </div>
+        <div class="roi-sub">Fail-closed zero-trust parity gates. Perceptual SSIM &ge; 98% · Frametime &le; 16.6ms (60 FPS) · Draw Calls &le; 35.</div>
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+          <button class="pill-btn active" id="btn-vault-verify-all" style="flex: 1; font-size: 11px; padding: 6px; background: rgba(16, 185, 129, 0.25); border-color: #10b981; color: #fff; cursor: pointer;">
+            ⚡ Run Quality Gate (ALL)
+          </button>
+          <button class="pill-btn" id="btn-vault-refresh" style="font-size: 11px; padding: 6px 12px; border-color: rgba(255,255,255,0.2); cursor: pointer;">
+            ↺ Sync
+          </button>
+        </div>
+      </div>
+
+      <!-- Cabinet Racks Container -->
+      <div id="vault-cabinets-list" style="display: flex; flex-direction: column; gap: 10px;">
+        <!-- Dynamic Cabinet Cards injected by main.js -->
+      </div>
+
+      <!-- Provenance & Parity Engine Meta -->
+      <div class="roi-notes" style="font-size: 11px; color: var(--text-dim); line-height: 1.5; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px;">
+        <div><b>Parity Engine:</b> <code>tools/parity-cab-artisan</code> (SPEC-16 HTML mode)</div>
+        <div style="margin-top: 3px;"><b>Virgin Golden Baseline:</b> <code>artifacts/fantastic-world</code> (100% untouched)</div>
+        <div style="margin-top: 3px;"><b>Active Governance:</b> S.A.R.T. Board (P1–P10 automated checks)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THE FANTASTIC WORLD GAME HUD & VEIL -->
+  <div id="vignette" style="display:none;"></div>
+  <div id="reticle" style="display:none;"><div class="reticle-ring"></div><div class="reticle-dot"></div></div>
+  <div id="place-card" style="display:none;"><div class="crest">✦</div><div class="name"></div><div class="rule"></div></div>
+  <div id="hint-bar" style="display:none;"></div>
+  <div id="read-card" style="display:none;"><h3></h3><p></p><div class="close">click anywhere to close</div></div>
+  <div id="joy" style="display:none;"><div class="knob"></div></div>
+  <div id="act" style="display:none;">🖐️</div>
+
+  <!-- FLOATING GAME SETTINGS BUTTON (AAA HUD) -->
+  <button id="game-btn-settings" class="game-hud-settings-btn" title="Game Settings & Engine Preferences (Hotkey: P / F4)" style="display:none;">
+    <span class="settings-gear">⚙</span>
+    <span class="settings-text">SETTINGS</span>
+    <span class="settings-key">P</span>
+  </button>
+
+  <div id="veil" style="display:none;">
+    <h1>THE FANTASTIC WORLD</h1>
+    <div class="sub">the fantastic hall &nbsp;·&nbsp; a quiet place between pages</div>
+    <div class="hint">
+      <b>W A S D</b> walk &nbsp; <b>mouse</b> look (or <b>drag</b>) &nbsp; <b>Shift</b> run<br>
+      <b>E</b> touch what glows &nbsp; <b>V</b> first / third person &nbsp; <b>Esc</b> release cursor<br>
+      <b>P</b> settings & DRS &nbsp; <b>F2</b> graphics preset &nbsp; <b>F3</b> horology telemetry &nbsp; <b>T</b> write to Keeper
+    </div>
+    <div class="start">— click to step inside —</div>
+  </div>
+
+  <div id="bridge" style="display:none;">
+    <div class="motes"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="seam"></div>
+    <div class="sheet">
+      <h3 data-stag="1">A Letter to the Keeper</h3>
+      <div class="rule" data-stag="2"></div>
+      <div class="sub" data-stag="3">your words leave the hall</div>
+      <div class="log" data-stag="4"></div>
+      <textarea data-stag="4" placeholder="Write what should change in this world…"></textarea>
+      <div class="row" data-stag="5">
+        <span class="status calm">the ink is ready</span>
+        <span class="btns">
+          <button class="dismiss">Close &nbsp;<small>Esc</small></button>
+          <button class="send">Send &nbsp;<small>Ctrl↵</small></button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- UNIFIED AAA STUDIO SETTINGS & DRS PREFERENCES MODAL -->
+  <div id="artisan-settings-modal" class="settings-modal-backdrop" style="display:none;">
+    <div class="settings-dialog">
+      <div class="settings-dialog-header">
+        <div class="settings-dialog-brand">
+          <span class="settings-crest">✦</span>
+          <div>
+            <div class="settings-dialog-title">ARTISAN ATELIER · ENGINE PREFERENCES</div>
+            <div class="settings-dialog-sub">AAA Dynamic Resolution Scaling (DRS) & Calibrated GPU Architecture</div>
+          </div>
+        </div>
+        <button class="settings-dialog-close" id="btn-settings-close" title="Close (Esc)">✕</button>
+      </div>
+
+      <div class="settings-tabs-bar">
+        <button class="settings-tab-btn active" data-stab="graphics">🖥️ Display & DRS</button>
+        <button class="settings-tab-btn" data-stab="gameplay">🎮 Camera & Controls</button>
+        <button class="settings-tab-btn" data-stab="telemetry">⏱️ Horology & Telemetry</button>
+        <button class="settings-tab-btn" data-stab="audio">🎵 Audio & Ambience</button>
+      </div>
+
+      <div class="settings-dialog-body">
+        <!-- TAB: GRAPHICS & DRS -->
+        <div class="settings-panel active" id="stab-panel-graphics">
+          <div class="settings-section">
+            <div class="settings-section-title">DYNAMIC RESOLUTION SCALING (DRS) PRESET</div>
+            <div class="settings-section-desc">Calibrated for Intel(R) UHD Graphics to protect 60 FPS across monitors of any resolution (1080p, 1440p, 4K).</div>
+            <div class="settings-grid-presets">
+              <div class="settings-card-preset active" id="card-preset-auto" data-preset="auto">
+                <div class="preset-badge">RECOMMENDED</div>
+                <div class="preset-title">⚡ Auto 60 FPS (DRS)</div>
+                <div class="preset-desc">Dynamically clamps internal backbuffer to ~2.07 Mpixels. 60 FPS locked on 1080p, 1440p, and 4K screens.</div>
+                <div class="preset-scale" id="preset-scale-auto">Target: ~1080p (Dynamic DPR)</div>
+              </div>
+              <div class="settings-card-preset" id="card-preset-perf" data-preset="perf">
+                <div class="preset-badge" style="background: rgba(74, 222, 128, 0.15); color: #4ade80;">HIGH FPS</div>
+                <div class="preset-title">🚀 Performance</div>
+                <div class="preset-desc">Clamped to ~1.44 Mpixels (720p/900p). Maximizes battery life and thermal headroom on laptops.</div>
+                <div class="preset-scale" id="preset-scale-perf">Target: ~900p (0.85x DPR)</div>
+              </div>
+              <div class="settings-card-preset" id="card-preset-balanced" data-preset="balanced">
+                <div class="preset-badge" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24;">CRISP</div>
+                <div class="preset-title">💎 Balanced (Native)</div>
+                <div class="preset-desc">Native 1.0x raster scale on 1080p with DRS protection against 4K oversubscription.</div>
+                <div class="preset-scale" id="preset-scale-balanced">Target: 1.0x (Native 1080p)</div>
+              </div>
+              <div class="settings-card-preset" id="card-preset-ultra" data-preset="ultra">
+                <div class="preset-badge" style="background: rgba(192, 132, 252, 0.15); color: #c084fc;">FIDELITY</div>
+                <div class="preset-title">✨ Cinematic (HiDPI)</div>
+                <div class="preset-desc">Uncapped SSAA rendering up to 1.5x devicePixelRatio. Recommended for discrete GPUs and still captures.</div>
+                <div class="preset-scale" id="preset-scale-ultra">Target: HiDPI SSAA (Uncapped)</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-row-toggle">
+            <div>
+              <div class="settings-row-label">Hardware Fill-Rate Protection (Intel UHD UMA)</div>
+              <div class="settings-row-sub">Prevents quadratic memory bandwidth collapse when moving the window to a 1440p or 4K monitor by clamping 3D shading backbuffer to 1080p.</div>
+            </div>
+            <button class="settings-toggle-switch active" id="btn-toggle-fillrate">
+              <span class="switch-knob"></span>
+            </button>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-row-select">
+            <div>
+              <div class="settings-row-label">UnrealBloom Post-Processing Quality</div>
+              <div class="settings-row-sub">Half-resolution buffer (512px) slashes memory bandwidth by 85% on 4K displays while preserving the authentic candle halo.</div>
+            </div>
+            <div class="settings-segmented-group" id="group-bloom-quality">
+              <button class="settings-seg-btn active" data-val="optimized">Optimized (512px)</button>
+              <button class="settings-seg-btn" data-val="full">Full Res</button>
+              <button class="settings-seg-btn" data-val="off">Disabled</button>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-row-select">
+            <div>
+              <div class="settings-row-label">Shadow Depth Mapping</div>
+              <div class="settings-row-sub">Static Shadow Map Caching eliminates redundant per-frame depth passes for steady 60 FPS cadence.</div>
+            </div>
+            <div class="settings-segmented-group" id="group-shadow-quality">
+              <button class="settings-seg-btn active" data-val="cached">Static Cached</button>
+              <button class="settings-seg-btn" data-val="realtime">Continuous</button>
+              <button class="settings-seg-btn" data-val="off">Disabled</button>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-row-select">
+            <div>
+              <div class="settings-row-label">Ambient Studio Reflections (PMREM)</div>
+              <div class="settings-row-sub">360° HDR irradiance. Disabling saves Intel UHD memory bandwidth while preserving calibrated physical lighting.</div>
+            </div>
+            <div class="settings-segmented-group" id="group-env-quality">
+              <button class="settings-seg-btn active" data-val="off">Calibrated (60 FPS)</button>
+              <button class="settings-seg-btn" data-val="on">Full HDR PMREM</button>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-row-slider">
+            <div class="slider-meta">
+              <div>
+                <div class="settings-row-label">Field of View (FOV)</div>
+                <div class="settings-row-sub">Camera perspective viewing angle.</div>
+              </div>
+              <span class="slider-val-badge" id="badge-fov-val">38°</span>
+            </div>
+            <input type="range" class="settings-slider" id="slider-fov" min="30" max="85" step="1" value="38">
+          </div>
+        </div>
+
+        <!-- TAB: CAMERA & CONTROLS -->
+        <div class="settings-panel" id="stab-panel-gameplay">
+          <div class="settings-section">
+            <div class="settings-section-title">CAMERA & EXPLORER CONTROLS</div>
+            <div class="settings-section-desc">Finetune navigation feel and perspective for The Fantastic World.</div>
+          </div>
+
+          <div class="settings-row-select">
+            <div>
+              <div class="settings-row-label">Camera Perspective (Game Mode)</div>
+              <div class="settings-row-sub">Switch between intimate first-person presence and third-person explorer view (Hotkey: V).</div>
+            </div>
+            <div class="settings-segmented-group" id="group-camera-perspective">
+              <button class="settings-seg-btn active" data-val="first">First Person</button>
+              <button class="settings-seg-btn" data-val="third">Third Person</button>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-row-slider">
+            <div class="slider-meta">
+              <div>
+                <div class="settings-row-label">Mouse Look Sensitivity</div>
+                <div class="settings-row-sub">Pointer tracking angular velocity.</div>
+              </div>
+              <span class="slider-val-badge" id="badge-sens-val">1.0x</span>
+            </div>
+            <input type="range" class="settings-slider" id="slider-sens" min="0.0008" max="0.0050" step="0.0002" value="0.0022">
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-row-toggle">
+            <div>
+              <div class="settings-row-label">Invert Pitch (Y-Axis)</div>
+              <div class="settings-row-sub">Invert vertical mouse look direction.</div>
+            </div>
+            <button class="settings-toggle-switch" id="btn-toggle-inverty">
+              <span class="switch-knob"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB: HOROLOGY & TELEMETRY -->
+        <div class="settings-panel" id="stab-panel-telemetry">
+          <div class="settings-section">
+            <div class="settings-section-title">HOROLOGY SPECIFICATION & HARDWARE DIAGNOSTICS</div>
+            <div class="settings-section-desc">Zero-trust real-time metrics powered by RivaTuner OSD and Omegamon Sysmon.</div>
+          </div>
+
+          <div class="settings-row-select">
+            <div>
+              <div class="settings-row-label">RivaTuner / RTSS OSD Display</div>
+              <div class="settings-row-sub">Floating horology telemetry overlay on canvas (Hotkey: F3 or `).</div>
+            </div>
+            <div class="settings-segmented-group" id="group-rtss-visibility">
+              <button class="settings-seg-btn active" data-val="visible">Visible</button>
+              <button class="settings-seg-btn" data-val="minimized">Compact</button>
+              <button class="settings-seg-btn" data-val="hidden">Hidden</button>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-diag-grid">
+            <div class="settings-diag-card">
+              <div class="diag-label">GPU HARDWARE</div>
+              <div class="diag-val" id="diag-val-gpu">Detecting...</div>
+              <div class="diag-sub">Integrated UMA Graphics</div>
+            </div>
+            <div class="settings-diag-card">
+              <div class="diag-label">DISPLAY MONITOR</div>
+              <div class="diag-val" id="diag-val-screen">1920x1080 @ 1.0x</div>
+              <div class="diag-sub">Window Viewport</div>
+            </div>
+            <div class="settings-diag-card">
+              <div class="diag-label">3D BACKBUFFER</div>
+              <div class="diag-val" id="diag-val-render">1920x1080 (1.00x)</div>
+              <div class="diag-sub" id="diag-sub-drs">DRS Protected (60 FPS)</div>
+            </div>
+            <div class="settings-diag-card">
+              <div class="diag-label">FRAME CADENCE</div>
+              <div class="diag-val" id="diag-val-fps" style="color:#4ade80;">60.0 FPS</div>
+              <div class="diag-sub" id="diag-val-frametime">16.6 ms (100% Budget)</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px;">
+            <button class="action-btn" id="btn-open-omegamon-sysmon" style="width:100%; font-size:12px;">
+              ✦ Open Atelier Omegamon Sysmon & Process Table
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB: AUDIO & AMBIENCE -->
+        <div class="settings-panel" id="stab-panel-audio">
+          <div class="settings-section">
+            <div class="settings-section-title">CALM GENERATIVE AMBIENCE</div>
+            <div class="settings-section-desc">Procedural breathing pads, filtered wind noise, and distant bells synthesized live in WebAudio.</div>
+          </div>
+
+          <div class="settings-row-select">
+            <div>
+              <div class="settings-row-label">World Ambience State</div>
+              <div class="settings-row-sub">Enable or mute synthesized acoustic environment.</div>
+            </div>
+            <div class="settings-segmented-group" id="group-audio-state">
+              <button class="settings-seg-btn active" data-val="active">Active</button>
+              <button class="settings-seg-btn" data-val="muted">Muted</button>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-row-slider">
+            <div class="slider-meta">
+              <div>
+                <div class="settings-row-label">Master Ambience Volume</div>
+                <div class="settings-row-sub">Relative acoustic intensity.</div>
+              </div>
+              <span class="slider-val-badge" id="badge-vol-val">100%</span>
+            </div>
+            <input type="range" class="settings-slider" id="slider-vol" min="0" max="100" step="5" value="100">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-dialog-footer">
+        <div class="settings-footer-info">
+          <span class="settings-chip">Intel(R) UHD Graphics (0x00009B41)</span>
+          <span class="settings-chip-sub" id="settings-footer-drs-status">Fill-Rate Limiter: Active (16.6ms Target)</span>
+        </div>
+        <div class="settings-footer-actions">
+          <button class="pill-btn" id="btn-settings-reset">↺ Defaults</button>
+          <button class="pill-btn active" id="btn-settings-done" style="background: var(--gold); color: #101216;">Done [Esc]</button>
         </div>
       </div>
     </div>

@@ -3,3 +3,6 @@ dist/
 .DS_Store
 Thumbs.db
 *.log
+.artisan-artifacts/
+.snapshots/
+scripts/*.png

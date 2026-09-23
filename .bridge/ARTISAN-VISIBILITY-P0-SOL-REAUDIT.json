@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0",
+  "audit": "ARTISAN-VISIBILITY-P0-SOL-REAUDIT",
+  "auditor": "Codex independent re-audit",
+  "created_at": "2026-09-21T22:48:50.4064636-03:00",
+  "repository": "C:/Users/Fabio D/.gemini/antigravity/scratch/artisan-studio-app",
+  "path_resolution_note": "The literal prompt path C:/Users/Fabio D.gemini/... does not exist; the repository was resolved at the user-profile path C:/Users/Fabio D/.gemini/....",
+  "verdict": "ACCEPT",
+  "scope": {
+    "reviewed": [
+      ".bridge/ARTISAN-VISIBILITY-P0-SOL-AUDIT.json",
+      ".bridge/ARTISAN-VISIBILITY-P0-HANDOFF.json#p0_repair_session",
+      ".bridge/ARTISAN-VISIBILITY-P0-WORKLOG.jsonl entries 13-15",
+      ".bridge/ARTISAN-VISIBILITY-P0-FIX-BASELINE.json",
+      ".artisan-artifacts/p0fix-preimage/",
+      "the live repaired files and generated verifier report"
+    ],
+    "constraints_honored": [
+      "Existing Sol audit not modified",
+      "No source or governance file modified",
+      "VIS-6 and BUILD-VIS not closed",
+      "P1 not started",
+      "No commit or publish action",
+      "C:/Users/Fabio D/Desktop/THREEJS_HARNESSING not accessed"
+    ]
+  },
+  "command_results": [
+    {
+      "command": "node .artisan-artifacts/p0-evidence/treehash.mjs compare . .bridge/ARTISAN-VISIBILITY-P0-FIX-BASELINE.json <repair-session allowlist plus handoff, worklog, and baseline ledger paths>",
+      "exit_code": 0,
+      "result": "PASS",
+      "evidence": {
+        "changed": [
+          ".bridge/ARTISAN-VISIBILITY-P0-HANDOFF.json",
+          ".bridge/ARTISAN-VISIBILITY-P0-WORKLOG.jsonl",
+          "board.html",
+          "mcp-server/artifacts.js",
+          "mcp-server/HeadlessRunner.js",
+          "mcp-server/index.js",
+          "mcp-server/test_ws_bridge.js",
+          "PLAN.json",
+          "scripts/check_contract_drift.mjs",
+          "src/contracts/artisanContract.js",
+          "src/engine/WorldCompiler.js"
+        ],
+        "added": [
+          ".bridge/ARTISAN-VISIBILITY-P0-FIX-BASELINE.json"
+        ],
+        "removed": [],
+        "unapproved": []
+      },
+      "note": "The independent result is 11 changed files, not the handoff's stated 10, because the handoff itself changed to record p0_repair_session. It is an expected repair-session ledger change, not an unrelated modification. The same comparison passed before and after the requested command suite."
+    },
+    {
+      "command": "node scripts/check_contract_drift.mjs",
+      "exit_code": 0,
+      "result": "PASS: 68/68"
+    },
+    {
+      "command": "node mcp-server/test_ws_bridge.js",
+      "exit_code": 0,
+      "result": "PASS: 33/33"
+    },
+    {
+      "command": "python scripts/gate.py",
+      "exit_code": 0,
+      "result": "PASS: P1-P10 green; P10 board matches fresh regeneration"
+    },
+    {
+      "command": "node scripts/verify_astra_harness.mjs",
+      "exit_code": 0,
+      "result": "PASS WITH ONE DECLARED NON-BLOCKING WARNING: 29/30, 0 blocking failures, 1 non-blocking finding, 356 seconds",
+      "report": ".artisan-artifacts/verify/verify_report.json",
+      "warning": "preset-profile-budgets: Tokyo 45/30, Winterhold 39/30, Fantastic 58/35",
+      "write_evidence": "no-writes-outside-artifacts passed: 236 project files were SHA-256 byte-identical before/after; artifact root and OS temp were excluded"
+    },
+    {
+      "command": "git rev-parse HEAD",
+      "exit_code": 0,
+      "result": "909d41f182b2c4446411af6e19251f04257e13bf (matches repair baseline)"
+    }
+  ],
+  "sol_fix_1": {
+    "status": "PASS",
+    "conclusion": "The route oracle is implementation-independent for the audited design, and the deliberately wrong-builder fixtures genuinely fail the route proof.",
+    "evidence": [
+      "src/contracts/artisanContract.js defines ARCHETYPE_EXPECTED_ROUTES from separately authored foundry, inline, and temporary route groups; it does not derive the oracle from WorldCompiler.ROUTES or routeFor.",
+      "src/engine/WorldCompiler.js retains the production ARCHETYPE_ROUTES table separately and routes inline compounds through an observable INLINE_BUILDERS object.",
+      "scripts/check_contract_drift.mjs spies on every UniversalFoundry build* method and every inline builder, compiles all 44 catalog ids, and compares the first builder actually invoked to ARCHETYPE_EXPECTED_ROUTES. routeFor is checked only for label consistency.",
+      "Oracle keys equal all 44 catalog ids, every named expected builder exists, and the temporary set is exactly arch.balcony_window plus arch.tokyo_walls.",
+      "All three label-preserving wrong-builder fixtures were detected: furniture.table -> buildChest, arch.tokyo_walls -> buildTatamiFloor, and decor.woven_rug -> inline compileFramedPanel."
+    ]
+  },
+  "sol_fix_2": {
+    "status": "PASS",
+    "conclusion": "The lighting proof is behavioral across every profile, current MCP filesystem mutation is centralized in artifacts.js, screenshot paths cross the artifact boundary as bytes rather than Puppeteer paths, and the named attack classes are caught.",
+    "lighting_evidence": [
+      "The real LightingRig is exercised for all 8 PRESET_SCENES x 3 LIGHTING_PRESETS.",
+      "Both setSceneProfile and setPreset paths are tested in forward and reverse scene order to expose stale state.",
+      "Background, exposure, hemisphere, key, fill, and local/practical color, intensity, position, distance, and decay are compared to the canonical profile.",
+      "The unmodified-control variant passes; injected double-quoted equality, switch, includes, and startsWith branches each produce behavioral mismatches and are detected."
+    ],
+    "artifact_boundary_evidence": [
+      "An AST deny-by-default scan passed across all 6 current non-test MCP modules outside artifacts.js; the independent module inventory contains only the 7 top-level MCP JavaScript modules, including artifacts.js.",
+      "Independent source search found filesystem mutation APIs only in mcp-server/artifacts.js. HeadlessRunner's remaining page.screenshot call uses { type: 'png' } with no path and passes bytes to writeArtifactAt.",
+      "mcp-server/index.js routes live screenshot bytes through writeArtifactAt; HeadlessRunner routes perf reports and headless screenshots through writeArtifactAt; browser-profile create/remove mutations are also centralized in artifacts.js.",
+      "The full verifier exercised live and headless screenshots successfully, and test_ws_bridge exercised runtime reassignment refusal, in-root screenshot bytes, browser-profile lifecycle, and removal refusal."
+    ],
+    "attack_fixture_evidence": [
+      "Reassigned confined path rejected",
+      "Aliased write function rejected",
+      "Aliased fs object rejected",
+      "Destructured fs rejected",
+      "Named write import rejected",
+      "Computed fs member rejected",
+      "fs/promises and promises named import rejected",
+      "Screenshot path, options-variable, and spread-options forms rejected",
+      "child_process, dynamic fs import, and require fs rejected",
+      "Confined helper-write plus read-only-fs control passes"
+    ]
+  },
+  "verifier_assessment": {
+    "blocking_failures": 0,
+    "warnings": [
+      {
+        "id": "preset-profile-budgets",
+        "blocking": false,
+        "evidence": "pre-existing overages: Tokyo 45/30, Winterhold 39/30, Fantastic 58/35"
+      }
+    ],
+    "only_warning_confirmed": true
+  },
+  "gate_6": {
+    "status": "PARTIAL on semantics; proof hardened and passing",
+    "p1_assignments_confirmed": [
+      "arch.balcony_window remains an inline compileBalconyWindow compound because no foundry balcony builder existed; P1 owns moving it to a foundry-owned builder.",
+      "arch.tokyo_walls remains routed to buildTokyoApartmentShell with historical full-shell behavior; P1 owns walls-only semantics or an explicit rename/deprecation.",
+      "PLAN.json VIS-1 keeps both routes marked temporary and leaves FND-TOKYO-FOUNDRY-BUILDERS-MISSING open for BUILD-CREATIVE."
+    ]
+  },
+  "preservation": {
+    "status": "PASS",
+    "evidence": [
+      "Repair-baseline treehash: removed [], unapproved [] before and after the command suite.",
+      "The existing Sol audit SHA-256 remains e639892a3214d5150faef90a88881c6d43151192df4c35ed16d28d2e59fe704d, exactly matching the repair baseline.",
+      "Full verifier no-writes-outside-artifacts: 236 project files byte-identical.",
+      "HEAD remains 909d41f182b2c4446411af6e19251f04257e13bf."
+    ],
+    "unrelated_baseline_file_lost_reverted_or_modified": false
+  },
+  "governance_state_left_unchanged": {
+    "BUILD-VIS": "in_execution",
+    "VIS-6": "in_execution",
+    "BUILD-CREATIVE": "approved; depends_on BUILD-VIS and was not started"
+  },
+  "remaining_risks": [
+    "Gate 6's two semantic limitations are intentionally unresolved; the oracle proves the audited current routes, not the final P1 semantics.",
+    "The LightingRig Node proof covers component behavior; src/main.js scene wiring remains covered by the browser brightness and mode-response gates rather than by the Node fixture harness.",
+    "The AST write scan is complete for the current flat mcp-server JavaScript inventory but is not recursive; if P1 adds nested MCP modules, the scan must be extended or those modules could fall outside static coverage.",
+    "removeBrowserProfileDir trusts the invariant that callers pass a helper-created direct child of OS temp with the artisan_mcp_ prefix; it does not track creation provenance. No user-controlled call path was found in the current MCP surface."
+  ],
+  "required_action_before_p1": [
+    "In a separately authorized governance closeout, write the owner-acceptance record for the already recorded contact-sheet approval, then close VIS-6 and BUILD-VIS and regenerate/recheck the board. This re-audit deliberately did not perform those actions.",
+    "Do not start BUILD-CREATIVE until BUILD-VIS is closed; its dependency remains explicit and enforced."
+  ],
+  "p1_obligations": [
+    "Replace the temporary balcony inline route with a foundry-owned builder and give tokyo_walls walls-only semantics or explicitly rename/deprecate it; do not silently re-baseline the oracle.",
+    "Carry forward Sol's partial --scenes brightness-run labeling amendment.",
+    "Keep the P0 verifier, warning ceilings, lighting profiles, and artifact boundary as non-regression gates while expanding the MCP surface."
+  ]
+}

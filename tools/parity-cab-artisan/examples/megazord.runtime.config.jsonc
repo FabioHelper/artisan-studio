@@ -1,0 +1,60 @@
+{
+  // SPEC-16 S3 — Megazord reference configuration reproducing default harness runtime
+  "project": "megazord",
+  "monolith": { "root": "./demo/monolith.jsx", "kind": "single-file" },
+  "modular":  { "root": "./demo/modular",      "kind": "directory" },
+  "out_dir":  "./.parity-megazord",
+  "camera_presets": [],
+  "runtime": {
+    "ready": {
+      "global": "__viewport",
+      "timeout_ms": 20000
+    },
+    "globals": {
+      "matpool": "MatPool",
+      "audio":   "ArcaneAudio",
+      "bus":     "bus"
+    },
+    "vendor": {
+      "three_umd": "https://unpkg.com/three@0.150.0/build/three.min.js",
+      "react_umd": [
+        "https://unpkg.com/react@18.2.0/umd/react.production.min.js",
+        "https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"
+      ],
+      "babel_umd": "https://unpkg.com/@babel/standalone/babel.min.js",
+      "importmap": {
+        "three": "https://esm.sh/three@0.150.0",
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom": "https://esm.sh/react-dom@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime"
+      }
+    },
+    "sides": {
+      "monolith": {
+        "mode": "eval-jsx",
+        "mount": "#root",
+        "render": "react",
+        "root_export": "MegazordStudio",
+        "exports": ["MegazordStudio", "MatPool", "ArcaneAudio", "bus"]
+      },
+      "modular": {
+        "mode": "module",
+        "mount": "#studio-root",
+        "render": "react",
+        "entry": "/modular/ui/studio.js",
+        "entry_export": "default",
+        "side_imports": [
+          { "from": "/modular/gfx/mat-pool.js", "binding": "MatPool",     "expose": "MatPool" },
+          { "from": "/modular/audio/index.js",  "binding": "ArcaneAudio", "expose": "ArcaneAudio" },
+          { "from": "/modular/core/index.js",   "binding": "bus",         "expose": "bus" }
+        ],
+        "init": ["MatPool.initialize(THREE)"]
+      }
+    },
+    "hud_probes": [
+      { "id": "panel_inspector", "kind": "button_text", "match": "inspector" }
+    ],
+    "settings_presets": null
+  }
+}

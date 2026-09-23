@@ -1,0 +1,363 @@
+<title>Master Change Plan</title>
+<!--
+GENERATED FILE. Do not edit the output by hand.
+  regenerate:  <your gate> --board
+  guarded by:  check P10 (fails if the output is stale)
+
+ONE template, ONE data source, two renderings -- there is deliberately no
+second board anywhere:
+  board.html           standalone file, this template inside a full document
+  board.fragment.html  the same bytes minus the document wrapper, for a host
+                       that supplies its own head/body
+Both are emitted by the same generator from PLAN.json + FINDINGS.json, so a
+published board and the plan the gate audits cannot say different things.
+
+GENERATOR CONTRACT -- two string substitutions, nothing else:
+
+  1. THE DATA PLACEHOLDER. A bare token inside the <script id="boardData">
+     element at the bottom of this file. The generator replaces it with the
+     JSON payload, having first escaped any "</script" inside that payload.
+  2. THE SPLIT MARKER. An HTML comment sitting between the <style> block and
+     the first <section>, marking where head content ends and body content
+     begins.
+
+NEITHER TOKEN IS WRITTEN OUT IN THIS COMMENT, AND THAT IS DELIBERATE. Both
+substitutions are plain string operations, so a token that also appears in
+prose gets substituted THERE -- the first draft of this file spelled both out
+here, and the generated board came out with the whole JSON payload injected
+into this comment and the entire stylesheet pushed into <body>. Read the two
+tokens off the file itself; do not restate them in prose anywhere.
+
+The generator must assert each token occurs EXACTLY ONCE and fail loudly if
+not. Silent corruption of a generated file is the one failure mode a board
+cannot survive, because the board is what everyone else trusts.
+-->
+<style>
+/* Deliberate single-theme commitment: a control-panel board is a light-ground
+   artifact by nature. color-scheme is pinned so a dark toggle cannot
+   half-invert the chrome. Change this only if you commit to styling BOTH. */
+:root{
+  color-scheme:light;
+  --paper:#FFFFFF; --panel:#F2F4F8; --panel-2:#E6EAF2; --rule:#C8CEDA;
+  --ink:#0B0E14; --ink-2:#3A4356; --ink-3:#6B748A;
+  --blue:#0033CC; --green:#00A651; --red:#FF2D2D;
+  --cyan:#00C2E0; --mag:#E0009B; --amber:#E08A00;
+  --title-a:#0A246A; --title-b:#A6CAF0;
+  --ui:Tahoma,Verdana,Geneva,sans-serif;
+  --mono:"Lucida Console",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:24px 16px 64px;background:var(--paper);color:var(--ink);
+  font:12px/1.55 var(--ui);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+/* --- the window chrome: raised bevel, title bar, inset body ------------- */
+.win{background:var(--panel);border:2px solid;border-color:#FFF #808080 #808080 #FFF;
+  box-shadow:0 2px 0 rgba(11,14,20,.18)}
+.win-bar{display:flex;align-items:center;gap:8px;padding:5px 8px;color:#fff;
+  background:linear-gradient(90deg,var(--title-a) 0%,#1E58B8 55%,var(--title-b) 100%)}
+.win-bar h1,.win-bar h2{margin:0;font:bold 12px/1.3 var(--ui);letter-spacing:.06em;text-transform:uppercase}
+.win-dots{display:flex;gap:4px;margin-left:auto}
+.win-dots i{width:13px;height:12px;background:var(--panel);border:1px solid;
+  border-color:#FFF #404040 #404040 #FFF;display:block}
+.win-body{padding:16px}
+
+/* --- masthead ---------------------------------------------------------- */
+.mast{display:grid;grid-template-columns:1.35fr 1fr;gap:18px}
+@media(max-width:860px){.mast{grid-template-columns:1fr}}
+.mission{font:13px/1.6 var(--ui);color:var(--ink-2);margin:0;max-width:64ch}
+.mission b{color:var(--ink)}
+.rule-line{margin:12px 0 0;padding:9px 11px;background:var(--paper);border:2px inset var(--rule);
+  font:italic 12px/1.5 var(--ui);color:var(--ink-2)}
+.rule-line strong{font-style:normal;color:var(--red)}
+.gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-content:start;margin:0}
+.g{background:var(--paper);border:2px inset var(--rule);padding:8px 9px}
+.g dt{margin:0 0 3px;font:bold 9px/1.2 var(--ui);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.g dd{margin:0;font:bold 20px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+.g small{display:block;font:9px/1.3 var(--ui);color:var(--ink-3);margin-top:2px}
+.g.b dd{color:var(--blue)}.g.g dd{color:var(--green)}.g.r dd{color:var(--red)}
+.g.c dd{color:#0089A3}.g.m dd{color:var(--mag)}.g.a dd{color:var(--amber)}
+
+/* --- the NEXT bar: the one thing a resuming human reads first ----------- */
+.next{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:11px 13px;
+  background:#EAF0FF;border:2px solid var(--blue)}
+.next .tag{background:var(--blue);color:#fff;font:bold 9px/1 var(--ui);letter-spacing:.11em;
+  padding:5px 7px;text-transform:uppercase}
+.next .id{font:bold 13px/1 var(--mono);color:var(--blue)}
+.next .txt{font:12px/1.45 var(--ui);color:var(--ink-2);flex:1;min-width:220px}
+
+/* --- owner decisions: loud on purpose, they block everything downstream - */
+.decide{background:#FFF8E1;border:2px solid var(--amber);padding:10px 12px;margin-bottom:9px}
+.decide .who{font:bold 9px/1 var(--ui);letter-spacing:.1em;text-transform:uppercase;color:#7A5A00}
+.decide p{margin:6px 0 0;font:12px/1.5 var(--ui);color:var(--ink-2)}
+
+/* --- toolbar ----------------------------------------------------------- */
+.tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px;background:var(--panel-2);
+  border-bottom:1px solid var(--rule)}
+.tools .lab{font:bold 9px/1 var(--ui);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+button.btn{font:11px/1 var(--ui);padding:6px 11px;cursor:pointer;color:var(--ink);background:var(--panel);
+  border:2px solid;border-color:#FFF #808080 #808080 #FFF}
+button.btn:hover{background:#FAFBFE}
+button.btn:active,button.btn[aria-pressed="true"]{border-color:#808080 #FFF #FFF #808080;background:var(--panel-2)}
+button.btn:focus-visible{outline:1px dotted var(--ink);outline-offset:-5px}
+button.btn.hot[aria-pressed="true"]{background:#FFF3C4;border-color:#808080 #FFF #FFF #808080;color:#7A5A00}
+
+/* --- the tree ---------------------------------------------------------- */
+.tree{padding:4px 0 8px}
+.arc{margin:14px 12px 4px;padding:5px 9px;background:var(--ink);color:#fff;font:bold 10px/1.3 var(--ui);
+  letter-spacing:.13em;text-transform:uppercase;display:flex;gap:10px;align-items:baseline}
+.arc span{font:10px/1.3 var(--ui);letter-spacing:.02em;text-transform:none;color:#B9C2D6;font-weight:400}
+.row{display:grid;grid-template-columns:26px 104px minmax(200px,1.6fr) 108px minmax(150px,1fr);
+  gap:9px;align-items:start;padding:7px 12px;border-bottom:1px solid #E3E7EF;background:var(--paper)}
+.row:nth-child(even){background:#FBFCFE}
+.row:hover{background:#EEF3FF}
+.row.phase{padding-left:40px}
+.row.phase .rid{font-size:11px;color:var(--ink-2)}
+@media(max-width:900px){.row{grid-template-columns:26px 96px 1fr}.row .st,.row .lk{grid-column:2/-1}}
+/* the state box: a checkbox is the most honest control for "is it done" */
+.cb{width:15px;height:15px;border:2px solid;border-color:#808080 #FFF #FFF #808080;background:var(--paper);
+  display:grid;place-items:center;font:bold 11px/1 var(--mono);margin-top:1px}
+.cb.done{background:var(--green);border-color:#00713a #7fd3a8 #7fd3a8 #00713a;color:#fff}
+.cb.exec{background:var(--blue);border-color:#001f7a #8fa8f0 #8fa8f0 #001f7a;color:#fff}
+.cb.appr{background:#D8F6FC;border-color:#0089A3 #B8ECF7 #B8ECF7 #0089A3;color:#0089A3}
+.cb.draft{background:var(--paper);border-color:#808080 #FFF #FFF #808080;color:var(--mag)}
+.rid{font:bold 12px/1.3 var(--mono)}
+.rtitle{font:12px/1.45 var(--ui);color:var(--ink-2)}
+.row.build .rtitle{color:var(--ink);font-weight:bold}
+.plain{display:block;font:italic 11px/1.5 var(--ui);color:#0060A8;margin-top:2px}
+body.tech .plain{display:none}
+body.plainmode .techtitle{display:none}
+.chip{display:inline-block;font:bold 9px/1 var(--ui);letter-spacing:.07em;text-transform:uppercase;
+  padding:4px 6px;border:1px solid;white-space:nowrap}
+.c-closed{color:#00713a;border-color:#00713a;background:#E6F7EE}
+.c-exec{color:var(--blue);border-color:var(--blue);background:#E7EDFF}
+.c-appr{color:#0089A3;border-color:#0089A3;background:#E1F7FC}
+.c-draft{color:var(--mag);border-color:var(--mag);background:#FCE7F5}
+.c-spec{color:#B00068;border-color:var(--mag);background:#FFF}
+.lk{font:10px/1.5 var(--mono);color:var(--ink-3)}
+.lk b{color:var(--ink-2);font-weight:400}
+.lk .pre::before{content:"\25C0 ";color:var(--mag)}
+.lk .suc::before{content:"\25B6 ";color:var(--blue)}
+/* a guard that exists in the gate is solid; one that does not is dashed and
+   amber -- P7 fails on the second case for a LANDED node */
+.gd{display:inline-block;font:9px/1 var(--mono);color:#00713a;border:1px solid #7fbf9c;padding:2px 4px;margin:1px 2px 0 0}
+.gd.planned{color:#7A5A00;border:1px dashed var(--amber)}
+
+/* --- findings register -------------------------------------------------- */
+table.reg{width:100%;border-collapse:collapse;background:var(--paper)}
+.reg th{text-align:left;font:bold 9px/1.2 var(--ui);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);padding:7px 9px;border-bottom:2px solid var(--rule);background:var(--panel-2)}
+.reg td{padding:8px 9px;border-bottom:1px solid #E3E7EF;font:11px/1.5 var(--ui);vertical-align:top}
+.reg td.id{font:bold 11px/1.4 var(--mono);white-space:nowrap}
+.reg .n{font:bold 12px/1 var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.d-open{color:var(--red)}.d-inv{color:var(--amber)}.d-acc{color:var(--ink-3)}.d-closed{color:#00713a}
+
+/* --- footer ------------------------------------------------------------- */
+.foot{font:10px/1.6 var(--mono);color:var(--ink-3);padding:2px 4px}
+.honest{margin-top:10px;padding:9px 11px;background:#FFF3F3;border-left:4px solid var(--red);
+  font:12px/1.55 var(--ui);color:var(--ink-2)}
+.honest b{color:var(--red)}
+</style>
+<!--__HEAD_END__-->
+<div class="wrap">
+
+  <section class="win">
+    <div class="win-bar"><h1 id="boardTitle">Master Change Plan</h1>
+      <div class="win-dots"><i></i><i></i><i></i></div></div>
+    <div class="win-body">
+      <div class="mast">
+        <div>
+          <p class="mission" id="goal"></p>
+          <p class="rule-line"><strong>The governing rule:</strong> <span id="grule"></span></p>
+        </div>
+        <dl class="gauges" id="gauges"></dl>
+      </div>
+      <div class="next" id="nextbar" style="margin-top:16px"></div>
+      <div id="decisions" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+  <section class="win">
+    <div class="win-bar"><h2>The plan</h2>
+      <div class="win-dots"><i></i><i></i><i></i></div></div>
+    <div class="tools">
+      <span class="lab">View</span>
+      <button class="btn hot" id="langBtn" aria-pressed="false">Show plain English</button>
+      <button class="btn" id="fAll" aria-pressed="true">All</button>
+      <button class="btn" id="fOpen" aria-pressed="false">Not yet landed</button>
+      <button class="btn" id="fLanded" aria-pressed="false">Landed</button>
+    </div>
+    <div class="tree" id="tree"></div>
+  </section>
+
+  <section class="win">
+    <div class="win-bar"><h2>Findings register</h2>
+      <div class="win-dots"><i></i><i></i><i></i></div></div>
+    <div class="win-body">
+      <p class="mission" style="max-width:none" id="regnote"></p>
+      <div style="overflow-x:auto;margin-top:11px">
+        <table class="reg">
+          <thead><tr><th>ID</th><th>Title</th><th>Owner</th><th>Disposition</th><th class="n">Expected<br>failures</th></tr></thead>
+          <tbody id="reg"></tbody>
+        </table>
+      </div>
+      <div class="honest" id="honest"></div>
+    </div>
+  </section>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<script id="boardData" type="application/json">__BOARD_DATA__</script>
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById("boardData").textContent);
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  };
+  var byId = {};
+  D.nodes.forEach(function (n) { byId[n.id] = n; });
+
+  // ---- masthead --------------------------------------------------------
+  var m = D.mission || {};
+  document.getElementById("boardTitle").textContent = m.title || "Master Change Plan";
+  document.getElementById("goal").innerHTML = esc(m.statement || "");
+  document.getElementById("grule").textContent = m.rule
+    || "A green gate means the rules were obeyed — not that the work is good.";
+
+  var counts = { closed: 0, in_execution: 0, approved: 0, draft: 0, landed: 0 };
+  D.nodes.forEach(function (n) {
+    if (counts[n.intent] !== undefined) counts[n.intent]++;
+    if (n.landed) counts.landed++;
+  });
+  var gauges = [
+    ["g", "Landed", counts.landed, D.nodes.length + " nodes"],
+    ["b", "In execution", counts.in_execution, "started, not finished"],
+    ["c", "Approved", counts.approved, "ready to start"],
+    ["m", "Draft", counts.draft, "not scheduled"],
+    ["r", "Expected failures", (D.gate || {}).failures || 0, "registered, not hidden"],
+    ["a", "Findings", (D.findings || []).length, "known defects"]
+  ];
+  document.getElementById("gauges").innerHTML = gauges.map(function (g) {
+    return '<div class="g ' + g[0] + '"><dt>' + esc(g[1]) + "</dt><dd>" + esc(g[2])
+      + "</dd><small>" + esc(g[3]) + "</small></div>";
+  }).join("");
+
+  // ---- NEXT ------------------------------------------------------------
+  var nx = D.next;
+  document.getElementById("nextbar").innerHTML = nx
+    ? '<span class="tag">Next</span><span class="id">' + esc(nx.id) + "</span>"
+      + '<span class="txt">' + esc(nx.plain || nx.title || "")
+      + (nx.spec ? '  — spec: <b>' + esc(nx.spec) + "</b>" : "") + "</span>"
+    : '<span class="tag">Next</span><span class="txt">Every scheduled node has landed '
+      + "or is in execution.</span>";
+
+  // ---- owner decisions -------------------------------------------------
+  var dec = D.nodes.filter(function (n) { return n.owner_decides; });
+  document.getElementById("decisions").innerHTML = dec.map(function (n) {
+    return '<div class="decide"><span class="who">Owner decides — ' + esc(n.id)
+      + "</span><p>" + esc(n.owner_decides) + "</p></div>";
+  }).join("");
+
+  // ---- the tree --------------------------------------------------------
+  var CB = { closed: ["done", "✓"], in_execution: ["exec", "▶"],
+             approved: ["appr", ""], draft: ["draft", "?"] };
+  var CHIP = { closed: "c-closed", in_execution: "c-exec", approved: "c-appr", draft: "c-draft" };
+  var built = D.built_guards || [];
+
+  function row(n) {
+    var cb = CB[n.intent] || CB.draft;
+    // The box reflects EVIDENCE, not the label. A node whose label says closed
+    // but whose evidence is absent is exactly what P4 fails on -- show it.
+    var boxCls = n.landed ? "done" : cb[0];
+    var boxTxt = n.landed ? "✓" : cb[1];
+    var guards = (n.guard || []).map(function (g) {
+      var known = built.indexOf(g) >= 0;
+      return '<span class="gd' + (known ? "" : " planned") + '">' + esc(g) + "</span>";
+    }).join("");
+    var succ = D.nodes.filter(function (o) {
+      return (o.depends_on || []).indexOf(n.id) >= 0;
+    }).map(function (o) { return o.id; });
+    var links = ((n.depends_on || []).length
+        ? '<span class="pre"><b>' + n.depends_on.map(esc).join(", ") + "</b></span> " : "")
+      + (succ.length ? '<span class="suc"><b>' + succ.map(esc).join(", ") + "</b></span>" : "");
+    return '<div class="row ' + (n.kind === "phase" ? "phase" : "build")
+      + '" data-landed="' + (n.landed ? "1" : "0") + '">'
+      + '<div class="cb ' + boxCls + '">' + boxTxt + "</div>"
+      + '<div class="rid">' + esc(n.id) + "</div>"
+      + '<div><span class="techtitle rtitle">' + esc(n.title || "") + "</span>"
+      + (n.plain ? '<span class="plain">' + esc(n.plain) + "</span>" : "") + "</div>"
+      + '<div class="st"><span class="chip ' + (CHIP[n.intent] || "c-draft") + '">'
+      + esc(n.intent) + "</span>"
+      + (n.mode === "needs_spec" ? ' <span class="chip c-spec">needs spec</span>' : "")
+      + "</div>"
+      + '<div class="lk">' + links + (guards ? "<div>" + guards + "</div>" : "") + "</div>"
+      + "</div>";
+  }
+
+  var html = "";
+  (D.arcs || [{ id: null, title: "" }]).forEach(function (arc) {
+    var builds = D.nodes.filter(function (n) {
+      return n.kind !== "phase" && (arc.id === null || n.arc === arc.id);
+    });
+    if (!builds.length) return;
+    html += '<div class="arc">' + esc(arc.id || "") + "<span>" + esc(arc.title || "") + "</span></div>";
+    builds.forEach(function (b) {
+      html += row(b);
+      D.nodes.filter(function (p) { return p.parent === b.id; }).forEach(function (p) {
+        html += row(p);
+      });
+    });
+  });
+  document.getElementById("tree").innerHTML = html;
+
+  // ---- findings register ----------------------------------------------
+  var DISP = { open: "d-open", investigating: "d-inv", closed: "d-closed" };
+  document.getElementById("regnote").textContent = (D.findings || []).length
+    ? "Every known defect and every EXPECTED gate failure. The gate is checked "
+      + "against this register in both directions: an unregistered failure is a "
+      + "regression, and a registered failure that stopped failing is a stale disposition."
+    : "No findings registered.";
+  document.getElementById("reg").innerHTML = (D.findings || []).map(function (f) {
+    var cls = DISP[f.disposition] || "d-acc";
+    return "<tr><td class='id'>" + esc(f.id) + "</td><td>" + esc(f.title)
+      + "</td><td>" + esc(f.owner || "—") + "</td><td class='" + cls + "'>"
+      + esc(f.disposition) + "</td><td class='n'>"
+      + ((f.expected_failures || []).length) + "</td></tr>";
+  }).join("");
+
+  document.getElementById("honest").innerHTML =
+    "<b>Read this before trusting anything above.</b> A green gate means the "
+    + "declared rules were obeyed. It is not evidence that the work is good — "
+    + "only a human looking at the result can say that.";
+
+  document.getElementById("foot").textContent =
+    "Generated from PLAN.json + FINDINGS.json — " + (D.generated_at || "")
+    + " — plan version " + (D.plan_version || "?")
+    + ". Do not edit this file by hand; regenerate it.";
+
+  // ---- controls --------------------------------------------------------
+  var langBtn = document.getElementById("langBtn");
+  langBtn.addEventListener("click", function () {
+    var on = this.getAttribute("aria-pressed") === "true";
+    this.setAttribute("aria-pressed", String(!on));
+    this.textContent = on ? "Show plain English" : "Show technical titles";
+    document.body.classList.toggle("plainmode", !on);
+    document.body.classList.toggle("tech", on);
+  });
+  document.body.classList.add("tech");
+
+  [["fAll", null], ["fOpen", "0"], ["fLanded", "1"]].forEach(function (pair) {
+    document.getElementById(pair[0]).addEventListener("click", function () {
+      ["fAll", "fOpen", "fLanded"].forEach(function (id) {
+        document.getElementById(id).setAttribute("aria-pressed", String(id === pair[0]));
+      });
+      Array.prototype.forEach.call(document.querySelectorAll(".row"), function (r) {
+        r.style.display = (pair[1] === null || r.dataset.landed === pair[1]) ? "" : "none";
+      });
+    });
+  });
+})();
+</script>

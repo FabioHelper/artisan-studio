@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parity-cab.local/schemas/suite-profile-registry/1.0.0",
+  "title": "Modularization suite gate and profile registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "schema_kind", "authority", "publication", "exit_meanings", "profiles", "gate_catalog"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "schema_kind": { "const": "modularization-suite/gate-profile-registry" },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["suite_run_schema_owner", "fact_writer", "final_verdict_writer", "readers"],
+      "properties": {
+        "suite_run_schema_owner": { "const": "parity-cab" },
+        "fact_writer": { "const": "transformer" },
+        "final_verdict_writer": { "const": "verifier" },
+        "readers": {
+          "type": "array", "uniqueItems": true, "minItems": 3,
+          "items": { "enum": ["transformer", "verifier", "artifact-system"] }
+        }
+      }
+    },
+    "publication": {
+      "type": "object", "additionalProperties": false,
+      "required": ["method", "current_pointer_advances_only_after", "completed_attempts_immutable", "retry_creates_new_attempt_id", "cancelled_attempt_late_writes"],
+      "properties": {
+        "method": { "const": "atomic-temp-flush-rename" },
+        "current_pointer_advances_only_after": { "const": "schema-and-provenance-validation" },
+        "completed_attempts_immutable": { "const": true },
+        "retry_creates_new_attempt_id": { "const": true },
+        "cancelled_attempt_late_writes": { "const": "reject" }
+      }
+    },
+    "exit_meanings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["0", "1", "2"],
+      "properties": { "0": { "const": "GO" }, "1": { "const": "NO-GO" }, "2": { "const": "INCOMPLETE" } }
+    },
+    "profiles": {
+      "type": "object", "additionalProperties": false,
+      "required": ["library", "web-app", "threejs", "custom"],
+      "properties": {
+        "library": { "$ref": "#/$defs/builtInProfile" },
+        "web-app": { "$ref": "#/$defs/builtInProfile" },
+        "threejs": { "$ref": "#/$defs/builtInProfile" },
+        "custom": {
+          "type": "object", "additionalProperties": false,
+          "required": ["allowed_base_profiles", "base_profile_required", "forbid_empty_profile", "forbid_unknown_gates", "forbid_base_gate_exclusion", "require_signed_not_applicable"],
+          "properties": {
+            "allowed_base_profiles": { "const": ["library", "web-app", "threejs"] },
+            "base_profile_required": { "const": true }, "forbid_empty_profile": { "const": true },
+            "forbid_unknown_gates": { "const": true }, "forbid_base_gate_exclusion": { "const": true },
+            "require_signed_not_applicable": { "const": true }
+          }
+        }
+      }
+    },
+    "gate_catalog": {
+      "type": "object", "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/gate" }
+    }
+  },
+  "$defs": {
+    "gateIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "gateIdsAllowEmpty": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "conditionalRule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["gate_ids", "predicate"],
+      "properties": {
+        "gate_ids": { "$ref": "#/$defs/gateIds" },
+        "predicate": {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "signal"],
+          "properties": { "kind": { "const": "signal_true" }, "signal": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "builtInProfile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["required_gate_ids", "optional_gate_ids", "conditional_required"],
+      "properties": {
+        "base_profile": { "enum": ["library", "web-app"] },
+        "required_gate_ids": { "$ref": "#/$defs/gateIds" },
+        "optional_gate_ids": { "$ref": "#/$defs/gateIdsAllowEmpty" },
+        "conditional_required": { "type": "array", "items": { "$ref": "#/$defs/conditionalRule" } }
+      }
+    },
+    "applicabilityPredicate": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "const": "always" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "signal"], "properties": { "kind": { "const": "signal_true" }, "signal": { "type": "string", "minLength": 1 } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "profiles"], "properties": { "kind": { "const": "profile_in" }, "profiles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["library", "web-app", "threejs"] } } } }
+      ]
+    },
+    "gate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profile_status", "executable", "argv", "prerequisites", "applicability_predicate", "evidence_filename", "output_schema", "accepted_decisions", "minimum_observations", "planted_negative_fixture"],
+      "properties": {
+        "profile_status": {
+          "type": "object", "additionalProperties": false,
+          "required": ["library", "web-app", "threejs"],
+          "properties": {
+            "library": { "enum": ["required", "conditional", "optional", "not_applicable"] },
+            "web-app": { "enum": ["required", "conditional", "optional", "not_applicable"] },
+            "threejs": { "enum": ["required", "conditional", "optional", "not_applicable"] }
+          }
+        },
+        "executable": { "type": "string", "minLength": 1 },
+        "argv": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "prerequisites": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "applicability_predicate": { "$ref": "#/$defs/applicabilityPredicate" },
+        "evidence_filename": { "type": "string", "pattern": "^[^/\\\\]+\\.(sij\\.json|json)$" },
+        "output_schema": {
+          "type": "object", "additionalProperties": false, "required": ["kind", "version"],
+          "properties": { "kind": { "type": "string", "minLength": 1 }, "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" } }
+        },
+        "accepted_decisions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["pass", "not_applicable", "GO"] } },
+        "minimum_observations": { "type": "integer", "minimum": 1 },
+        "planted_negative_fixture": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

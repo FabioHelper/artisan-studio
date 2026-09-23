@@ -1,0 +1,17 @@
+{
+  "name": "parity-cab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Deterministic monolith→modular parity harness. Scripts do the mechanical work (AST diff, coverage, singleton, materials, scene-graph, anim, pixel); the LLM only dispositions. See QUICKSTART.md.",
+  "bin": {},
+  "scripts": {
+    "demo": "node scripts/run-all.cjs --config examples/demo/parity.config.json",
+    "demo:jsx": "node scripts/09b-jsx-coverage.cjs --config examples/demo/parity.config.json",
+    "demo:html": "node scripts/01-inventory.cjs --config examples/demo-html/parity.config.json --side monolith"
+  },
+  "dependencies": {
+    "acorn": "^8.11.3",
+    "acorn-jsx": "^5.3.2",
+    "acorn-loose": "^8.4.0"
+  }
+}

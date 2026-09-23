@@ -1,0 +1,1497 @@
+<!doctype html>
+<html><head>
+<meta charset="utf-8">
+<title>Parity Trace — Modular</title>
+<style>html,body{margin:0;height:100%;background:#0a0716;color:#cdd6f4;font-family:ui-monospace,monospace}.status{position:fixed;top:10px;left:10px;background:rgba(0,0,0,.6);padding:6px 12px;border-radius:6px;font-size:11px;z-index:99998}</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://esm.sh/three@0.150.0",
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime"
+  }
+}
+</script>
+<script>window.__TRACE_SINK_URL = "http://localhost:4203/trace"; window.__TRACE_SIDE = "modular"; window.__TRACE_PROJECT = "megazord"; window.__PIXEL_PRESETS = [];</script>
+<script>// trace-recorder.js — Browser instrumentation that captures behavioral parity
+// signals. v2: actively polls for readiness instead of relying on a fixed timer,
+// exposes window.__parityCAB.hookTHREE() so module-loaded THREE can be hooked
+// post-import.
+
+(function () {
+  "use strict";
+
+  // ─── Deterministic RNG seed (Stage 13 / C3 · MASTER-PLAN) ───────────────────
+  // This scene builds procedural geometry with Math.random (starfield/dust/books/
+  // bristles — monolith :2419,:2427-2429,:980-983,:1008,:1151). Without an
+  // IDENTICAL seed on BOTH harness sides at boot, those vertex buffers differ every
+  // run → the scene-graph geo hashes (captureSceneGraphHash) would never match
+  // cross-side, and even run-to-run on one side. The recorder IIFE runs BEFORE the
+  // bundle constructs the scene on both sides (mono: three+recorder load before the
+  // Babel-eval'd source; mod: recorder runs before the dist module import), so
+  // seeding here pins every downstream Math.random call deterministically.
+  // mulberry32 — fast, well-distributed. Net-neutral-to-positive for the existing
+  // behavior-trace sections (they compare counts/positions/functional signals, not
+  // RNG phases; determinism can only stabilize them). Reversible: set
+  // window.__PARITY_SEED_RNG = false before this script to disable.
+  if (window.__PARITY_SEED_RNG !== false) {
+    try {
+      var __pseed = ((window.__PARITY_RNG_SEED || 0x9e3779b9) >>> 0);
+      Math.random = function () {
+        __pseed |= 0; __pseed = (__pseed + 0x6d2b79f5) | 0;
+        var t = Math.imul(__pseed ^ (__pseed >>> 15), 1 | __pseed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    } catch (_) { /* if Math.random is non-writable, fall through — hashes just won't cross-match */ }
+  }
+
+  const SINK = window.__TRACE_SINK_URL || "http://localhost:4203/trace";
+  const SIDE = window.__TRACE_SIDE || "unknown";
+  const PROJECT = window.__TRACE_PROJECT || "default";
+  const READY_TIMEOUT_MS = 20000;    // give up after 20s
+  const POLL_MS = 150;
+  const SCRUB_DELAY_MS = 120;
+
+  const trace = {
+    schema_version: "1.1.0",
+    schema_kind: "parity-cab/behavior-trace",
+    side: SIDE,
+    started_at: new Date().toISOString(),
+    completed_at: null,
+    three_version: null,
+    entities: [],
+    materials: [],
+    lights_initial: [],
+    renderer_initial: null,
+    settings_scrub: [],
+    audio_scrub: [],       // category-name set (low-signal — see audio_ready)
+    audio_ready: null,     // functional check: init attempted, ctx state, etc.
+    audio_context_closes_seen: 0, // incremented by hookAudioContextClose; survives across remounts
+    remount_stress: null,  // { tested, closes_before, closes_after, audio_context_survived }
+    bus_events: [],
+    hud: null,        // DOM-level UI signals
+    gpu_telemetry: null,  // R6 Etapa 1: triangle / geometry / material / matpool census + per-object-type breakdown + sharing analysis
+    scene_census: null,     // R7: per-group mesh/line/sprite/points count for non-entity objects
+    renderer_config: null,  // R7: toneMapping, shadowMap, outputColorSpace, pixelRatio
+    scene_config: null,     // R7: fog type/density/color, background color
+    camera_state: null,     // R8: camera position/lookAt/intrinsics + frustum-visible mesh count. Cross-side diff explains "renderer.info" deltas that are camera-position artifacts, not real regressions.
+    pixel_captures: null,   // Stage 12: { [presetName]: { dataURL, resolution, size_bytes } } per parity.config.json::camera_presets. Captured at fixed camera positions for SSIM-based visual parity (12-pixel-diff.cjs).
+    scene_graph: null,      // Stage 13 (C3): per-object structural fingerprint [{entity,obj_type,geo_type,vtx,idx,attrs,geo_hash,mat_sig}] — double-lane FNV over quantized geometry attribute arrays, UUIDs stripped. Diffed by 13-scenegraph-hash.cjs. Deterministic, no-GPU, fails fast before pixels.
+    capture_determinism: null, // C6: renderer state PINNED during pixel capture (toneMapping=NoToneMapping, exposure=1, pixelRatio=1; save→set→restore) + context facts (antialias, GL_RENDERER) + warnings[]. Removes cross-run/cross-machine pixel noise so C3/C4/Stage-12 verdicts are trustworthy.
+    anim_series: null,      // Stage 15 (C4): per-object transform+scalar hash STREAM over N fixed-Δt ticks [{entity,obj_type,static,hash|hashes[]}]. Driven by a synchronous rAF-pump with a scripted clock (deterministic, no GPU). Diffed frame-by-frame by 15-anim-series.cjs → catches time-varying regressions (flicker/easing/accumulators) that frame-0 + pixels miss.
+    notes: [],
+  };
+
+  function log(msg) {
+    trace.notes.push("[" + (Date.now() - (window.__TRACE_T0 || Date.now())) + "ms] " + msg);
+    console.log("[trace:" + SIDE + "] " + msg);
+  }
+
+  // Capture every uncaught error so it lands in the trace.notes.
+  window.addEventListener("error", function (e) {
+    log("WINDOW.ERROR: " + (e.message || "") + " @ " + (e.filename || "?") + ":" + (e.lineno || "?") + ":" + (e.colno || "?"));
+    if (e.error && e.error.stack) log("  stack: " + String(e.error.stack).split("\n").slice(0, 4).join(" | "));
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    const reason = e.reason && (e.reason.message || e.reason);
+    log("UNHANDLED.REJECTION: " + String(reason).slice(0, 300));
+    if (e.reason && e.reason.stack) log("  stack: " + String(e.reason.stack).split("\n").slice(0, 4).join(" | "));
+  });
+
+  const hooked = { three: new WeakSet(), matpool: false, bus: false };
+
+  function hookTHREE(THREE) {
+    if (!THREE || !THREE.WebGLRenderer) return;
+    if (hooked.three.has(THREE)) return;
+    hooked.three.add(THREE);
+
+    // setSize lives on prototype — hooking it works.
+    const proto = THREE.WebGLRenderer.prototype;
+    const origSetSize = proto.setSize;
+    proto.setSize = function (w, h, updateStyle) {
+      this.__lastSize = { w: w, h: h };
+      return origSetSize.apply(this, arguments);
+    };
+
+    // render() can live in EITHER place depending on the THREE build:
+    //   - UMD (monolith): render is a prototype method.
+    //   - ESM esm.sh (modular): render is an OWN property assigned in the
+    //     constructor closure (so a prototype patch is shadowed).
+    // We install a dual-mode accessor that handles both:
+    //   - If proto had a render method, wrap it lazily on first access.
+    //   - If the constructor does `this.render = fn`, our setter wraps it.
+    const protoRender = proto.render;
+    Object.defineProperty(proto, "render", {
+      configurable: true,
+      enumerable: true,
+      get: function () {
+        if (this.__hookedRender) return this.__hookedRender;
+        if (protoRender) {
+          const self = this;
+          const wrapped = function (scene, camera) {
+            window.__viewport = { scene: scene, renderer: self, camera: camera };
+            return protoRender.call(self, scene, camera);
+          };
+          Object.defineProperty(this, "__hookedRender", { value: wrapped, configurable: true });
+          return wrapped;
+        }
+        return undefined;
+      },
+      set: function (fn) {
+        const self = this;
+        this.__origRender = fn;
+        Object.defineProperty(this, "__hookedRender", {
+          value: function (scene, camera) {
+            window.__viewport = { scene: scene, renderer: self, camera: camera };
+            return fn.call(self, scene, camera);
+          },
+          configurable: true,
+          writable: true,
+        });
+      },
+    });
+
+    trace.three_version = "r" + (THREE.REVISION || "?");
+    log("hooked THREE.WebGLRenderer (" + (THREE.REVISION || "?") + ") via dual-mode prototype accessor");
+  }
+
+  // ─── HUD/telemetry DOM snapshot ──────────────────────────────────────────
+  function snapshotHUD() {
+    function text(selector) {
+      const el = document.querySelector(selector);
+      return el ? (el.textContent || "").trim().slice(0, 200) : null;
+    }
+    function count(selector) {
+      return document.querySelectorAll(selector).length;
+    }
+    // Engine Settings + Audio Mixer toggle buttons are the gear/audio emoji.
+    const allButtons = Array.from(document.querySelectorAll("button"));
+    const buttonTitles = allButtons.map(function (b) { return (b.getAttribute("title") || b.textContent || "").trim().slice(0, 30); }).filter(Boolean);
+    const buttonsByTitle = {};
+    buttonTitles.forEach(function (t) { buttonsByTitle[t] = (buttonsByTitle[t] || 0) + 1; });
+    // Settings + Mixer presence: look for known titles or emoji
+    const hasSettingsBtn = buttonTitles.some(function (t) { return /engine settings|⚙️/i.test(t); });
+    const hasMixerBtn    = buttonTitles.some(function (t) { return /audio mixer|🎵/i.test(t); });
+    // Console panel: count log rows. They typically wrap each log entry in a div.
+    const consoleArea = document.querySelector("[class*='console'], .ConsolePanel, [data-panel='console']");
+    return {
+      document_title: document.title || null,
+      header_text: text("header"),
+      footer_text: text("footer"),
+      panel_brain_explorer: !!Array.from(document.querySelectorAll("*")).find(function (e) { return e.textContent && e.textContent.trim().toLowerCase().startsWith("brain explorer"); }),
+      panel_inspector: !!Array.from(document.querySelectorAll("button")).find(function (e) { return /inspector/i.test(e.textContent || ""); }),
+      panel_ai_director: !!Array.from(document.querySelectorAll("button")).find(function (e) { return /ai director/i.test(e.textContent || ""); }),
+      has_settings_button: hasSettingsBtn,
+      has_mixer_button: hasMixerBtn,
+      total_buttons: allButtons.length,
+      total_inputs: count("input"),
+      total_canvases: count("canvas"),
+      canvas_size: (function () {
+        const c = document.querySelector("canvas");
+        if (!c) return null;
+        return { client_w: c.clientWidth, client_h: c.clientHeight, attr_w: c.width, attr_h: c.height };
+      })(),
+      // Notable buttons / titles
+      top_button_titles: Object.entries(buttonsByTitle)
+        .sort(function (a, b) { return b[1] - a[1]; })
+        .slice(0, 20)
+        .map(function (kv) { return { title: kv[0], count: kv[1] }; }),
+    };
+  }
+
+  function hookMatPool(mp) {
+    if (!mp || typeof mp.get !== "function" || hooked.matpool) return;
+    hooked.matpool = true;
+    const orig = mp.get;
+    const seen = new Set();
+    mp.get = function (p) {
+      const key = JSON.stringify(p || {});
+      if (!seen.has(key)) {
+        seen.add(key);
+        trace.materials.push({ params: p || {}, order: trace.materials.length });
+      }
+      return orig.apply(this, arguments);
+    };
+    log("hooked MatPool.get");
+  }
+
+  function hookBus(bus) {
+    if (!bus || typeof bus.emit !== "function" || hooked.bus) return;
+    hooked.bus = true;
+    const orig = bus.emit.bind(bus);
+    bus.emit = function (event, payload) {
+      if (trace.bus_events.length < 200) {
+        let summary = null;
+        try {
+          summary = payload && typeof payload === "object" ? Object.keys(payload).slice(0, 6).join(",") : (typeof payload);
+        } catch (_) { summary = "<unserializable>"; }
+        trace.bus_events.push({ t_ms: Date.now() - window.__TRACE_T0, event: event, payload_shape: summary });
+      }
+      return orig(event, payload);
+    };
+    log("hooked bus.emit");
+  }
+
+  // Hook AudioContext.prototype.close so we can detect when a singleton is
+  // being torn down — the canonical signature of a "lifetime contract bug"
+  // (per RFC-008 Appendix D). Runs eagerly; the AC class is on window from
+  // page load.
+  function hookAudioContextClose() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC || !AC.prototype || AC.prototype.__pcHooked) return;
+    AC.prototype.__pcHooked = true;
+    const origClose = AC.prototype.close;
+    AC.prototype.close = function () {
+      trace.audio_context_closes_seen = (trace.audio_context_closes_seen || 0) + 1;
+      log("AudioContext.close() observed (total=" + trace.audio_context_closes_seen + ")");
+      return origClose.apply(this, arguments);
+    };
+    log("hooked AudioContext.prototype.close");
+  }
+  hookAudioContextClose();
+
+  // Expose hooks so the harness can call them at the right moment.
+  window.__parityCAB = { hookTHREE: hookTHREE, hookMatPool: hookMatPool, hookBus: hookBus, trace: trace, log: log };
+
+  // ─── Snapshot helper ─────────────────────────────────────────────────────
+  function snapshotScene(scene, renderer) {
+    const lights = [];
+    const entities = [];
+    if (scene) {
+      scene.traverse(function (o) {
+        if (o.isLight) {
+          lights.push({
+            type: o.type,
+            position: o.position ? [Number(o.position.x.toFixed(2)), Number(o.position.y.toFixed(2)), Number(o.position.z.toFixed(2))] : null,
+            intensity: typeof o.intensity === "number" ? Number(o.intensity.toFixed(3)) : null,
+          });
+        }
+      });
+      // Find every entity tagged in either convention:
+      //   - userData.entity        — modular: full Entity object {entity_id, objectType, name, ...}
+      //   - userData.entityId      — monolith: just the id string
+      // Walk the WHOLE scene since the monolith adds entities directly to
+      // scene.children, while the modular version groups them under "Entities".
+      const dedup = new Set();
+      scene.traverse(function (g) {
+        const ud = g.userData || {};
+        const entObj = ud.entity || null;
+        const entId  = entObj ? entObj.entity_id : (ud.entityId || null);
+        if (!entId || dedup.has(entId)) return;
+        dedup.add(entId);
+        entities.push({
+          entity_id: entId,
+          object_type: entObj ? entObj.objectType : null,
+          name: entObj ? entObj.name : g.name,
+          position: [Number(g.position.x.toFixed(2)), Number(g.position.y.toFixed(2)), Number(g.position.z.toFixed(2))],
+          scale: [Number(g.scale.x.toFixed(3)), Number(g.scale.y.toFixed(3)), Number(g.scale.z.toFixed(3))],
+          descendant_count: g.children.length,
+          animation: entObj ? (entObj.animation || "none") : "none",
+          intent: entObj ? (entObj.intent || "none") : "none",
+          params: entObj ? (entObj.params || {}) : {},
+        });
+      });
+    }
+    return {
+      entities: entities,
+      lights: lights,
+      renderer_size: renderer && renderer.__lastSize ? renderer.__lastSize : null,
+    };
+  }
+
+  // ─── GPU telemetry census (R6 Etapa 1) ──────────────────────────────────
+  // Captures totals from renderer.info + per-object-type breakdown + sharing
+  // analysis (how many distinct geom/mat UUIDs vs how many usages). With this,
+  // a delta vs monolith pinpoints exactly which creator broke geometry/mat
+  // sharing — without touching any production code.
+  function captureGpuTelemetry(scene, renderer) {
+    if (!renderer) return null;
+    const info = renderer.info || {};
+    const render = info.render || {};
+    const memory = info.memory || {};
+    let matpoolSize = null;
+    let matpoolKeys = null;
+    try {
+      if (window.MatPool && typeof window.MatPool.stats === "function") {
+        const s = window.MatPool.stats();
+        if (s && typeof s === "object") {
+          matpoolSize = (s.size !== undefined ? s.size : s.count !== undefined ? s.count : null);
+          if (s.keys && Array.isArray(s.keys)) matpoolKeys = s.keys.slice(0, 200);
+        } else if (typeof s === "number") {
+          matpoolSize = s;
+        }
+      }
+    } catch (_) { /* MatPool shape varies — skip on error */ }
+
+    // Per-object-type traversal — group meshes by ancestor's entity.objectType.
+    const perType = {};            // type → { entity_count, mesh_count, geom_uuids, mat_uuids, triangles_est }
+    const geomUsage = new Map();   // uuid → usage count
+    const matUsage = new Map();    // uuid → usage count
+    const meshesCounted = new Set();
+
+    if (scene && scene.traverse) {
+      scene.traverse(function (o) {
+        if (!o || !o.isMesh) return;
+        if (meshesCounted.has(o.uuid)) return;
+        meshesCounted.add(o.uuid);
+
+        // Find ancestor entity_id + objectType.
+        let p = o, entId = null, entType = null;
+        let hops = 0;
+        while (p && hops < 32) {
+          const ud = p.userData || {};
+          if (ud.entity && ud.entity.entity_id) { entId = ud.entity.entity_id; entType = ud.entity.objectType || "unknown"; break; }
+          if (ud.entityId) { entId = ud.entityId; entType = ud.objectType || "unknown"; break; }
+          p = p.parent;
+          hops++;
+        }
+        const typeKey = entType || "environment";
+
+        // Triangle estimate from geometry.
+        let triEst = 0;
+        if (o.geometry) {
+          const g = o.geometry;
+          if (g.index && g.index.count) triEst = g.index.count / 3;
+          else if (g.attributes && g.attributes.position) triEst = g.attributes.position.count / 3;
+          geomUsage.set(g.uuid, (geomUsage.get(g.uuid) || 0) + 1);
+        }
+        const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+        mats.forEach(function (m) {
+          if (m && m.uuid) matUsage.set(m.uuid, (matUsage.get(m.uuid) || 0) + 1);
+        });
+
+        if (!perType[typeKey]) {
+          perType[typeKey] = {
+            mesh_count: 0,
+            geom_uuids: new Set(),
+            mat_uuids: new Set(),
+            entity_ids: new Set(),
+            triangles_est: 0,
+          };
+        }
+        const bucket = perType[typeKey];
+        bucket.mesh_count++;
+        if (o.geometry && o.geometry.uuid) bucket.geom_uuids.add(o.geometry.uuid);
+        mats.forEach(function (m) { if (m && m.uuid) bucket.mat_uuids.add(m.uuid); });
+        if (entId) bucket.entity_ids.add(entId);
+        bucket.triangles_est += triEst;
+      });
+    }
+
+    // Serialize per-type with set sizes.
+    const perTypeOut = {};
+    Object.keys(perType).sort().forEach(function (t) {
+      const v = perType[t];
+      perTypeOut[t] = {
+        entity_count: v.entity_ids.size,
+        mesh_count: v.mesh_count,
+        unique_geometries: v.geom_uuids.size,
+        unique_materials: v.mat_uuids.size,
+        triangles_est: Math.round(v.triangles_est),
+      };
+    });
+
+    // Sharing summary.
+    let geomSharedSum = 0, geomMaxUse = 0;
+    geomUsage.forEach(function (c) { if (c > 1) geomSharedSum += c; if (c > geomMaxUse) geomMaxUse = c; });
+    let matSharedSum = 0, matMaxUse = 0;
+    matUsage.forEach(function (c) { if (c > 1) matSharedSum += c; if (c > matMaxUse) matMaxUse = c; });
+
+    return {
+      totals: {
+        triangles: typeof render.triangles === "number" ? render.triangles : null,
+        calls: typeof render.calls === "number" ? render.calls : null,
+        points: typeof render.points === "number" ? render.points : null,
+        lines: typeof render.lines === "number" ? render.lines : null,
+        frame: typeof render.frame === "number" ? render.frame : null,
+        geometries: typeof memory.geometries === "number" ? memory.geometries : null,
+        textures: typeof memory.textures === "number" ? memory.textures : null,
+        matpool_size: matpoolSize,
+      },
+      sharing: {
+        scene_meshes_counted: meshesCounted.size,
+        unique_geometries_in_scene: geomUsage.size,
+        unique_materials_in_scene: matUsage.size,
+        geometry_max_usage: geomMaxUse,
+        material_max_usage: matMaxUse,
+        geometry_redundancy_ratio: meshesCounted.size > 0 ? Number((geomUsage.size / meshesCounted.size).toFixed(3)) : null,
+        material_redundancy_ratio: meshesCounted.size > 0 ? Number((matUsage.size / meshesCounted.size).toFixed(3)) : null,
+      },
+      per_object_type: perTypeOut,
+      matpool_keys_sample: matpoolKeys,
+    };
+  }
+
+  // ─── Scene census (R7: environment blind spot fix) ────────────────────────
+  // Counts non-entity meshes, lines, sprites, points by their parent group
+  // name. Catches environment geometry differences (floor tiles, walls,
+  // beams, god rays) that entity-only traversal misses.
+  function captureSceneCensus(scene) {
+    if (!scene || !scene.traverse) return null;
+    var census = {};
+    var entityRoots = new Set();
+    // First pass: mark entity subtree roots so we can skip them
+    scene.traverse(function(o) {
+      var ud = o.userData || {};
+      if (ud.entity || ud.entityId) entityRoots.add(o.uuid);
+    });
+    // Second pass: count non-entity objects by type + parent group
+    scene.traverse(function(o) {
+      // Skip if this object or any ancestor is an entity root
+      var p = o;
+      var skip = false;
+      while (p) {
+        if (entityRoots.has(p.uuid)) { skip = true; break; }
+        p = p.parent;
+      }
+      if (skip) return;
+      var type = o.isMesh ? "mesh" : o.isLine ? "line" : o.isLineSegments ? "line_segments" :
+                 o.isSprite ? "sprite" : o.isPoints ? "points" : null;
+      if (!type) return;
+      // Find nearest named ancestor
+      var ancestor = o.parent, groupName = "root";
+      while (ancestor) {
+        if (ancestor.name) { groupName = ancestor.name; break; }
+        ancestor = ancestor.parent;
+      }
+      var key = groupName + "/" + type;
+      census[key] = (census[key] || 0) + 1;
+    });
+    return census;
+  }
+
+  // ─── Renderer config snapshot (R7: renderer blind spot fix) ────────────────
+  function captureRendererConfig(renderer) {
+    if (!renderer) return null;
+    return {
+      toneMapping: typeof renderer.toneMapping === "number" ? renderer.toneMapping : null,
+      toneMappingExposure: typeof renderer.toneMappingExposure === "number" ? Number(renderer.toneMappingExposure.toFixed(3)) : null,
+      outputColorSpace: renderer.outputColorSpace || null,
+      shadowMap_enabled: renderer.shadowMap ? !!renderer.shadowMap.enabled : null,
+      pixelRatio: typeof renderer.getPixelRatio === "function" ? Number(renderer.getPixelRatio().toFixed(2)) : null,
+    };
+  }
+
+  // ─── Camera state snapshot (R8: explains renderer.info per-frame deltas) ──
+  // The renderer.info.render.calls / .triangles / memory.geometries counters
+  // reflect what was DRAWN/UPLOADED in the snapshot frame, not the scene's
+  // composition. Two sides with identical scenes can show 5× delta if their
+  // cameras point at different parts of the scene (frustum culling kicks in).
+  // Capturing camera state + a frustum-visible-mesh count makes those deltas
+  // self-explanatory rather than spawning fake "regressions".
+  //
+  // Generic for any Three.js project — does NOT depend on Megazord conventions.
+  function captureCameraState(scene, camera, renderer) {
+    if (!camera) return null;
+    const THREE = window.THREE;
+    var pos = null, lookDir = null, frustumVisibleMeshes = null, frustumVisibleEntityIds = null;
+    try {
+      pos = camera.position ? [
+        Number(camera.position.x.toFixed(3)),
+        Number(camera.position.y.toFixed(3)),
+        Number(camera.position.z.toFixed(3)),
+      ] : null;
+      if (camera.getWorldDirection && THREE && THREE.Vector3) {
+        var v = new THREE.Vector3();
+        camera.getWorldDirection(v);
+        lookDir = [Number(v.x.toFixed(3)), Number(v.y.toFixed(3)), Number(v.z.toFixed(3))];
+      }
+    } catch (_) { /* ignore */ }
+
+    // Frustum-visible mesh count. Builds the same frustum Three.js uses for
+    // culling and counts which scene meshes intersect it. Comparable across
+    // any pair of camera setups.
+    try {
+      if (scene && scene.traverse && THREE && THREE.Frustum && THREE.Matrix4) {
+        if (typeof camera.updateMatrixWorld === "function") camera.updateMatrixWorld(true);
+        if (typeof camera.updateProjectionMatrix === "function") camera.updateProjectionMatrix();
+        var m = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+        var frustum = new THREE.Frustum().setFromProjectionMatrix(m);
+        var visMeshes = 0;
+        var entSet = new Set();
+        scene.traverse(function (o) {
+          if (!o || !o.isMesh || o.visible === false) return;
+          if (o.frustumCulled === false) { visMeshes++; return; }
+          // Lazily compute boundingSphere when missing so the frustum check works.
+          if (o.geometry && !o.geometry.boundingSphere) {
+            try { o.geometry.computeBoundingSphere(); } catch (_) {}
+          }
+          var hit = false;
+          try {
+            if (typeof frustum.intersectsObject === "function") hit = frustum.intersectsObject(o);
+          } catch (_) { hit = true; /* if frustum test errors, assume drawn */ }
+          if (hit) {
+            visMeshes++;
+            // Tag entity if this mesh sits under one.
+            var p = o, hops = 0;
+            while (p && hops < 16) {
+              var ud = p.userData || {};
+              if (ud.entity && ud.entity.entity_id) { entSet.add(ud.entity.entity_id); break; }
+              if (ud.entityId) { entSet.add(ud.entityId); break; }
+              p = p.parent; hops++;
+            }
+          }
+        });
+        frustumVisibleMeshes = visMeshes;
+        frustumVisibleEntityIds = entSet.size;
+      }
+    } catch (_) { /* ignore */ }
+
+    return {
+      position: pos,
+      look_direction: lookDir,
+      fov: typeof camera.fov === "number" ? camera.fov : null,
+      aspect: typeof camera.aspect === "number" ? Number(camera.aspect.toFixed(3)) : null,
+      near: typeof camera.near === "number" ? camera.near : null,
+      far: typeof camera.far === "number" ? camera.far : null,
+      is_perspective: !!camera.isPerspectiveCamera,
+      is_orthographic: !!camera.isOrthographicCamera,
+      frustum_visible_meshes: frustumVisibleMeshes,
+      frustum_visible_entities: frustumVisibleEntityIds,
+    };
+  }
+
+  // ─── Scene config snapshot (R7: fog/background blind spot fix) ─────────────
+  function captureSceneConfig(scene) {
+    if (!scene) return null;
+    var fog = scene.fog;
+    return {
+      fog_type: fog ? (fog.isFogExp2 ? "FogExp2" : fog.isFog ? "Fog" : "unknown") : null,
+      fog_density: fog && typeof fog.density === "number" ? Number(fog.density.toFixed(5)) : null,
+      fog_near: fog && typeof fog.near === "number" ? fog.near : null,
+      fog_far: fog && typeof fog.far === "number" ? fog.far : null,
+      fog_color: fog && fog.color && typeof fog.color.getHexString === "function" ? fog.color.getHexString() : null,
+      background_color: scene.background && typeof scene.background.getHexString === "function" ? scene.background.getHexString() : null,
+    };
+  }
+
+  // ─── Materials Deep capture (Stage 14: per-mesh PBR material parity) ──────
+  // RFC-011 §3.3. Scene traversal of RESOLVED material state — distinct from the
+  // creation-time MatPool.get params in trace.materials. For each UNIQUE material
+  // (by uuid) record PBR props + render-state + map presence (+ sampled
+  // ShaderMaterial uniforms). `used_by` records the entity identities whose
+  // meshes reference the material → gives 14-materials-deep.cjs a content-
+  // INDEPENDENT cross-side match key (uuids are per-instance random; traversal
+  // order can drift between two independently-built scenes). Read-only +
+  // deterministic (no animation/timing dependence — static material props).
+  function captureMaterialsDeep(scene) {
+    if (!scene || typeof scene.traverse !== "function") return [];
+    function hexOf(c) { try { return c && typeof c.getHexString === "function" ? c.getHexString() : null; } catch (_) { return null; } }
+    function num(x, d) { return typeof x === "number" ? Number(x.toFixed(d)) : null; }
+    function entityIdOf(o) {
+      var n = o;
+      for (var i = 0; i < 6 && n; i++) {
+        var ud = n.userData || {};
+        if (ud.entityId) return String(ud.entityId);
+        // Prefer entity_id — the field snapshotScene's census keys on (L263) — so an
+        // object's entity tag EXACTLY matches entities[].entity_id cross-side. The old
+        // order (.id first) returned the NAME on the modular side (Entity has entity_id,
+        // not .id), mismatching the census AND colliding on duplicate names (two
+        // "Wall Lantern" entities → ordinal-join overwrite → false 7-drop/7-add). entity_id
+        // is unique-per-instance → collision-proof. (MASTER-PLAN cross-side identity fix.)
+        if (ud.entity && (ud.entity.entity_id || ud.entity.id || ud.entity.name || ud.entity.objectType)) return String(ud.entity.entity_id || ud.entity.id || ud.entity.name || ud.entity.objectType);
+        if (ud.isGlowfly) return "glowfly";
+        n = n.parent;
+      }
+      return o.name || null;
+    }
+    var seen = {}; // uuid → index in out
+    var out = [];
+    scene.traverse(function (o) {
+      if (!(o.isMesh || o.isSprite || o.isPoints || o.isLine)) return;
+      var mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+      var ent = entityIdOf(o);
+      for (var mi = 0; mi < mats.length; mi++) {
+        var m = mats[mi];
+        if (!m) continue;
+        var idx = seen[m.uuid];
+        if (idx === undefined) {
+          idx = out.length;
+          seen[m.uuid] = idx;
+          var rec = {
+            order: idx,
+            uuid: m.uuid,
+            type: m.type || null,
+            name: m.name || null,
+            color: hexOf(m.color),
+            emissive: hexOf(m.emissive),
+            emissiveIntensity: num(m.emissiveIntensity, 4),
+            metalness: num(m.metalness, 4),
+            roughness: num(m.roughness, 4),
+            opacity: num(m.opacity, 4),
+            transparent: !!m.transparent,
+            alphaTest: typeof m.alphaTest === "number" ? m.alphaTest : 0,
+            blending: typeof m.blending === "number" ? m.blending : null,
+            depthTest: m.depthTest !== false,
+            depthWrite: m.depthWrite !== false,
+            side: typeof m.side === "number" ? m.side : null,
+            flatShading: !!m.flatShading,
+            vertexColors: !!m.vertexColors,
+            toneMapped: m.toneMapped !== false,
+            maps: {
+              map: !!m.map, normalMap: !!m.normalMap, roughnessMap: !!m.roughnessMap,
+              metalnessMap: !!m.metalnessMap, emissiveMap: !!m.emissiveMap,
+              aoMap: !!m.aoMap, alphaMap: !!m.alphaMap, envMap: !!m.envMap,
+            },
+            used_by: [],
+            use_count: 0,
+          };
+          if (m.isShaderMaterial && m.uniforms) {
+            rec.uniforms = {};
+            var uk = Object.keys(m.uniforms);
+            for (var k = 0; k < uk.length && k < 40; k++) {
+              var uv = m.uniforms[uk[k]] && m.uniforms[uk[k]].value;
+              if (typeof uv === "number") rec.uniforms[uk[k]] = Number(uv.toFixed(5));
+              else if (typeof uv === "boolean") rec.uniforms[uk[k]] = uv;
+              else if (uv && typeof uv.toArray === "function") { try { rec.uniforms[uk[k]] = uv.toArray().map(function (x) { return typeof x === "number" ? Number(x.toFixed(5)) : x; }); } catch (_) {} }
+            }
+          }
+          out.push(rec);
+        }
+        var R = out[idx];
+        R.use_count++;
+        if (ent && R.used_by.indexOf(ent) === -1 && R.used_by.length < 12) R.used_by.push(ent);
+      }
+    });
+    return out;
+  }
+
+  // ─── Scene-graph structural hash (Stage 13 · MASTER-PLAN C3) ──────────────
+  // Per-object STRUCTURAL fingerprint: for every geometry-bearing object
+  // (Mesh/Line/Points) hash the QUANTIZED geometry attribute arrays
+  // (position/normal/uv/…+index) with a double-lane FNV-1a, plus a coarse PBR
+  // material signature. UUIDs are STRIPPED (never hashed) — structure only.
+  // Consumer 13-scenegraph-hash.cjs diffs the two graphs per-object via the same
+  // ordinal-join as materials-deep. Catches wrong-mesh / wrong-vertex / wrong-UV
+  // (and the geo-merge split divergence) deterministically, no GPU, before pixels.
+  // Determinism precondition: Math.random is LCG-seeded at recorder boot (above)
+  // so procedural vertex buffers are bit-identical cross-side.
+  function captureSceneGraphHash(scene) {
+    if (!scene || typeof scene.traverse !== "function") return [];
+    function hexOf(c) { try { return c && typeof c.getHexString === "function" ? c.getHexString() : null; } catch (_) { return null; } }
+    function num(x, d) { return typeof x === "number" ? Number(x.toFixed(d)) : null; }
+    // Same cross-side identity resolver as captureMaterialsDeep (keep in sync).
+    function entityIdOf(o) {
+      var n = o;
+      for (var i = 0; i < 6 && n; i++) {
+        var ud = n.userData || {};
+        if (ud.entityId) return String(ud.entityId);
+        // Prefer entity_id — the field snapshotScene's census keys on (L263) — so an
+        // object's entity tag EXACTLY matches entities[].entity_id cross-side. The old
+        // order (.id first) returned the NAME on the modular side (Entity has entity_id,
+        // not .id), mismatching the census AND colliding on duplicate names (two
+        // "Wall Lantern" entities → ordinal-join overwrite → false 7-drop/7-add). entity_id
+        // is unique-per-instance → collision-proof. (MASTER-PLAN cross-side identity fix.)
+        if (ud.entity && (ud.entity.entity_id || ud.entity.id || ud.entity.name || ud.entity.objectType)) return String(ud.entity.entity_id || ud.entity.id || ud.entity.name || ud.entity.objectType);
+        if (ud.isGlowfly) return "glowfly";
+        n = n.parent;
+      }
+      return o.name || null;
+    }
+    // Double-lane FNV-1a (two 32-bit accumulators, different bases) → 64-bit-ish
+    // hex. Quantize floats to 5 decimals so platform FP noise can't flip the hash
+    // while real vertex/UV differences do. EXACT mirror of 13-scenegraph-hash.cjs
+    // fnvGeoHash (--selftest) — keep the two in sync.
+    function makeHasher() {
+      var a = 0x811c9dc5, b = 0x84222325;
+      return {
+        u32: function (n) {
+          n = n >>> 0;
+          a ^= (n & 0xffff); a = Math.imul(a, 0x01000193);
+          a ^= (n >>> 16);   a = Math.imul(a, 0x01000193);
+          b ^= (n & 0xffff); b = Math.imul(b, 0x85ebca77);
+          b ^= (n >>> 16);   b = Math.imul(b, 0x85ebca77);
+        },
+        str: function (s) { s = String(s); for (var i = 0; i < s.length; i++) this.u32(s.charCodeAt(i)); },
+        f: function (x) { this.u32((Math.round((x || 0) * 1e5)) | 0); },
+        hex: function () { return ((a >>> 0).toString(16)).padStart(8, "0") + ((b >>> 0).toString(16)).padStart(8, "0"); },
+      };
+    }
+    function hashGeometry(geo) {
+      if (!geo) return { hash: null, vtx: 0, idx: 0, attrs: [] };
+      var H = makeHasher();
+      H.str(geo.type || "BufferGeometry");
+      var attrs = geo.attributes || {};
+      var names = Object.keys(attrs).sort(); // fixed order for cross-side stability
+      var posCount = (attrs.position && attrs.position.count) || 0;
+      H.str("ATTRS"); H.u32(names.length);
+      var CAP = 300000; // guard pathological buffers; scene is low-poly so full-hash in practice
+      for (var ni = 0; ni < names.length; ni++) {
+        var nm = names[ni], at = attrs[nm];
+        if (!at || !at.array) continue;
+        var arr = at.array, L = arr.length;
+        H.str(nm); H.u32(at.itemSize || 0); H.u32(at.count || 0); H.u32(L);
+        if (L <= CAP) { for (var i = 0; i < L; i++) H.f(arr[i]); }
+        else { var stride = Math.ceil(L / CAP); for (var j = 0; j < L; j += stride) H.f(arr[j]); H.str("STRIDED"); H.u32(stride); }
+      }
+      var idxCount = 0;
+      if (geo.index && geo.index.array) {
+        var ia = geo.index.array; idxCount = ia.length;
+        H.str("INDEX"); H.u32(idxCount);
+        if (idxCount <= CAP) { for (var k = 0; k < idxCount; k++) H.u32(ia[k]); }
+        else { var is = Math.ceil(idxCount / CAP); for (var m = 0; m < idxCount; m += is) H.u32(ia[m]); }
+      }
+      return { hash: H.hex(), vtx: posCount, idx: idxCount, attrs: names };
+    }
+    function matSig(o) {
+      var mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+      var parts = [];
+      for (var i = 0; i < mats.length; i++) {
+        var m = mats[i];
+        if (!m) { parts.push("none"); continue; }
+        parts.push([
+          m.type || "?", hexOf(m.color) || "-", hexOf(m.emissive) || "-",
+          num(m.metalness, 3), num(m.roughness, 3), num(m.opacity, 3),
+          m.transparent ? "T" : "-", (typeof m.side === "number" ? m.side : "-"),
+          (m.map ? "m" : "") + (m.normalMap ? "n" : "") + (m.emissiveMap ? "e" : ""),
+        ].join(":"));
+      }
+      return parts.join("|") || null;
+    }
+    var out = [], ord = 0;
+    scene.traverse(function (o) {
+      if (!(o.isMesh || o.isLine || o.isLineSegments || o.isPoints)) return;
+      var g = hashGeometry(o.geometry);
+      out.push({
+        ord: ord++,
+        entity: entityIdOf(o),
+        obj_type: o.isMesh ? "Mesh" : o.isPoints ? "Points" : o.isLineSegments ? "LineSegments" : o.isLine ? "Line" : "Object3D",
+        name: o.name || null,
+        geo_type: o.geometry ? (o.geometry.type || "BufferGeometry") : null,
+        vtx: g.vtx, idx: g.idx, attrs: g.attrs,
+        geo_hash: g.hash,
+        mat_sig: matSig(o),
+      });
+    });
+    return out;
+  }
+
+  // ─── Pixel preset scrubber (Stage 12: visual parity foundation) ──────────
+  // Iterates parity.config.json::camera_presets, applies each preset to the
+  // existing camera/renderer, renders, captures canvas as PNG dataURL, restores
+  // original camera+resolution. Pure browser-side; no puppeteer.
+  //
+  // Reads presets from window.__PIXEL_PRESETS (injected by harness HTML from
+  // 06-behavior-trace.cjs). Absence → emits {skipped, reason} and exits clean.
+  function scrubPixelPresets(viewport) {
+    const presets = (window.__PIXEL_PRESETS && Array.isArray(window.__PIXEL_PRESETS)) ? window.__PIXEL_PRESETS : [];
+    if (presets.length === 0) {
+      trace.pixel_captures = { skipped: true, reason: "no_presets_configured_in_harness" };
+      log("pixel preset scrub: skipped (no __PIXEL_PRESETS)");
+      return Promise.resolve();
+    }
+    const camera = viewport.camera, renderer = viewport.renderer, scene = viewport.scene;
+    if (!camera || !renderer || !scene) {
+      trace.pixel_captures = { skipped: true, reason: "viewport_incomplete" };
+      log("pixel preset scrub: skipped (viewport incomplete)");
+      return Promise.resolve();
+    }
+    // Save state
+    const savedPos = camera.position.clone();
+    const savedQuat = camera.quaternion.clone();
+    const savedFov = typeof camera.fov === "number" ? camera.fov : null;
+    const canvas = renderer.domElement;
+    const savedW = canvas.width, savedH = canvas.height;
+    const savedPR = typeof renderer.getPixelRatio === "function" ? renderer.getPixelRatio() : 1;
+    // ─── Determinism layer (Tier 2 — 2026-05-27) ─────────────────────────────
+    // Pixel-diff catches "small bright object at different position" via SSIM
+    // crash. Root cause: cumulative animation state (glowfly waypointIdx/T,
+    // NPC FSM, dust motes, candle flicker, god ray opacity) advances at
+    // different RAF counts per side because mono harness loads first, mod
+    // second. By scrub time, accumulators diverge → glowfly visibly at
+    // different waypoints between mono/mod → SSIM crash + tiny diff_pct.
+    //
+    // Mitigation:
+    //   (a) Freeze Date.now + performance.now (already done) → blocks NEW
+    //       time advancement during scrub.
+    //   (b) Patch THREE.Clock.prototype.getElapsedTime / .getDelta to FIXED
+    //       values → all clock-driven animations (3D anims, NPC FSM tick)
+    //       see identical t across sides.
+    //   (c) Reset known stateful userData accumulators on entities that have
+    //       cumulative animation state (glowfly waypointIdx/T, etc.) →
+    //       deterministic starting point regardless of how many frames ran.
+    //
+    // Together (a)+(b)+(c) deliver scene-state determinism for pixel capture.
+    const THREE = window.THREE;
+    // ─── C6: capture determinism pins (MASTER-PLAN) ──────────────────────────
+    // Cross-run/cross-machine pixel noise makes C3/C4/Stage-12 verdicts shaky.
+    // Tone-mapping + exposure remap pixel values non-linearly; pixelRatio scales
+    // the REAL capture buffer above the configured W×H; antialias + the GL backend
+    // change sampling. PIN the controllable ones (save→set→restore); ASSERT/LOG the
+    // context-fixed ones (antialias, GL_RENDERER). Generic to any Three.js renderer.
+    // Recorded in trace.capture_determinism so a verdict can assert it.
+    const savedToneMapping = (typeof renderer.toneMapping === "number") ? renderer.toneMapping : null;
+    const savedExposure = (typeof renderer.toneMappingExposure === "number") ? renderer.toneMappingExposure : null;
+    const det = { warnings: [], tone_mapping_before: savedToneMapping, exposure_before: savedExposure, pixel_ratio_before: savedPR };
+    try {
+      if (THREE && typeof THREE.NoToneMapping === "number") { renderer.toneMapping = THREE.NoToneMapping; det.tone_mapping_pinned = THREE.NoToneMapping; }
+      else det.warnings.push("THREE.NoToneMapping unavailable — toneMapping NOT pinned");
+      if (typeof renderer.toneMappingExposure === "number") { renderer.toneMappingExposure = 1; det.exposure_pinned = 1; }
+      if (typeof renderer.setPixelRatio === "function") { renderer.setPixelRatio(1); det.pixel_ratio_pinned = 1; }
+      if (savedPR !== 1) det.warnings.push("pixelRatio was " + savedPR + " — pinned to 1 for capture");
+      const gl = (typeof renderer.getContext === "function") ? renderer.getContext() : null;
+      if (gl && typeof gl.getContextAttributes === "function") {
+        const attrs = gl.getContextAttributes();
+        if (attrs) { det.antialias = !!attrs.antialias; if (attrs.antialias) det.warnings.push("antialias=true (context-fixed — adds sampling nondeterminism)"); }
+      }
+      if (gl && typeof gl.getParameter === "function") {
+        let rstr = null;
+        try { const dbg = gl.getExtension && gl.getExtension("WEBGL_debug_renderer_info"); rstr = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); } catch (_) {}
+        det.gl_renderer = rstr ? String(rstr) : null;
+        if (rstr && !/swiftshader|llvmpipe|software/i.test(String(rstr))) det.warnings.push("GL_RENDERER='" + rstr + "' — not SwiftShader/software; cross-machine pixel determinism not guaranteed");
+      }
+    } catch (e) { det.warnings.push("determinism-pin error: " + (e && e.message)); }
+    trace.capture_determinism = det;
+    if (det.warnings.length) log("capture determinism: " + det.warnings.length + " warning(s) — " + det.warnings.join(" | "));
+    else log("capture determinism: pinned toneMapping=NoToneMapping exposure=1 pixelRatio=1 · renderer='" + (det.gl_renderer || "?") + "'");
+    const origDateNow = Date.now, origPerfNow = window.performance.now;
+    const frozenT = origDateNow(), frozenP = origPerfNow.call(window.performance);
+    Date.now = function () { return frozenT; };
+    window.performance.now = function () { return frozenP; };
+    let origGetElapsedTime = null, origGetDelta = null;
+    if (THREE && THREE.Clock && THREE.Clock.prototype) {
+      origGetElapsedTime = THREE.Clock.prototype.getElapsedTime;
+      origGetDelta = THREE.Clock.prototype.getDelta;
+      // Fixed t=10s, dt=0 REPORTED — both sides see same clock state.
+      // INTERNAL oldTime/elapsedTime kept sync'd with REAL wall clock (via
+      // origPerfNow which bypasses the freeze) so post-scrub the next real
+      // getDelta returns a small sane diff instead of accumulated scrub gap.
+      // Without this sync, glowfly would teleport one waypoint forward right
+      // after scrub completes (huge first dt).
+      THREE.Clock.prototype.getElapsedTime = function () {
+        if (this && this.running) this.oldTime = origPerfNow.call(window.performance);
+        return 10.0;
+      };
+      THREE.Clock.prototype.getDelta = function () {
+        if (this && this.running) this.oldTime = origPerfNow.call(window.performance);
+        return 0;
+      };
+    }
+    // Reset stateful animation accumulators to deterministic initial values.
+    // Generic enough to apply to any Three.js project that uses userData for
+    // animation state. Known keys: glowfly waypointIdx/T, rideMode (force off).
+    //
+    // P0.B4b (2026-05-29) — glowfly occlusion fix. The glowfly is a transient
+    // cinematic drone (orange-emissive body + two ADDITIVE glow-halo Sprites)
+    // that flies a per-frame route (buildGlowflyRoute; wp[0]="establishing" at
+    // [0,4.5,3], ~9u in front of the front camera). Its orange body + halos
+    // wash out / dominate the front & back capture frames (mechanized signal
+    // pre-fix: mono uniformity 0.008, byte_ratio 11-20x -> SSIM crash
+    // 0.012/0.014; post aura-only-hide attempt: solid orange persisted).
+    //
+    // A transient entity CANNOT be meaningfully compared in a fixed-camera
+    // snapshot (its on-screen footprint depends on animation timing), so it is
+    // excluded from pixel-COMPOSITION parity entirely; its render is covered by
+    // other pillars (entity census / materials). We HIDE THE WHOLE GLOWFLY
+    // GROUP, not just the halo sprites: THREE's renderer skips an invisible
+    // object's entire subtree in projectObject(), so body + halos never draw
+    // regardless of any per-frame opacity/visibility pulsing the animate() loop
+    // applies to the child sprites between this (synchronous) pass and the
+    // rAF-deferred capture. Per-sprite hiding proved fragile for that reason.
+    // (Extensible: a future adapter can declare which userData markers are
+    // "volatile, hide during pixel capture" via parity.config — see Epic E1.)
+    let resetCount = 0, hiddenCount = 0;
+    const glowflyHidden = []; // [{ obj, prevVisible }] — restored post-capture
+    if (scene && scene.traverse) {
+      scene.traverse(function (o) {
+        const ud = o.userData || {};
+        if (ud.isGlowfly) {
+          ud.waypointIdx = 0;
+          ud.waypointT = 0;
+          ud.rideMode = false;
+          resetCount++;
+          if (o.visible) {
+            glowflyHidden.push({ obj: o, prevVisible: o.visible });
+            o.visible = false;
+            hiddenCount++;
+          }
+        }
+      });
+    }
+    log("pixel preset scrub: " + presets.length + " presets queued, determinism layer ON (reset " + resetCount + " accumulators, hid " + hiddenCount + " glowfly groups)");
+    trace.pixel_captures = {};
+    return presets.reduce(function (prev, preset) {
+      return prev.then(function () {
+        return new Promise(function (resolve) {
+          const W = (preset.resolution && preset.resolution[0]) || 640;
+          const H = (preset.resolution && preset.resolution[1]) || 480;
+          try {
+            renderer.setSize(W, H, false);
+            if (Array.isArray(preset.position)) camera.position.set(preset.position[0], preset.position[1], preset.position[2]);
+            if (Array.isArray(preset.look_at)) camera.lookAt(preset.look_at[0], preset.look_at[1], preset.look_at[2]);
+            if (typeof preset.fov === "number" && typeof camera.fov === "number") camera.fov = preset.fov;
+            if (typeof camera.aspect === "number") camera.aspect = W / H;
+            if (typeof camera.updateProjectionMatrix === "function") camera.updateProjectionMatrix();
+            if (typeof camera.updateMatrixWorld === "function") camera.updateMatrixWorld(true);
+            // Render once to warm caches.
+            renderer.render(scene, camera);
+          } catch (e) {
+            trace.pixel_captures[preset.name] = { error: "render_failed: " + (e && e.message) };
+            log("preset '" + preset.name + "' render failed: " + (e && e.message));
+            resolve();
+            return;
+          }
+          // Two RAFs ensure browser composited the rendered frame onto the
+          // canvas backing store before toDataURL reads it.
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+              try {
+                renderer.render(scene, camera);
+                const dataURL = canvas.toDataURL("image/png");
+                trace.pixel_captures[preset.name] = {
+                  dataURL: dataURL,
+                  resolution: [W, H],
+                  size_bytes: dataURL.length,
+                };
+                log("preset '" + preset.name + "' captured (" + W + "x" + H + ", " + dataURL.length + "b)");
+              } catch (e) {
+                trace.pixel_captures[preset.name] = { error: "toDataURL_failed: " + (e && e.message) };
+                log("preset '" + preset.name + "' toDataURL failed: " + (e && e.message));
+              }
+              resolve();
+            });
+          });
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      // Restore
+      Date.now = origDateNow;
+      window.performance.now = origPerfNow;
+      if (origGetElapsedTime && THREE && THREE.Clock && THREE.Clock.prototype) {
+        THREE.Clock.prototype.getElapsedTime = origGetElapsedTime;
+        THREE.Clock.prototype.getDelta = origGetDelta;
+      }
+      // Restore hidden glowfly groups — the harness keeps running after the
+      // pixel scrub (postTrace + any later recapture), so the live scene must
+      // regain its glowfly.
+      glowflyHidden.forEach(function (s) {
+        if (s && s.obj) s.obj.visible = s.prevVisible;
+      });
+      try {
+        camera.position.copy(savedPos);
+        camera.quaternion.copy(savedQuat);
+        if (savedFov !== null && typeof camera.fov === "number") camera.fov = savedFov;
+        if (typeof camera.aspect === "number" && savedH > 0) camera.aspect = savedW / savedH;
+        if (typeof camera.updateProjectionMatrix === "function") camera.updateProjectionMatrix();
+        if (savedToneMapping !== null && typeof renderer.toneMapping === "number") renderer.toneMapping = savedToneMapping;
+        if (savedExposure !== null && typeof renderer.toneMappingExposure === "number") renderer.toneMappingExposure = savedExposure;
+        if (typeof renderer.setPixelRatio === "function") renderer.setPixelRatio(savedPR);
+        renderer.setSize(savedW, savedH, false);
+      } catch (_) { /* restore best-effort */ }
+      log("pixel preset scrub: complete, restored camera+size+clock+" + glowflyHidden.length + " glowfly groups");
+    });
+  }
+
+  // ─── Animation transform-stream (Stage 15 · MASTER-PLAN C4) ──────────────
+  // Catches TIME-VARYING regressions (flicker / easing / accumulators — the
+  // historical keyL.intensity flicker + god-ray opacity-breathing near-misses)
+  // that a frame-0 snapshot AND pixel-diff both miss. Drives N fixed-Δt ticks
+  // and hashes each object's matrixWorld + animated scalars per tick → a per-
+  // object stream; 15-anim-series.cjs diffs streams frame-by-frame and reports
+  // the FIRST frame an object diverges.
+  //
+  // DETERMINISM (false-negative-critical): we do NOT trust the app's real rAF
+  // loop — this box's capture is GPU/timing-nondeterministic (see C6 finding).
+  // Instead we OVERRIDE requestAnimationFrame to capture the app's animate
+  // callback into a queue, then PUMP it synchronously with a scripted clock
+  // (getElapsedTime=animT, getDelta=ANIM_DT, performance.now/Date.now=virtualT).
+  // No real frames, no GPU timing in the loop → bit-identical stepping both
+  // sides (the Math.random LCG seed at boot covers procedural anims). Quantize
+  // to 1e-3 so the hash catches O(0.005+) drift (the documented near-miss
+  // classes) while absorbing FP-reassociation noise (~1e-6) between the two
+  // independently-built scenes. Generic to any Three.js + rAF app.
+  const ANIM_FRAMES = 32;
+  const ANIM_DT = 1 / 60;
+  const ANIM_QUANT = 1000; // round(x*1000) → 1e-3 tolerance (tight; escalate to change)
+  function scrubAnimationSeries(viewport) {
+    if (!viewport || !viewport.scene) { trace.anim_series = { skipped: true, reason: "no_scene" }; return Promise.resolve(); }
+    const scene = viewport.scene;
+    const THREE = window.THREE;
+    function makeHasher() {
+      var a = 0x811c9dc5, b = 0x84222325;
+      return {
+        n: function (x) { var q = Math.round((x || 0) * ANIM_QUANT) | 0; a ^= (q & 0xffff); a = Math.imul(a, 0x01000193); a ^= (q >>> 16); a = Math.imul(a, 0x01000193); b ^= (q & 0xffff); b = Math.imul(b, 0x85ebca77); b ^= (q >>> 16); b = Math.imul(b, 0x85ebca77); },
+        hex: function () { return ((a >>> 0).toString(16)).padStart(8, "0") + ((b >>> 0).toString(16)).padStart(8, "0"); },
+      };
+    }
+    // Per-frame signature: world transform (the composed matrixWorld) + the
+    // scalars animations actually modulate (light intensity/color, material
+    // opacity/emissiveIntensity/emissive). matrixWorld alone would MISS the
+    // keyL.intensity class (intensity isn't a transform) — so scalars are folded in.
+    function objFrameHash(o) {
+      var H = makeHasher();
+      var e = o.matrixWorld && o.matrixWorld.elements;
+      if (e) { for (var i = 0; i < 16; i++) H.n(e[i]); }
+      if (o.isLight) { H.n(o.intensity == null ? 0 : o.intensity); if (o.color) { H.n(o.color.r); H.n(o.color.g); H.n(o.color.b); } }
+      var mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+      for (var mi = 0; mi < mats.length; mi++) { var m = mats[mi]; if (!m) continue; H.n(m.opacity == null ? 1 : m.opacity); H.n(m.emissiveIntensity == null ? 0 : m.emissiveIntensity); if (m.emissive) { H.n(m.emissive.r); H.n(m.emissive.g); H.n(m.emissive.b); } }
+      return H.hex();
+    }
+    // Same cross-side identity resolver as captureSceneGraphHash (keep in sync).
+    function entityIdOf(o) {
+      var n = o;
+      for (var i = 0; i < 6 && n; i++) {
+        var ud = n.userData || {};
+        if (ud.entityId) return String(ud.entityId);
+        if (ud.entity && (ud.entity.entity_id || ud.entity.id || ud.entity.name || ud.entity.objectType)) return String(ud.entity.entity_id || ud.entity.id || ud.entity.name || ud.entity.objectType);
+        if (ud.isGlowfly) return "glowfly";
+        n = n.parent;
+      }
+      return o.name || null;
+    }
+    // Geometry signature for cross-side MATCHING (start-state-independent — a
+    // geometry's vertex buffer doesn't change during animation, only the object's
+    // transform does). Distinguishes the many null-entity furniture meshes that
+    // share (Mesh, Box, 24) and would otherwise collide in one bucket. Mirrors
+    // captureSceneGraphHash's geo hashing (position buffer, quantized).
+    function geoSigHash(geo) {
+      if (!geo || !geo.attributes || !geo.attributes.position || !geo.attributes.position.array) return null;
+      var H = makeHasher();
+      var arr = geo.attributes.position.array, L = arr.length;
+      H.n(L);
+      var CAP = 60000, step = L > CAP ? Math.ceil(L / CAP) : 1;
+      for (var i = 0; i < L; i += step) H.n(arr[i]);
+      return H.hex();
+    }
+    // Self-contained entity ORDINAL stamped at anim-time. The census/scene_graph
+    // ids are captured at snapshot time; the MODULAR app re-instantiates entities
+    // (new uids) between snapshot and now, so census-based id→ordinal resolution
+    // fails cross-side (mono kept its ids, mod regenerated them). We instead build
+    // an entId→ordinal map from anim's OWN traverse (first-encounter order = the
+    // same manifest order the census uses), so each object's entity_ord aligns
+    // cross-side by construction — independent of WHICH uid the app currently holds.
+    var entOrd = new Map(), nextOrd = 0;
+    scene.traverse(function (g) {
+      var ud = g.userData || {};
+      var entId = (ud.entity && ud.entity.entity_id) ? ud.entity.entity_id : (ud.entityId || null);
+      if (!entId || entOrd.has(entId)) return;
+      entOrd.set(entId, nextOrd++);
+    });
+    function entityOrdOf(o) {
+      var n = o;
+      for (var i = 0; i < 6 && n; i++) {
+        var ud = n.userData || {};
+        var entId = (ud.entity && ud.entity.entity_id) ? ud.entity.entity_id : (ud.entityId || null);
+        if (entId && entOrd.has(entId)) return entOrd.get(entId);
+        if (ud.isGlowfly) return -2;
+        n = n.parent;
+      }
+      return -1;
+    }
+    // Tracked set (transform/scalar-bearing), fixed deterministic traversal order.
+    var tracked = [];
+    scene.updateMatrixWorld(true);
+    scene.traverse(function (o) {
+      if (o.isMesh || o.isLine || o.isLineSegments || o.isPoints || o.isLight) {
+        tracked.push({
+          entity: entityIdOf(o), entity_ord: entityOrdOf(o),
+          obj_type: o.isLight ? (o.type || "Light") : o.isMesh ? "Mesh" : o.isPoints ? "Points" : o.isLineSegments ? "LineSegments" : o.isLine ? "Line" : "Object3D",
+          geo_type: o.geometry ? (o.geometry.type || "BufferGeometry") : (o.isLight ? "light" : null),
+          vtx: (o.geometry && o.geometry.attributes && o.geometry.attributes.position && o.geometry.attributes.position.count) || 0,
+          geo_hash: o.geometry ? geoSigHash(o.geometry) : null,
+          obj: o, hashes: [],
+        });
+      }
+    });
+    function captureFrame() {
+      scene.updateMatrixWorld(true);
+      for (var i = 0; i < tracked.length; i++) tracked[i].hashes.push(objFrameHash(tracked[i].obj));
+    }
+
+    // ── Deterministic pump scaffolding ──
+    const origRAF = window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : null;
+    const origCAF = window.cancelAnimationFrame ? window.cancelAnimationFrame.bind(window) : null;
+    const origDateNow = Date.now, origPerfNow = window.performance.now;
+    var origGetElapsed = null, origGetDelta = null;
+    if (THREE && THREE.Clock && THREE.Clock.prototype) { origGetElapsed = THREE.Clock.prototype.getElapsedTime; origGetDelta = THREE.Clock.prototype.getDelta; }
+    if (!origRAF) { trace.anim_series = { skipped: true, reason: "no_requestAnimationFrame" }; return Promise.resolve(); }
+    var queue = [];
+    var animT = 0, virtualT = origPerfNow.call(window.performance);
+    function patch() {
+      Date.now = function () { return virtualT; };
+      window.performance.now = function () { return virtualT; };
+      if (origGetElapsed) { THREE.Clock.prototype.getElapsedTime = function () { return animT; }; THREE.Clock.prototype.getDelta = function () { return ANIM_DT; }; }
+      window.requestAnimationFrame = function (cb) { queue.push(cb); return queue.length; };
+      if (origCAF) window.cancelAnimationFrame = function () {};
+    }
+    function restore() {
+      Date.now = origDateNow; window.performance.now = origPerfNow;
+      window.requestAnimationFrame = origRAF;
+      if (origCAF) window.cancelAnimationFrame = origCAF;
+      if (origGetElapsed) { THREE.Clock.prototype.getElapsedTime = origGetElapsed; THREE.Clock.prototype.getDelta = origGetDelta; }
+      // Revive the app's rAF loop: callbacks queued during the pump sit in OUR
+      // queue, not the real scheduler. Re-schedule them on the real rAF so the
+      // animation resumes for the subsequent scrubs (anim runs FIRST now).
+      var pending = queue; queue = [];
+      for (var i = 0; i < pending.length; i++) { try { origRAF(pending[i]); } catch (_) {} }
+    }
+
+    return new Promise(function (resolve) {
+      patch();
+      var warmups = 0;
+      function waitForLoop() {
+        if (queue.length > 0) { runPump(); return; }
+        if (warmups++ >= 5) { restore(); trace.anim_series = { skipped: true, reason: "app_raf_loop_not_captured" }; log("anim_series: skipped — app rAF loop not captured"); resolve(); return; }
+        origRAF(waitForLoop);
+      }
+      function runPump() {
+        try {
+          captureFrame(); // frame 0 @ animT=0
+          for (var f = 1; f < ANIM_FRAMES; f++) {
+            animT += ANIM_DT; virtualT += ANIM_DT * 1000;
+            var batch = queue; queue = [];
+            for (var i = 0; i < batch.length; i++) { try { batch[i](virtualT); } catch (_) {} }
+            captureFrame();
+          }
+        } finally { restore(); }
+        var objects = tracked.map(function (t, idx) {
+          var allSame = true;
+          for (var k = 1; k < t.hashes.length; k++) { if (t.hashes[k] !== t.hashes[0]) { allSame = false; break; } }
+          var rec = { ord: idx, entity: t.entity, entity_ord: t.entity_ord, obj_type: t.obj_type, geo_type: t.geo_type, vtx: t.vtx, geo_hash: t.geo_hash };
+          if (allSame) { rec.static = true; rec.hash = t.hashes[0]; } else { rec.static = false; rec.hashes = t.hashes; }
+          return rec;
+        });
+        var animated = 0; for (var z = 0; z < objects.length; z++) if (!objects[z].static) animated++;
+        trace.anim_series = { frames: ANIM_FRAMES, dt: ANIM_DT, quant: ANIM_QUANT, object_count: objects.length, animated_count: animated, objects: objects };
+        log("anim_series: " + ANIM_FRAMES + " frames · " + objects.length + " objects (" + animated + " animated)");
+        resolve();
+      }
+      waitForLoop();
+    });
+  }
+
+  // ─── Engine Settings scrubber ────────────────────────────────────────────
+  function scrubEngineSettings(viewport) {
+    const scene = viewport.scene, renderer = viewport.renderer;
+    const presets = {
+      balanced: { brightness: 1.0, contrast: 1.1, ambient: 1.5, glow: 1.0, quality: 85 },
+      highfps:  { brightness: 0.85, contrast: 1.0, ambient: 1.0, glow: 0.6, quality: 60 },
+      maxvis:   { brightness: 1.1, contrast: 1.15, ambient: 1.8, glow: 1.3, quality: 100 },
+    };
+    function applyPreset(p) {
+      scene.children.forEach(function (c) {
+        if (c.isAmbientLight) c.intensity = p.ambient * p.brightness * (1 / p.contrast);
+        if (c.isDirectionalLight && c.position && c.position.x > 0) c.intensity = 2.8 * p.brightness * p.contrast;
+        if (c.isDirectionalLight && c.position && c.position.x < 0) c.intensity = 1.2 * p.brightness;
+      });
+      const canvas = renderer.domElement;
+      const m = canvas.parentElement || document.body;
+      try { renderer.setSize(Math.round(m.clientWidth * p.quality / 100), Math.round(m.clientHeight * p.quality / 100), false); } catch (_) {}
+    }
+    const steps = [];
+    Object.keys(presets).forEach(function (k) { steps.push({ kind: "preset", id: k, value: presets[k] }); });
+    [0.6, 0.85, 1.0, 1.2, 1.4].forEach(function (b) { steps.push({ kind: "slider", id: "brightness", value: { brightness: b, contrast: 1.1, ambient: 1.5, glow: 1.0, quality: 85 } }); });
+
+    // Freeze animation time to eliminate settings_scrub timing noise
+    const origDateNow = Date.now;
+    const origPerfNow = window.performance.now;
+    const frozenT = origDateNow();
+    const frozenP = origPerfNow.call(window.performance);
+    Date.now = function () { return frozenT; };
+    window.performance.now = function () { return frozenP; };
+    log("freezing time during scrub");
+
+    return steps.reduce(function (prev, step) {
+      return prev.then(function () {
+        applyPreset(step.value);
+        return new Promise(function (r) { setTimeout(r, SCRUB_DELAY_MS); });
+      }).then(function () {
+        const snap = snapshotScene(scene, renderer);
+        trace.settings_scrub.push({
+          step: step.kind + ":" + step.id,
+          applied: step.value,
+          observed_lights: snap.lights,
+          observed_renderer: snap.renderer_size,
+        });
+      });
+    }, Promise.resolve()).finally(function() {
+      // Unfreeze
+      Date.now = origDateNow;
+      window.performance.now = origPerfNow;
+      log("unfreezing time");
+    });
+  }
+
+  // ─── Remount-stress sub-scrub (RFC-008 Appendix D dynamic counterpart) ───
+  // Dispatches the `parity-remount-stress` custom event the harness wrappers
+  // listen for. They re-key the root React subtree, forcing unmount+remount.
+  // If a singleton's dispose() lives in a per-mount lifecycle (the lifetime
+  // contract bug), AudioContext.close() will fire — and the hook above
+  // increments audio_context_closes_seen. We diff before/after.
+  function scrubRemountStress() {
+    return new Promise(function (resolve) {
+      if (!window.__viewport || !window.__viewport.scene) {
+        trace.remount_stress = { tested: false, reason: "no viewport at stress time" };
+        resolve();
+        return;
+      }
+      const closesBefore = trace.audio_context_closes_seen || 0;
+      log("remount stress: firing parity-remount-stress event (closes_before=" + closesBefore + ")");
+      try { window.dispatchEvent(new CustomEvent("parity-remount-stress")); }
+      catch (e) {
+        trace.remount_stress = { tested: false, reason: "dispatchEvent failed: " + (e && e.message) };
+        resolve();
+        return;
+      }
+      // Give React two ticks + paint to unmount, remount, settle.
+      setTimeout(function () {
+        const closesAfter = trace.audio_context_closes_seen || 0;
+        const survived = closesBefore === closesAfter;
+        trace.remount_stress = {
+          tested: true,
+          closes_before: closesBefore,
+          closes_after: closesAfter,
+          audio_context_survived: survived,
+          note: survived
+            ? "Singleton lifetime preserved across remount."
+            : "AudioContext.close() fired during remount — likely lifetime-contract bug (see RFC-008 Appendix D).",
+        };
+        log("remount stress: closes_after=" + closesAfter + " survived=" + survived);
+        resolve();
+      }, 800);
+    });
+  }
+
+  function scrubAudio() {
+    const audio = window.ArcaneAudio;
+    if (!audio || typeof audio.getCategories !== "function") {
+      log("ArcaneAudio not available — skipping audio scrub");
+      trace.audio_ready = { available: false, init_attempted: false, ctx_state: null, reason: "ArcaneAudio not on window" };
+      return Promise.resolve();
+    }
+    // Real functional check: try to init() (idempotent), inspect resulting
+    // AudioContext state. If init() never wires up an AudioContext (because
+    // it was never called from a user-gesture handler in the host code), the
+    // category gain twiddle below is a no-op — audio_scrub becomes theatre.
+    let initOk = false;
+    let ctxState = null;
+    let ctxReason = null;
+    try {
+      audio.init();
+      // ArcaneAudio's internal AudioContext is module-scoped, not exposed on the
+      // public API. We can only infer health from observable side effects:
+      //   - getCategories() returns the expected set
+      //   - calling tick() / updateCamera() doesn't throw
+      const cats = audio.getCategories();
+      initOk = Array.isArray(cats) && cats.length > 0;
+      // Probe AudioContext via the master node if we can find it on globalThis;
+      // many implementations expose AudioContext as window.AudioContext.
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        // We can't read ArcaneAudio's internal ctx directly, so check whether
+        // the host called init() at any point by creating a sentinel context
+        // and seeing if our sentinel can coexist (it can, audio is multi-ctx).
+        // This is a weak signal — real verification would require ArcaneAudio
+        // to expose a `ready()` accessor. Logged as limitation.
+        ctxState = "audio_context_class_available";
+      } else {
+        ctxState = "no_audio_context_class";
+        ctxReason = "browser lacks AudioContext";
+      }
+    } catch (e) {
+      ctxReason = "init() threw: " + (e && e.message);
+    }
+    trace.audio_ready = {
+      available: true,
+      init_attempted: true,
+      init_returned: initOk,
+      ctx_state: ctxState,
+      reason: ctxReason,
+      cat_count: (audio.getCategories() || []).length,
+    };
+
+    const cats = audio.getCategories();
+    return cats.reduce(function (prev, cat) {
+      return prev.then(function () {
+        try { audio.setCategoryGain(cat.id, 0); } catch (_) {}
+        return new Promise(function (r) { setTimeout(r, 30); });
+      }).then(function () {
+        trace.audio_scrub.push({ cat: cat.id, label: cat.label, applied_gain: 0, default: cat.def });
+        try { audio.setCategoryGain(cat.id, 1); } catch (_) {}
+      });
+    }, Promise.resolve());
+  }
+
+  // ─── Post trace ──────────────────────────────────────────────────────────
+  function postTrace() {
+    trace.completed_at = new Date().toISOString();
+    trace.project = PROJECT;
+    const body = JSON.stringify(trace);
+    // The artifact-system sink expects ?project=&side=... as query params;
+    // legacy :4203 sink ignores ?project= and uses ?side= only. Both work.
+    const url = SINK + "?project=" + encodeURIComponent(PROJECT) + "&side=" + encodeURIComponent(SIDE);
+    try {
+      fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: body })
+        .then(function (r) { log("posted trace to sink (status " + r.status + ", project=" + PROJECT + ")"); markDone(""); })
+        .catch(function (e) { log("sink unreachable: " + e.message); showCopyable(body); });
+    } catch (e) { showCopyable(body); }
+  }
+
+  function showCopyable(body) {
+    const div = document.createElement("div");
+    div.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.92);color:#a6e3a1;z-index:99999;padding:24px;overflow:auto;font-family:monospace;font-size:11px;";
+    div.innerHTML = "<h2 style=\"color:#cba6f7\">Trace ready — copy to .parity/traces/" + SIDE + ".json</h2><pre style=\"white-space:pre-wrap;\">" + body.replace(/</g, "&lt;") + "</pre>";
+    document.body.appendChild(div);
+  }
+
+  function markDone(suffix) {
+    const div = document.createElement("div");
+    div.style.cssText = "position:fixed;bottom:20px;left:20px;padding:14px 22px;background:#1e1e2e;color:#a6e3a1;border:2px solid #a6e3a1;border-radius:8px;z-index:99999;font-family:monospace;font-size:14px;font-weight:700;max-width:560px;";
+    div.textContent = "✓ TRACE COMPLETE [" + SIDE + "] — " + trace.entities.length + " entities, " + trace.settings_scrub.length + " settings steps, " + trace.audio_scrub.length + " audio cats" + suffix;
+    document.body.appendChild(div);
+  }
+
+  // ─── Ready-poller ────────────────────────────────────────────────────────
+  // Wait for: window.__viewport (set by render() hook), plus ideally
+  // window.ArcaneAudio + window.bus. Bail at READY_TIMEOUT_MS.
+  function waitForReady() {
+    return new Promise(function (resolve) {
+      const start = Date.now();
+      let lastReportedT = 0;
+      const id = setInterval(function () {
+        // Late hook attempts in case THREE became available late.
+        if (window.THREE) hookTHREE(window.THREE);
+        if (window.MatPool) hookMatPool(window.MatPool);
+        if (window.bus) hookBus(window.bus);
+
+        const ready = !!(window.__viewport && window.__viewport.scene && window.__viewport.renderer);
+        const elapsed = Date.now() - start;
+        if (elapsed - lastReportedT > 1500) {
+          log("waiting for studio… viewport=" + !!window.__viewport + " three=" + !!window.THREE + " MatPool=" + !!window.MatPool + " ArcaneAudio=" + !!window.ArcaneAudio);
+          lastReportedT = elapsed;
+        }
+        if (ready) { clearInterval(id); resolve({ ok: true, elapsed: elapsed }); return; }
+        if (elapsed >= READY_TIMEOUT_MS) {
+          clearInterval(id);
+          resolve({ ok: false, elapsed: elapsed });
+        }
+      }, POLL_MS);
+    });
+  }
+
+  function start() {
+    window.__TRACE_T0 = Date.now();
+    log("trace-recorder v2 loaded — polling for readiness");
+    // Eagerly hook anything already present
+    if (window.THREE) hookTHREE(window.THREE);
+    if (window.MatPool) hookMatPool(window.MatPool);
+    if (window.bus) hookBus(window.bus);
+
+    waitForReady().then(function (r) {
+      if (!r.ok) {
+        log("TIMEOUT after " + r.elapsed + "ms — studio never rendered. Posting partial trace.");
+        trace.notes.push("TIMEOUT — studio never produced a render() call within " + READY_TIMEOUT_MS + "ms");
+        postTrace();
+        return;
+      }
+      log("studio ready after " + r.elapsed + "ms — capturing initial snapshot");
+      // Give the studio 3 full render frames to instantiate entities and stabilize telemetry
+      // requestAnimationFrame guarantees the browser actually painted (avoids background tab throttling).
+      let frames = 0;
+      function waitForFrames() {
+        if (frames < 3) {
+          frames++;
+          requestAnimationFrame(waitForFrames);
+        } else {
+          log("snapping scene + telemetry at T+" + (Date.now() - window.__TRACE_T0) + "ms");
+          const snap = snapshotScene(window.__viewport.scene, window.__viewport.renderer);
+          trace.entities = snap.entities;
+          trace.lights_initial = snap.lights;
+          trace.renderer_initial = snap.renderer_size;
+          trace.hud = snapshotHUD();
+          trace.gpu_telemetry = captureGpuTelemetry(window.__viewport.scene, window.__viewport.renderer);
+          trace.scene_census = captureSceneCensus(window.__viewport.scene);
+          trace.renderer_config = captureRendererConfig(window.__viewport.renderer);
+          trace.scene_config = captureSceneConfig(window.__viewport.scene);
+          trace.materials_deep = captureMaterialsDeep(window.__viewport.scene);
+          trace.scene_graph = captureSceneGraphHash(window.__viewport.scene);
+          trace.camera_state = captureCameraState(window.__viewport.scene, window.__viewport.camera, window.__viewport.renderer);
+          const gpu = trace.gpu_telemetry;
+          log("captured " + snap.entities.length + " entities, " + snap.lights.length + " lights, hud(" + trace.hud.total_buttons + " btns, " + trace.hud.total_canvases + " canvas, settings=" + trace.hud.has_settings_button + ", mixer=" + trace.hud.has_mixer_button + ")");
+          if (trace.scene_census) log("scene_census: " + Object.keys(trace.scene_census).length + " groups");
+          if (trace.renderer_config) log("renderer_config: toneMapping=" + trace.renderer_config.toneMapping + " shadowMap=" + trace.renderer_config.shadowMap_enabled);
+          if (trace.scene_config) log("scene_config: fog=" + trace.scene_config.fog_type + " bg=" + trace.scene_config.background_color);
+          if (trace.materials_deep) log("materials_deep: " + trace.materials_deep.length + " unique materials");
+          if (trace.scene_graph) log("scene_graph: " + trace.scene_graph.length + " geometry-bearing objects hashed");
+          if (trace.camera_state) log("camera_state: pos=[" + (trace.camera_state.position||[]).join(",") + "] fov=" + trace.camera_state.fov + " frustum_visible_meshes=" + trace.camera_state.frustum_visible_meshes + " frustum_visible_entities=" + trace.camera_state.frustum_visible_entities);
+          if (gpu) {
+            log("gpu_telemetry: tris=" + gpu.totals.triangles + " calls=" + gpu.totals.calls + " geo=" + gpu.totals.geometries + " mats(pool)=" + gpu.totals.matpool_size + " · scene uniq_geo=" + gpu.sharing.unique_geometries_in_scene + " uniq_mat=" + gpu.sharing.unique_materials_in_scene + " (across " + gpu.sharing.scene_meshes_counted + " meshes)");
+          }
+          // anim FIRST: it must run on the PRE-REMOUNT scene whose entity ids match
+          // the census/scene_graph/materials (scrubRemountStress regenerates ids via
+          // re-instantiation; running anim after it broke the cross-side ordinal join).
+          scrubAnimationSeries(window.__viewport)
+            .then(function () { return scrubEngineSettings(window.__viewport); })
+            .then(function () { return scrubAudio(); })
+            .then(function () { return scrubRemountStress(); })
+            .then(function () { return scrubPixelPresets(window.__viewport); })
+            .then(function () { postTrace(); });
+        }
+      }
+      waitForFrames();
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
+})();
+</script>
+</head>
+<body>
+<div class="status">PARITY HARNESS · MODULAR (dist/ + trace recorder)</div>
+<div id="studio-root" style="position:fixed;inset:0"></div>
+<script type="module">
+// IMPORTANT: import THREE first, expose, hook BEFORE importing the studio
+// (otherwise the studio creates its renderer before the hook is in place).
+import * as THREE from "three";
+window.THREE = THREE;
+if (window.__parityCAB) window.__parityCAB.hookTHREE(THREE);
+
+// Now import the studio + module-scoped singletons.
+import { createRoot } from "react-dom/client";
+import React from "react";
+import MegazordStudio from "/modular/ui/studio.js";
+import { MatPool } from "/modular/gfx/mat-pool.js";
+import { ArcaneAudio } from "/modular/audio/index.js";
+import { bus } from "/modular/core/index.js";
+window.MatPool     = MatPool;
+window.ArcaneAudio = ArcaneAudio;
+window.bus         = bus;
+if (window.__parityCAB) {
+  window.__parityCAB.hookMatPool(MatPool);
+  window.__parityCAB.hookBus(bus);
+}
+MatPool.initialize(THREE);
+
+// RFC-008 Appendix D — Remount-stress wrapper. Listens for the
+// 'parity-remount-stress' event dispatched by trace-recorder; toggles a 'key'
+// to force React to unmount+remount the entire studio subtree.
+function RemountWrapper(props) {
+  const [k, setK] = React.useState(0);
+  React.useEffect(function () {
+    const h = function () {
+      console.log("[harness:modular] parity-remount-stress received — bumping key");
+      setK(function (x) { return x + 1; });
+    };
+    window.addEventListener("parity-remount-stress", h);
+    return function () { window.removeEventListener("parity-remount-stress", h); };
+  }, []);
+  return React.createElement("div", { key: k, style: { width: "100%", height: "100%" } }, props.children);
+}
+
+try {
+  const root = createRoot(document.getElementById("studio-root"));
+  root.render(React.createElement(RemountWrapper, null, React.createElement(MegazordStudio)));
+  if (window.__parityCAB) window.__parityCAB.log("React render dispatched (wrapped in RemountWrapper)");
+} catch (e) {
+  console.error("[harness] React render threw:", e);
+  if (window.__parityCAB) window.__parityCAB.log("React render threw: " + (e && e.message));
+}
+</script>
+</body></html>

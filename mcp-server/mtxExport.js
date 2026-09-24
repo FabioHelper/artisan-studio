@@ -9,9 +9,9 @@ export const MTX_COMPILER = 'mtx.v2.compiler/1';
 // the order is part of the record rather than a convention either side has to remember.
 export const MTX_ROTATION_ORDER = 'XYZ';
 
-const HARDLINE = 'mtx.fixture.hardline_booth';
-const SURFACES = ['mtx.neutral.black_lacquer', 'mtx.glass.cyan', 'mtx.signal.green_code'];
-const SUPPORTED = { [HARDLINE]: SURFACES };
+const SUPPORTED = Object.fromEntries(
+  Object.entries(ARCHETYPE_CATALOG).filter(([id]) => id.startsWith('mtx.')).map(([id, archetype]) => [id, archetype.surfaces])
+);
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -26,36 +26,25 @@ export function buildMtxManifest(manifest, sceneReference) {
   if (sceneReference.sceneIdentity.slice(7) !== sceneReference.sourceManifestHash.slice(7, 39)) {
     throw new Error('MTX_IDENTITY: scene identity is not derived from the manifest hash');
   }
-  if (!Array.isArray(manifest.entities) || manifest.entities.length !== 1) {
-    throw new Error('MTX_PILOT_SCOPE: the pilot export requires exactly one Hardline booth');
+  if (!Array.isArray(manifest.entities) || manifest.entities.length < 1 || manifest.entities.length > 64) {
+    throw new Error('MTX_SCOPE: an MTX world holds 1 to 64 entities');
   }
   if (!same(manifest.axis, AXIS) || manifest.units !== 'meter') {
     throw new Error('MTX_COORDINATES: expected meter and the canonical right-handed axes');
   }
-  const entity = manifest.entities[0];
-  if (!SUPPORTED[entity.assetRef]) throw new Error(`MTX_ARCHETYPE: unsupported archetype ${entity.assetRef}`);
-  if (!same(entity.materialRefs, SUPPORTED[entity.assetRef])) {
-    throw new Error('MTX_SURFACE: Hardline requires the three canonical semantic surfaces in order');
-  }
-  // Collision, clearance and reach are archetype facts in metres. A scaled booth would need
-  // them re-derived, and non-uniform scale is unreliable in Godot physics: refuse, don't guess.
-  if (!same(entity.transform?.scale ?? [1, 1, 1], [1, 1, 1])) {
-    throw new Error('MTX_SCALE: MTX archetypes are authored at unit scale');
-  }
-  if (!Number.isInteger(entity.seed)) throw new Error('MTX_SEED: an explicit integer variant seed is required');
-  const archetype = ARCHETYPE_CATALOG[entity.assetRef];
-  const doc = {
-    schemaVersion: MTX_SCHEMA_VERSION,
-    requires: { compiler: MTX_COMPILER },
-    source: {
-      tool: 'artisan-3d',
-      worldId: manifest.worldId,
-      contractVersion: CONTRACT_VERSION,
-      sceneIdentity: sceneReference.sceneIdentity,
-      sourceManifestHash: sceneReference.sourceManifestHash
-    },
-    units: 'meter', axis: clone(AXIS), rotationOrder: MTX_ROTATION_ORDER,
-    entities: [{
+  const entities = manifest.entities.map(entity => {
+    if (!SUPPORTED[entity.assetRef]) throw new Error(`MTX_ARCHETYPE: unsupported archetype ${entity.assetRef}`);
+    if (!same(entity.materialRefs, SUPPORTED[entity.assetRef])) {
+      throw new Error(`MTX_SURFACE: ${entity.assetRef} requires surfaces ${JSON.stringify(SUPPORTED[entity.assetRef])}`);
+    }
+    // Collision, clearance and reach are archetype facts in metres. A scaled entity would need
+    // them re-derived, and non-uniform scale is unreliable in Godot physics: refuse, don't guess.
+    if (!same(entity.transform?.scale ?? [1, 1, 1], [1, 1, 1])) {
+      throw new Error('MTX_SCALE: MTX archetypes are authored at unit scale');
+    }
+    if (!Number.isInteger(entity.seed)) throw new Error('MTX_SEED: an explicit integer variant seed is required');
+    const archetype = ARCHETYPE_CATALOG[entity.assetRef];
+    return {
       id: entity.id,
       assetRef: entity.assetRef,
       transform: {
@@ -71,7 +60,20 @@ export function buildMtxManifest(manifest, sceneReference) {
       interaction: clone(archetype.interaction),
       clearance: clone(archetype.clearance),
       lodClass: archetype.lodClass
-    }]
+    };
+  });
+  const doc = {
+    schemaVersion: MTX_SCHEMA_VERSION,
+    requires: { compiler: MTX_COMPILER },
+    source: {
+      tool: 'artisan-3d',
+      worldId: manifest.worldId,
+      contractVersion: CONTRACT_VERSION,
+      sceneIdentity: sceneReference.sceneIdentity,
+      sourceManifestHash: sceneReference.sourceManifestHash
+    },
+    units: 'meter', axis: clone(AXIS), rotationOrder: MTX_ROTATION_ORDER,
+    entities
   };
   const errors = validateMtxWorld(doc);
   if (errors.length) throw new Error(`MTX_SCHEMA: ${errors.join('; ')}`);
@@ -97,7 +99,7 @@ export function validateMtxWorld(doc) {
     || s.sceneIdentity.slice(7) !== s.sourceManifestHash.slice(7, 39)) errors.push('source: sceneIdentity must be the 32-hex prefix of sourceManifestHash');
   if (doc.units !== 'meter' || !same(doc.axis, AXIS)) errors.push('units/axis must be meter and the canonical axes');
   if (doc.rotationOrder !== MTX_ROTATION_ORDER) errors.push(`rotationOrder must be ${MTX_ROTATION_ORDER}`);
-  if (!Array.isArray(doc.entities) || doc.entities.length === 0) { errors.push('entities must be a non-empty array'); return errors; }
+  if (!Array.isArray(doc.entities) || doc.entities.length < 1 || doc.entities.length > 64) { errors.push('MTX_SCOPE: an MTX world holds 1 to 64 entities'); return errors; }
   const ids = new Set();
   for (const [i, e] of doc.entities.entries()) {
     const at = `entities[${i}]`;
@@ -112,12 +114,17 @@ export function validateMtxWorld(doc) {
     if (!Number.isInteger(e.seed)) errors.push(`${at}: seed must be an integer`);
     if (!isPositive3(e.dimensionsM)) errors.push(`${at}: dimensionsM must be three positive metres`);
     if (!e.anchors || typeof e.anchors !== 'object' || !Object.values(e.anchors).every(isVec3)) errors.push(`${at}: anchors must map names to vec3`);
+    const archetype = ARCHETYPE_CATALOG[e.assetRef];
     const c = e.collision || {};
-    if (c.kind !== 'box' || c.class !== 'static_solid' || !isPositive3(c.sizeM) || !isVec3(c.centerM)) errors.push(`${at}: collision must be a static_solid box`);
-    const n = e.interaction || {};
-    if (n.kind !== 'hardline' || n.zone !== 'cylinder' || !(n.reachM > 0) || !(n.heightM > 0) || !e.anchors?.[n.anchor]) errors.push(`${at}: interaction must name an anchor and a positive cylinder`);
+    if (c.kind !== 'box' || !['static_solid', 'walkable', 'actor'].includes(c.class) || !isPositive3(c.sizeM) || !isVec3(c.centerM) || c.class !== archetype?.collision?.class) errors.push(`${at}: collision must be a box matching the archetype's class`);
+    if (archetype?.interaction === null) {
+      if (e.interaction !== null) errors.push(`${at}: interaction must be null`);
+    } else {
+      const n = e.interaction || {};
+      if (!['hardline', 'arrival'].includes(n.kind) || n.kind !== archetype?.interaction?.kind || n.zone !== 'cylinder' || !(n.reachM > 0) || !(n.heightM > 0) || !e.anchors?.[n.anchor]) errors.push(`${at}: interaction must name an anchor and a positive cylinder`);
+    }
     if (!Array.isArray(e.clearance) || !e.clearance.every(z => typeof z.id === 'string' && z.kind === 'box' && isPositive3(z.sizeM) && isVec3(z.centerM))) errors.push(`${at}: clearance must be a list of boxes`);
-    if (e.lodClass !== 'hero_static') errors.push(`${at}: lodClass must be hero_static`);
+    if (!['hero_static', 'static', 'hero_actor', 'crowd_actor'].includes(e.lodClass) || e.lodClass !== archetype?.lodClass) errors.push(`${at}: lodClass must match the archetype`);
   }
   return errors;
 }

@@ -10,6 +10,12 @@ import { isKnownArchetype } from '../contracts/artisanContract.js';
 // independent ARCHETYPE_EXPECTED_ROUTES oracle in the contract (SOL-FIX-1), never against this label.
 const ARCHETYPE_ROUTES = {
   'mtx.fixture.hardline_booth': { route: 'buildHardlineBooth', build(g, m) { this.foundry.buildHardlineBooth(g, m(0, 'mtx.neutral.black_lacquer'), m(1, 'mtx.glass.cyan'), m(2, 'mtx.signal.green_code')); } },
+  'mtx.plaza.floor_field': { route: 'buildMtxFloorField', build(g, m) { this.foundry.buildMtxFloorField(g, m(0, 'mtx.neutral.stone'), m(1, 'mtx.neutral.black_lacquer')); } },
+  'mtx.plaza.arrival_circle': { route: 'buildMtxArrivalCircle', build(g, m) { this.foundry.buildMtxArrivalCircle(g, m(0, 'mtx.neutral.stone'), m(1, 'mtx.construct.white'), m(2, 'mtx.glass.cyan')); } },
+  'mtx.surface.code_wall': { route: 'buildMtxCodeWall', build(g, m) { this.foundry.buildMtxCodeWall(g, m(0, 'mtx.neutral.black_lacquer'), m(1, 'mtx.signal.green_code')); } },
+  'mtx.edge.glass_rail': { route: 'buildMtxGlassRail', build(g, m) { this.foundry.buildMtxGlassRail(g, m(0, 'mtx.metal.brushed_dark'), m(1, 'mtx.glass.cyan')); } },
+  'mtx.actor.hero_avatar': { route: 'buildMtxHeroAvatar', build(g, m) { this.foundry.buildMtxHeroAvatar(g, m(0, 'mtx.neutral.black_lacquer'), m(1, 'mtx.metal.brushed_dark'), m(2, 'mtx.neutral.stone'), m(3, 'mtx.glass.cyan')); } },
+  'mtx.actor.crowd_figure': { route: 'buildMtxCrowdFigure', build(g, m) { this.foundry.buildMtxCrowdFigure(g, m(0, 'mtx.neutral.black_lacquer'), m(1, 'mtx.metal.brushed_dark'), m(2, 'mtx.neutral.stone')); } },
   'arch.winterhold_shell': { route: 'buildWinterholdShell', build(g, m) { this.foundry.buildWinterholdShell(g, m(0, 'stone.winterhold_masonry'), m(1, 'stone.nordic_carved'), m(2, 'magic.arcane_rune'), m(3, 'banner.winterhold'), m(4, 'metal.forged_iron'), m(5, 'skyline.winterhold_aurora'), m(6, 'magic.witchlight_blue'), m(7, 'ice.glacial')); } },
   'arch.library_shell': { route: 'buildLibraryShell', build(g, m) { this.foundry.buildLibraryShell(g, m(0, 'stone.rough_local'), m(1, 'wood.dark_oak'), m(2, 'glass.window'), m(3, 'skyline.misty_mountains')); } },
   'arch.alchemist_shell': { route: 'buildAlchemistShell', build(g, m) { this.foundry.buildAlchemistShell(g, m(0, 'stone.rough_local'), m(1, 'wood.dark_oak'), m(2, 'glass.window'), m(3, 'skyline.cobblestone_alley')); } },

@@ -114,6 +114,159 @@ export class UniversalFoundry {
     }
   }
 
+  /** MTX preview geometry only. Godot compiles the semantic plaza floor field independently. */
+  buildMtxFloorField(group, stoneMat, lacquerMat) {
+    const stone = [];
+    const lacquer = [];
+    const box = (parts, w, h, d, x, y, z) => parts.push(this.createTransformedBox(w, h, d, x, y, z));
+
+    box(stone, 16, 0.04, 16, 0, 0.02, 0);
+
+    const clip = (v) => Math.abs(v) === 8 ? Math.sign(v) * 7.97 : v;
+    for (let i = 0; i <= 16; i++) {
+      const v = clip(-8 + i);
+      box(lacquer, 16, 0.01, 0.06, 0, 0.045, v);
+      box(lacquer, 0.06, 0.01, 16, v, 0.045, 0);
+    }
+
+    for (const [parts, material] of [[stone, stoneMat], [lacquer, lacquerMat]]) {
+      const geometry = this.mergeGeometries(parts);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+  }
+
+  /** MTX preview geometry only. Godot compiles the semantic Arrival Circle independently. */
+  buildMtxArrivalCircle(group, stoneMat, whiteMat, cyanMat) {
+    const stone = [];
+    const white = [];
+    const cyan = [];
+
+    stone.push(this.createTransformedCylinder(2.4, 2.4, 0.06, 32, 0, 0.03, 0));
+    stone.push(this.createTransformedCylinder(1.9, 1.9, 0.048, 32, 0, 0.084, 0));
+
+    const ring = (parts, r, w, y) => {
+      for (let i = 0; i < 32; i++) {
+        const theta = i * (Math.PI * 2 / 32);
+        const x = r * Math.cos(theta);
+        const z = r * Math.sin(theta);
+        const ry = -(theta + Math.PI / 2);
+        parts.push(this.createTransformedBox(w, 0.012, 0.08, x, y, z, 0, ry, 0));
+      }
+    };
+    ring(white, 2.15, 0.42, 0.066);
+    ring(cyan, 1.2, 0.22, 0.114);
+
+    for (const [parts, material] of [[stone, stoneMat], [white, whiteMat], [cyan, cyanMat]]) {
+      const geometry = this.mergeGeometries(parts);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+  }
+
+  /** MTX preview geometry only. Godot compiles the semantic code wall independently. */
+  buildMtxCodeWall(group, lacquerMat, codeMat) {
+    const body = [];
+    const code = [];
+    const box = (parts, w, h, d, x, y, z) => parts.push(this.createTransformedBox(w, h, d, x, y, z));
+
+    box(body, 8, 3.6, 0.2, 0, 1.8, -0.15);
+    box(body, 8, 0.2, 0.3, 0, 3.5, -0.05);
+    box(body, 8, 0.2, 0.3, 0, 0.1, -0.05);
+    box(body, 0.2, 3.6, 0.3, -3.9, 1.8, -0.05);
+    box(body, 0.2, 3.6, 0.3, 3.9, 1.8, -0.05);
+
+    for (let col = 0; col < 30; col++) {
+      for (let row = 0; row < 14; row++) {
+        if ((col * 7 + row * 3) % 5 === 0) continue;
+        const x = -3.625 + col * 0.25;
+        const y = 0.45 + row * 0.22;
+        box(code, 0.18, 0.16, 0.02, x, y, 0.01);
+      }
+    }
+
+    for (const [parts, material] of [[body, lacquerMat], [code, codeMat]]) {
+      const geometry = this.mergeGeometries(parts);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+  }
+
+  /** MTX preview geometry only. Godot compiles the semantic glass edge rail independently. */
+  buildMtxGlassRail(group, metalMat, glassMat) {
+    const metal = [];
+    const glass = [];
+    const box = (parts, w, h, d, x, y, z) => parts.push(this.createTransformedBox(w, h, d, x, y, z));
+
+    const posts = [-2.96, -1.48, 0, 1.48, 2.96];
+    for (const x of posts) box(metal, 0.08, 1.1, 0.08, x, 0.55, 0);
+    box(metal, 6, 0.06, 0.14, 0, 1.07, 0);
+    box(metal, 6, 0.1, 0.12, 0, 0.05, 0);
+
+    for (let i = 0; i < posts.length - 1; i++) {
+      const x = (posts[i] + posts[i + 1]) / 2;
+      box(glass, 1.36, 0.9, 0.02, x, 0.55, 0);
+    }
+
+    for (const [parts, material] of [[metal, metalMat], [glass, glassMat]]) {
+      const geometry = this.mergeGeometries(parts);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+  }
+
+  /** MTX preview geometry only. Godot compiles the semantic hero avatar stand-in independently. */
+  buildMtxHeroAvatar(group, lacquerMat, metalMat, stoneMat, glassMat) {
+    const lacquer = [];
+    const metal = [];
+    const stone = [];
+    const glass = [];
+    const box = (parts, w, h, d, x, y, z) => parts.push(this.createTransformedBox(w, h, d, x, y, z));
+
+    for (const x of [-0.1, 0.1]) box(lacquer, 0.16, 0.85, 0.18, x, 0.425, 0);
+    box(lacquer, 0.5, 0.75, 0.32, 0, 1.175, 0);
+    box(lacquer, 0.56, 0.5, 0.36, 0, 0.75, 0);
+    box(metal, 0.36, 0.1, 0.26, 0, 1.57, 0);
+    for (const x of [-0.29, 0.29]) box(lacquer, 0.12, 0.7, 0.14, x, 1.2, 0);
+    for (const x of [-0.29, 0.29]) box(stone, 0.09, 0.1, 0.1, x, 0.8, 0);
+    box(stone, 0.22, 0.26, 0.24, 0, 1.72, 0);
+    box(glass, 0.2, 0.05, 0.02, 0, 1.72, 0.13);
+
+    for (const [parts, material] of [[lacquer, lacquerMat], [metal, metalMat], [stone, stoneMat], [glass, glassMat]]) {
+      const geometry = this.mergeGeometries(parts);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+  }
+
+  /** MTX preview geometry only. Godot compiles the semantic crowd silhouette stand-in independently. */
+  buildMtxCrowdFigure(group, lacquerMat, metalMat, stoneMat) {
+    const lacquer = [];
+    const metal = [];
+    const stone = [];
+    const box = (parts, w, h, d, x, y, z) => parts.push(this.createTransformedBox(w, h, d, x, y, z));
+
+    for (const x of [-0.1, 0.1]) box(lacquer, 0.16, 0.85, 0.18, x, 0.425, 0);
+    box(lacquer, 0.5, 0.75, 0.32, 0, 1.175, 0);
+    box(lacquer, 0.6, 0.9, 0.42, 0, 0.55, 0);
+    box(metal, 0.36, 0.1, 0.26, 0, 1.57, 0);
+    for (const x of [-0.29, 0.29]) box(lacquer, 0.12, 0.7, 0.14, x, 1.2, 0);
+    for (const x of [-0.29, 0.29]) box(stone, 0.09, 0.1, 0.1, x, 0.8, 0);
+    box(stone, 0.22, 0.24, 0.24, 0, 1.7, 0);
+
+    for (const [parts, material] of [[lacquer, lacquerMat], [metal, metalMat], [stone, stoneMat]]) {
+      const geometry = this.mergeGeometries(parts);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+  }
+
   buildHearth(group, stoneMat, plasterMat, fireMat) {
     const ironMat = this.materials.get('metal.forged_iron') || stoneMat;
     const woodMat = this.materials.get('wood.weathered_oak') || plasterMat;

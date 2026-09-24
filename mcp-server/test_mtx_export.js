@@ -21,7 +21,9 @@ assert.deepEqual(projected.entities[0].collision.centerM, [0, 1.275, 0]);
 assert.equal(projected.entities[0].interaction.reachM, 1.25);
 assert.throws(() => buildMtxManifest({ ...world, entities: [{ ...world.entities[0], assetRef: 'storage.crate' }] }, source), /MTX_ARCHETYPE/);
 assert.throws(() => buildMtxManifest({ ...world, entities: [{ ...world.entities[0], materialRefs: ['wood.dark_oak'] }] }, source), /MTX_SURFACE/);
-assert.throws(() => buildMtxManifest({ ...world, entities: [] }, source), /MTX_PILOT_SCOPE/);
+assert.throws(() => buildMtxManifest({ ...world, entities: [] }, source), /MTX_SCOPE/);
+const many = { ...world, entities: Array.from({ length: 65 }, (_, i) => ({ id: `hardline.${i}`, assetRef: 'mtx.fixture.hardline_booth', transform: { positionM: [i, 0, 0], rotationDeg: [0, 0, 0], scale: [1, 1, 1] }, seed: i + 1, materialRefs: surfaces })) };
+assert.throws(() => buildMtxManifest(many, source), /MTX_SCOPE/);
 assert.equal(projected.requires.compiler, MTX_COMPILER);
 assert.equal(projected.rotationOrder, 'XYZ');
 assert.deepEqual(projected.entities[0].clearance, [{ id: 'front', kind: 'box', sizeM: [1.2, 2, 1.2], centerM: [0, 1, 1.15] }]);
@@ -38,6 +40,33 @@ assert.notDeepEqual(mutate(d => { d.requires.compiler = 'mtx.v2.compiler/0'; }),
 assert.notDeepEqual(mutate(d => { d.entities[0].geometry = []; }), []);
 assert.notDeepEqual(mutate(d => { d.entities[0].interaction.anchor = 'nope'; }), []);
 assert.notDeepEqual(mutate(d => { d.entities.push(JSON.parse(JSON.stringify(d.entities[0]))); }), []);
+assert.notDeepEqual(mutate(d => { d.entities[0].interaction = null; }), []);
+
+// Multi-entity world: one of each of the 7 MTX archetypes, projected and validated together.
+const multi = { worldId: 'plaza_multi', version: 2, contractVersion: CONTRACT_VERSION, units: 'meter', axis: AXIS,
+  entities: [
+    { id: 'floor.main', assetRef: 'mtx.plaza.floor_field', transform: { positionM: [0, 0, 0], rotationDeg: [0, 0, 0], scale: [1, 1, 1] }, seed: 1, materialRefs: ['mtx.neutral.stone', 'mtx.neutral.black_lacquer'] },
+    { id: 'arrival.circle', assetRef: 'mtx.plaza.arrival_circle', transform: { positionM: [0, 0, 0], rotationDeg: [0, 0, 0], scale: [1, 1, 1] }, seed: 2, materialRefs: ['mtx.neutral.stone', 'mtx.construct.white', 'mtx.glass.cyan'] },
+    { id: 'hardline.001', assetRef: 'mtx.fixture.hardline_booth', transform: { positionM: [0, 0, 0], rotationDeg: [0, 0, 0], scale: [1, 1, 1] }, seed: 3, materialRefs: surfaces },
+    { id: 'wall.code', assetRef: 'mtx.surface.code_wall', transform: { positionM: [0, 0, 0], rotationDeg: [0, 0, 0], scale: [1, 1, 1] }, seed: 4, materialRefs: ['mtx.neutral.black_lacquer', 'mtx.signal.green_code'] },
+    { id: 'rail.edge', assetRef: 'mtx.edge.glass_rail', transform: { positionM: [0, 0, 0], rotationDeg: [0, 0, 0], scale: [1, 1, 1] }, seed: 5, materialRefs: ['mtx.metal.brushed_dark', 'mtx.glass.cyan'] },
+    { id: 'avatar.hero', assetRef: 'mtx.actor.hero_avatar', transform: { positionM: [0, 0, 0], rotationDeg: [0, 0, 0], scale: [1, 1, 1] }, seed: 6, materialRefs: ['mtx.neutral.black_lacquer', 'mtx.metal.brushed_dark', 'mtx.neutral.stone', 'mtx.glass.cyan'] },
+    { id: 'crowd.001', assetRef: 'mtx.actor.crowd_figure', transform: { positionM: [0, 0, 0], rotationDeg: [0, 0, 0], scale: [1, 1, 1] }, seed: 7, materialRefs: ['mtx.neutral.black_lacquer', 'mtx.metal.brushed_dark', 'mtx.neutral.stone'] }
+  ] };
+const multiProjected = buildMtxManifest(multi, source);
+assert.deepEqual(validateMtxWorld(multiProjected), []);
+assert.equal(multiProjected.entities.length, 7);
+assert.deepEqual(multiProjected.entities.map(e => e.id), ['floor.main', 'arrival.circle', 'hardline.001', 'wall.code', 'rail.edge', 'avatar.hero', 'crowd.001']);
+assert.equal(multiProjected.entities.find(e => e.id === 'wall.code').interaction, null);
+assert.equal(multiProjected.entities.find(e => e.id === 'arrival.circle').interaction.kind, 'arrival');
+assert.equal(multiProjected.entities.find(e => e.id === 'avatar.hero').lodClass, 'hero_actor');
+assert.equal(multiProjected.entities.find(e => e.id === 'floor.main').collision.class, 'walkable');
+
+const mutateMulti = (fn) => { const d = JSON.parse(JSON.stringify(multiProjected)); fn(d); return validateMtxWorld(d); };
+assert.notDeepEqual(mutateMulti(d => { d.entities.find(e => e.id === 'wall.code').interaction = { kind: 'hardline', anchor: 'frontInteractionM', zone: 'cylinder', reachM: 1.25, heightM: 2 }; }), []);
+assert.notDeepEqual(mutateMulti(d => { d.entities.find(e => e.id === 'floor.main').collision.class = 'static_solid'; }), []);
+assert.notDeepEqual(mutateMulti(d => { d.entities.find(e => e.id === 'avatar.hero').lodClass = 'crowd_actor'; }), []);
+assert.notDeepEqual(mutateMulti(d => { d.entities.find(e => e.id === 'arrival.circle').interaction.kind = 'teleport'; }), []);
 
 const client = await connect({ ARTISAN_ARTIFACTS_DIR: artifacts });
 try {

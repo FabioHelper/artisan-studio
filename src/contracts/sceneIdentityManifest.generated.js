@@ -106,7 +106,7 @@ const DATA = {
     "dioramaAdaptation": [
       {
         "path": "src/contracts/artisanContract.js",
-        "sha256": "sha256:7e9ef2d886bf8fc7a035a6c556bd393808798ca699e7359afbb285a636316692"
+        "sha256": "sha256:488991eb111c3d76fa4e4aaa1ccaf2fae937a6734bf2ac2742e3bf4240985053"
       },
       {
         "path": "src/engine/LightingRig.js",
@@ -153,7 +153,7 @@ const DATA = {
     },
     {
       "path": "src/contracts/artisanContract.js",
-      "sha256": "sha256:7e9ef2d886bf8fc7a035a6c556bd393808798ca699e7359afbb285a636316692"
+      "sha256": "sha256:488991eb111c3d76fa4e4aaa1ccaf2fae937a6734bf2ac2742e3bf4240985053"
     },
     {
       "path": "src/contracts/sceneIdentityContract.js",
@@ -185,18 +185,18 @@ const DATA = {
     },
     {
       "path": "src/engine/UniversalFoundry.js",
-      "sha256": "sha256:99278776b6b4014e4eda5ed88be42cf5a52d2791cbc7badcefeb188e7d6d2f40"
+      "sha256": "sha256:ec8464cffa905fd94c80be9773821316b6d233ae620d5cc95f5f158346c440fa"
     },
     {
       "path": "src/engine/WorldCompiler.js",
-      "sha256": "sha256:c05d0fdeb7ae5705c482392456059f5cfe573a15a6c6d24cb51a69e8f764bf85"
+      "sha256": "sha256:5cae72991b3f493d587a2e2fd3e33fe7a25d26e82fd3fe591c11aff183656ad6"
     },
     {
       "path": "src/main.js",
       "sha256": "sha256:e36d40c1c6acb75ef902da9e0e3634bc728072f1343e4edf5020ace56c1318c8"
     }
   ],
-  "rendererHash": "sha256:872b8b27cbce56b43e1635196408ad492f21bfddb0f618bb3ebc3eeaa14fbac4",
+  "rendererHash": "sha256:79c824c894d6e300fdab21c9dedf122ce95dd5219d9e31ef5abc5ced9807e8bf",
   "identities": {
     "walkableWorld": {
       "identitySchemaVersion": 1,
@@ -208,7 +208,7 @@ const DATA = {
       "sceneIdentity": "fantastic-world:walkable:v1:b23103103ea0e8c32926720e68701f91",
       "parentSceneIdentity": null,
       "sourceManifestHash": null,
-      "rendererHash": "sha256:872b8b27cbce56b43e1635196408ad492f21bfddb0f618bb3ebc3eeaa14fbac4",
+      "rendererHash": "sha256:79c824c894d6e300fdab21c9dedf122ce95dd5219d9e31ef5abc5ced9807e8bf",
       "renderPlanHash": null,
       "legacyAliases": [
         "mode:game"
@@ -224,7 +224,7 @@ const DATA = {
       "sceneIdentity": "fantastic-hall:zone:v1:60425609924ff4d9a49d0ded58f91318",
       "parentSceneIdentity": "fantastic-world:walkable:v1:b23103103ea0e8c32926720e68701f91",
       "sourceManifestHash": null,
-      "rendererHash": "sha256:872b8b27cbce56b43e1635196408ad492f21bfddb0f618bb3ebc3eeaa14fbac4",
+      "rendererHash": "sha256:79c824c894d6e300fdab21c9dedf122ce95dd5219d9e31ef5abc5ced9807e8bf",
       "renderPlanHash": null,
       "legacyAliases": []
     },
@@ -234,11 +234,11 @@ const DATA = {
       "logicalId": "fantastic-hall.diorama-adaptation",
       "contentVersion": 2,
       "contractVersion": "2.0.0",
-      "contentHash": "sha256:0c17093bf18485da79b06cb070d9e67a4ff5a7978d7680407a43e483b3f9a5c5",
-      "sceneIdentity": "fantastic-hall:diorama:v2:0c17093bf18485da79b06cb070d9e67a",
+      "contentHash": "sha256:e7486da5528b5d03873215e2abea554204360f91e700967574685bcf00dd3adf",
+      "sceneIdentity": "fantastic-hall:diorama:v2:e7486da5528b5d03873215e2abea5542",
       "parentSceneIdentity": null,
       "sourceManifestHash": null,
-      "rendererHash": "sha256:872b8b27cbce56b43e1635196408ad492f21bfddb0f618bb3ebc3eeaa14fbac4",
+      "rendererHash": "sha256:79c824c894d6e300fdab21c9dedf122ce95dd5219d9e31ef5abc5ced9807e8bf",
       "renderPlanHash": null,
       "legacyAliases": [
         "preset:fantastic"

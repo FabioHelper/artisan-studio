@@ -267,6 +267,48 @@ export class UniversalFoundry {
     }
   }
 
+  /** MTX preview geometry only. Godot compiles the semantic Construct floor independently. */
+  buildMtxConstructFloor(group, whiteMat, stoneMat) {
+    const white = [];
+    const stone = [];
+    const box = (parts, w, h, d, x, y, z) => parts.push(this.createTransformedBox(w, h, d, x, y, z));
+
+    box(white, 12, 0.04, 12, 0, 0.02, 0);
+
+    const clip = (v) => Math.abs(v) === 6 ? Math.sign(v) * 5.97 : v;
+    for (let i = 0; i <= 12; i++) {
+      const v = clip(-6 + i);
+      box(stone, 12, 0.01, 0.04, 0, 0.045, v);
+      box(stone, 0.04, 0.01, 12, v, 0.045, 0);
+    }
+
+    for (const [parts, material] of [[white, whiteMat], [stone, stoneMat]]) {
+      const geometry = this.mergeGeometries(parts);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+  }
+
+  /** MTX preview geometry only. Godot compiles the semantic artifact plinth independently. */
+  buildMtxArtifactPlinth(group, whiteMat, codeMat) {
+    const white = [];
+    const code = [];
+    const box = (parts, w, h, d, x, y, z) => parts.push(this.createTransformedBox(w, h, d, x, y, z));
+
+    box(white, 0.9, 0.12, 0.9, 0, 0.06, 0);
+    box(white, 0.6, 0.76, 0.6, 0, 0.50, 0);
+    box(white, 0.8, 0.12, 0.8, 0, 0.93, 0);
+    box(code, 0.62, 0.08, 0.62, 0, 0.585, 0);
+
+    for (const [parts, material] of [[white, whiteMat], [code, codeMat]]) {
+      const geometry = this.mergeGeometries(parts);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+  }
+
   buildHearth(group, stoneMat, plasterMat, fireMat) {
     const ironMat = this.materials.get('metal.forged_iron') || stoneMat;
     const woodMat = this.materials.get('wood.weathered_oak') || plasterMat;

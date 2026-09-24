@@ -320,9 +320,10 @@ export const ARCHETYPE_CATALOG = {
     description: 'MTX Hardline booth with stepped plinth, bevelled enclosure, inset cyan receiver, cable, latches, and restrained code signal',
     anchors: ['anchor.front_interaction', 'anchor.cable_exit'],
     anchorPositionsM: { frontInteractionM: [0, 0, 0.85], cableExitM: [0, 2.4, -0.4] },
-    clearance: { frontM: [1.2, 2, 1.2] },
-    collision: { kind: 'box', sizeM: [1.1, 2.55, 1.1], centerM: [0, 1.275, 0] },
-    interaction: { kind: 'hardline', reachM: 1.25 },
+    // Local metres, booth origin at floor centre, interactive face toward +Z (south).
+    clearance: [{ id: 'front', kind: 'box', sizeM: [1.2, 2, 1.2], centerM: [0, 1, 1.15] }],
+    collision: { kind: 'box', class: 'static_solid', sizeM: [1.1, 2.55, 1.1], centerM: [0, 1.275, 0] },
+    interaction: { kind: 'hardline', anchor: 'frontInteractionM', zone: 'cylinder', reachM: 1.25, heightM: 2 },
     surfaces: ['mtx.neutral.black_lacquer', 'mtx.glass.cyan', 'mtx.signal.green_code'],
     lodClass: 'hero_static', variantSeed: 'entity.seed',
     mesoFeatures: ['stepped grounded plinth', 'bevelled enclosure', 'receiver recess', 'steel latches', 'cable exit', 'asymmetric service tag']

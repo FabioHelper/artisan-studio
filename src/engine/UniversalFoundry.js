@@ -102,7 +102,8 @@ export class UniversalFoundry {
     // Asymmetric service tag and cable exit tell the player which face is interactive.
     box(body, 0.15, 0.23, 0.025, 0.30, 0.86, 0.30);
     box(body, 0.08, 0.22, 0.08, 0, 2.36, -0.38);
-    body.push(this.createTransformedCylinder(0.035, 0.035, 0.34, 8, 0, 2.37, -0.51, Math.PI / 2));
+    // Stub ends at the declared 1.1 m footprint (z = -0.55); the MTX collision box is that footprint.
+    body.push(this.createTransformedCylinder(0.035, 0.035, 0.17, 8, 0, 2.37, -0.465, Math.PI / 2));
 
     for (const [parts, material] of [[body, lacquerMat], [glass, glassMat], [signal, signalMat]]) {
       const geometry = this.mergeGeometries(parts);

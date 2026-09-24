@@ -256,7 +256,7 @@ if (!preflightOk) {
     }
     const stdio = R.nodeSuites['S2-mcp-stdio-sdk']?.summary;
     gate('S2-tool-schema-cap', 'S2', 'p0', typeof stdio?.toolSchemaChars === 'number' && stdio.toolSchemaChars <= 7960 && stdio.toolSchemaTokens <= 2000, `${stdio?.toolSchemaChars ?? '?'} chars (cap 7,960) ≈ ${stdio?.toolSchemaTokens ?? '?'} tokens (gate 2,000)`);
-    const tools13 = R.nodeSuites['S2-mcp-stdio-sdk']?.results?.find(x => x.name === 'tools/list count == 13');
+    const tools13 = R.nodeSuites['S2-mcp-stdio-sdk']?.results?.find(x => x.name === 'tools/list count == 14');
     gate('S2-tools-13', 'S2', 'p0', tools13?.pass === true, tools13 ? `tools/list count: ${tools13.detail}` : 'stdio suite did not report the tool count');
   });
 

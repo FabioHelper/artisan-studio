@@ -38,7 +38,7 @@ async function waitHttp(url, ms) {
   while (Date.now() - t < ms) { try { const r = await fetch(url); if (r.ok) return true; } catch {} await sleep(300); }
   return false;
 }
-const BROWSER = ['C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', 'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe', 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'].find(p => fs.existsSync(p));
+const BROWSER = [process.env.ARTISAN_BROWSER_PATH, 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', 'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe', 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'].find(p => p && fs.existsSync(p));
 
 // SHA-256 of every project file outside .git, node_modules and the artifact root (OS temp is outside
 // the project). Unlike a git-status diff this also catches writes to already-dirty and ignored files.
@@ -112,7 +112,7 @@ for (const [id, file, env] of [
     const cx = path.join(process.env.LOCALAPPDATA || '', 'OpenAI', 'Codex', 'bin');
     const cxExe = fs.existsSync(cx) ? fs.readdirSync(cx).map(d => path.join(cx, d, 'codex.exe')).find(f => fs.existsSync(f)) : null;
     const listed = cxExe ? /artisan-3d\s+node.*enabled/.test(run(cxExe, ['mcp', 'list'], { timeout: 60000 }).stdout) : null;
-    gate('codex-plugin-installed', skillOk && tools === 13 && essence && listed !== false, `v${version}; skill ${skillOk}; MCP from cached .mcp.json → ${tools} tools, essence ${essence}; codex mcp list: ${listed ?? 'codex CLI not found'}`);
+    gate('codex-plugin-installed', skillOk && tools === 14 && essence && listed !== false, `v${version}; skill ${skillOk}; MCP from cached .mcp.json → ${tools} tools, essence ${essence}; codex mcp list: ${listed ?? 'codex CLI not found'}`);
   }
 }
 
@@ -211,6 +211,12 @@ if (!process.argv.includes('--skip-e2e')) {
     const l = await call('import_telemetry_logs');
     gate('e2e-telemetry-log', inside(l.structuredContent?.path, artifacts), l.structuredContent?.path);
 
+    // MTX Slice 1: Hardline author -> verified headless render -> mtx.world/1 artifact, in its own MCP process.
+    const mtx = run(process.execPath, ['mcp-server/test_mtx_export.js'], { timeout: 180000, env: { ARTISAN_STUDIO_URL: studioUrl, ARTISAN_ARTIFACTS_DIR: artifacts, ARTISAN_BROWSER_PATH: BROWSER || '' } });
+    const mtxJ = lastJson(mtx.stdout);
+    e2e.mtxExport = mtxJ;
+    gate('e2e-mtx-export', mtx.code === 0 && mtxJ?.result === 'PASS' && inside(mtxJ.path, artifacts), mtxJ ? `${mtxJ.sceneIdentity} -> ${path.basename(mtxJ.path)} (${mtxJ.artifactSha256.slice(0, 19)}...; ${mtxJ.drawCalls} draws, ${mtxJ.triangles} tris)` : `exit ${mtx.code}: ${tail(mtx.stderr || mtx.stdout)}`, { artifact: mtxJ?.path });
+
     // Determinism of the authored world across a fresh MCP process
     const idA = e2e.preview?.sceneIdentity;
     const { connect: connect2 } = await import('../mcp-server/test_stdio_client.js');
@@ -262,10 +268,10 @@ if (!process.argv.includes('--skip-e2e')) {
       const f = new MaterialFoundry();
       const hex = (c) => `#${c.getHexString().toUpperCase()}`;
       const mismatch = [...f.materials.entries()].filter(([id, m]) => { const s = C.MATERIAL_CATALOG[id]; return !s || hex(m.color) !== s.color || m.roughness !== s.roughness || m.metalness !== s.metalness || hex(m.emissive) !== (s.emissive || '#000000') || (s.emissive !== undefined && m.emissiveIntensity !== s.emissiveIntensity) || !!s.textured !== !!m.map; }).map(([id]) => id);
-      return { total: f.materials.size, drift: f.contractDrift, mismatch };
+      return { total: f.materials.size, catalog: Object.keys(C.MATERIAL_CATALOG).length, drift: f.contractDrift, mismatch };
     });
     e2e.materialContract = mat;
-    gate('material-contract-browser', mat.drift.length === 0 && mat.mismatch.length === 0 && mat.total === 53, `${mat.total - mat.mismatch.length}/${mat.total} match; construction drift ${mat.drift.length}${mat.mismatch.length ? `; mismatched: ${mat.mismatch.join(',')}` : ''}`);
+    gate('material-contract-browser', mat.drift.length === 0 && mat.mismatch.length === 0 && mat.total === mat.catalog, `${mat.total - mat.mismatch.length}/${mat.total} match; construction drift ${mat.drift.length}${mat.mismatch.length ? `; mismatched: ${mat.mismatch.join(',')}` : ''}`);
     e2e.gpu = e2e.telemetry?.telemetry?.gpu;
   } catch (err) {
     gate('e2e-exception', false, err.stack || err.message);

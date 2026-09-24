@@ -347,9 +347,13 @@ const TELEMETRY_KEYS = ['gpu', 'isSoftwareRasterizer', 'fps', 'frametimeMs', 'fr
 const S = (type, extra = {}) => ({ type, ...extra });
 const vec3 = S('array', { items: S('number'), minItems: 3, maxItems: 3 });
 // Output schemas name the key fields only (extra fields allowed) to keep tools/list light.
-const out = (props = {}) => ({ type: 'object', properties: { ok: S('boolean'), ...props } });
+// Every result carries `ok`; it is not repeated in each schema.
+const out = (props = {}) => ({ type: 'object', properties: props });
 const WORLD_OUT = out({ sceneIdentity: S('string'), entityCount: S('integer'), validation: S('object') });
-const ann = (title, readOnly, destructive, idempotent) => ({ title, readOnlyHint: readOnly, destructiveHint: destructive, idempotentHint: idempotent, openWorldHint: false });
+// MCP defines destructive/idempotent hints only for tools that are not read-only; omit them there.
+const ann = (title, readOnly, destructive, idempotent) => readOnly
+  ? { title, readOnlyHint: true, openWorldHint: false }
+  : { title, readOnlyHint: false, destructiveHint: destructive, idempotentHint: idempotent, openWorldHint: false };
 const noArgs = { type: 'object', properties: {}, additionalProperties: false };
 
 const TOOLS = [
@@ -450,9 +454,9 @@ const TOOLS = [
   },
   {
     name: 'export_mtx_manifest',
-    description: 'Write the verified Hardline MTX manifest to Studio artifacts.',
+    description: 'Export the identity-verified world as an mtx.world/1 artifact for Godot.',
     inputSchema: noArgs,
-    outputSchema: out({ path: S('string') }),
+    outputSchema: out({ path: S('string'), artifactSha256: S('string') }),
     annotations: ann('MTX export', false, false, true)
   },
   {

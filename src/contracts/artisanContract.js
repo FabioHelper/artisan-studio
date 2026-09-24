@@ -31,7 +31,7 @@ export const GROUND_TARGET_PATTERN = '^ground(\\.[a-z0-9_]+)*$';
 export const DEFAULT_GROUND_TARGET = 'ground.stone';
 
 export const LIGHTING_PRESETS = ['dusk', 'hearth', 'day'];
-export const ENTITY_KINDS = ['architecture', 'furniture', 'workshop', 'storage', 'lighting', 'decor', 'prop', 'room'];
+export const ENTITY_KINDS = ['architecture', 'furniture', 'workshop', 'storage', 'lighting', 'decor', 'prop', 'room', 'actor'];
 // Categories that are self-supporting (no Law A relationship required).
 export const SELF_SUPPORTING_CATEGORIES = ['architecture', 'lighting', 'decor'];
 
@@ -328,6 +328,78 @@ export const ARCHETYPE_CATALOG = {
     lodClass: 'hero_static', variantSeed: 'entity.seed',
     mesoFeatures: ['stepped grounded plinth', 'bevelled enclosure', 'receiver recess', 'steel latches', 'cable exit', 'asymmetric service tag']
   },
+  'mtx.plaza.floor_field': {
+    category: 'architecture', dimensions: [16, 0.05, 16],
+    description: 'MTX plaza floor field: 1 m stone slabs with a polished black lacquer inlay grid; the reflective-floor test surface',
+    anchors: ['anchor.surface.floor'],
+    anchorPositionsM: { centerTopM: [0, 0.05, 0] },
+    clearance: [],
+    collision: { kind: 'box', class: 'walkable', sizeM: [16, 0.05, 16], centerM: [0, 0.025, 0] },
+    interaction: null,
+    surfaces: ['mtx.neutral.stone', 'mtx.neutral.black_lacquer'],
+    lodClass: 'static', variantSeed: 'entity.seed',
+    mesoFeatures: ['1 m slab grid', 'polished lacquer inlay', 'bevelled slab edge']
+  },
+  'mtx.plaza.arrival_circle': {
+    category: 'architecture', dimensions: [4.8, 0.12, 4.8],
+    description: 'MTX Arrival Circle: a low stepped stone dais with a white arrival ring and a cyan glyph ring',
+    anchors: ['anchor.arrival.center', 'anchor.arrival.approach'],
+    anchorPositionsM: { centerM: [0, 0.12, 0], approachM: [0, 0, 2.9] },
+    clearance: [{ id: 'arrival_column', kind: 'box', sizeM: [3.2, 3, 3.2], centerM: [0, 1.62, 0] }],
+    collision: { kind: 'box', class: 'walkable', sizeM: [4.8, 0.12, 4.8], centerM: [0, 0.06, 0] },
+    interaction: { kind: 'arrival', anchor: 'centerM', zone: 'cylinder', reachM: 1.6, heightM: 2.4 },
+    surfaces: ['mtx.neutral.stone', 'mtx.construct.white', 'mtx.glass.cyan'],
+    lodClass: 'hero_static', variantSeed: 'entity.seed',
+    mesoFeatures: ['two-step dais', 'white arrival ring', 'cyan glyph ring', 'four approach notches']
+  },
+  'mtx.surface.code_wall': {
+    category: 'architecture', dimensions: [8, 3.6, 0.5],
+    description: 'MTX code wall: black lacquer frame holding a field of green glyph cells',
+    anchors: ['anchor.face.center'],
+    anchorPositionsM: { faceCenterM: [0, 1.8, 0.25] },
+    clearance: [{ id: 'front', kind: 'box', sizeM: [8, 2.2, 1], centerM: [0, 1.1, 0.75] }],
+    collision: { kind: 'box', class: 'static_solid', sizeM: [8, 3.6, 0.5], centerM: [0, 1.8, 0] },
+    interaction: null,
+    surfaces: ['mtx.neutral.black_lacquer', 'mtx.signal.green_code'],
+    lodClass: 'static', variantSeed: 'entity.seed',
+    mesoFeatures: ['lacquer frame', 'glyph cell field', 'plinth kick', 'mullions']
+  },
+  'mtx.edge.glass_rail': {
+    category: 'architecture', dimensions: [6, 1.1, 0.2],
+    description: 'MTX glass edge rail: dark brushed posts and cap holding cyan glass panes at the plaza edge',
+    anchors: ['anchor.rail.left', 'anchor.rail.right'],
+    anchorPositionsM: { leftEndM: [-3, 0, 0], rightEndM: [3, 0, 0] },
+    clearance: [],
+    collision: { kind: 'box', class: 'static_solid', sizeM: [6, 1.1, 0.2], centerM: [0, 0.55, 0] },
+    interaction: null,
+    surfaces: ['mtx.metal.brushed_dark', 'mtx.glass.cyan'],
+    lodClass: 'static', variantSeed: 'entity.seed',
+    mesoFeatures: ['posts every 1.5 m', 'cap rail', 'glass panes', 'kick plate']
+  },
+  'mtx.actor.hero_avatar': {
+    category: 'actor', dimensions: [0.7, 1.85, 0.45],
+    description: 'MTX hero avatar stand-in: long black coat, brushed collar, cyan visor; the readable player',
+    anchors: ['anchor.feet', 'anchor.head', 'anchor.nameplate'],
+    anchorPositionsM: { feetM: [0, 0, 0], headM: [0, 1.7, 0], nameplateM: [0, 2.05, 0] },
+    clearance: [],
+    collision: { kind: 'box', class: 'actor', sizeM: [0.6, 1.85, 0.4], centerM: [0, 0.925, 0] },
+    interaction: null,
+    surfaces: ['mtx.neutral.black_lacquer', 'mtx.metal.brushed_dark', 'mtx.neutral.stone', 'mtx.glass.cyan'],
+    lodClass: 'hero_actor', variantSeed: 'entity.seed',
+    mesoFeatures: ['long coat skirt', 'collar', 'visor', 'readable hands']
+  },
+  'mtx.actor.crowd_figure': {
+    category: 'actor', dimensions: [0.7, 1.85, 0.5],
+    description: 'MTX crowd silhouette stand-in: coat and head only, readable at plaza distance',
+    anchors: ['anchor.feet', 'anchor.head'],
+    anchorPositionsM: { feetM: [0, 0, 0], headM: [0, 1.68, 0] },
+    clearance: [],
+    collision: { kind: 'box', class: 'actor', sizeM: [0.6, 1.85, 0.45], centerM: [0, 0.925, 0] },
+    interaction: null,
+    surfaces: ['mtx.neutral.black_lacquer', 'mtx.metal.brushed_dark', 'mtx.neutral.stone'],
+    lodClass: 'crowd_actor', variantSeed: 'entity.seed',
+    mesoFeatures: ['coat silhouette', 'shoulder line', 'head']
+  },
   // Architecture — diorama shells (dimensions are approximate footprints)
   'arch.forge_pavilion': { category: 'architecture', dimensions: SHELL, description: 'Open timber-and-stone forge pavilion diorama shell with twilight valley backdrop', anchors: ['anchor.surface.floor'], mesoFeatures: ['timber posts', 'stone plinth', 'skyline backdrop'] },
   'arch.tavern_hall': { category: 'architecture', dimensions: SHELL, description: 'Medieval tavern hall shell with plaster, timber framing and village sunset window', anchors: ['anchor.surface.floor', 'anchor.wall.mount'], mesoFeatures: ['timber framing', 'plaster', 'skyline backdrop'] },
@@ -387,6 +459,12 @@ export const ARCHETYPE_CATALOG = {
 // `temporary` marks a route P1 must replace; do not re-baseline these from runtime output.
 const FOUNDRY_ROUTE_GROUPS = {
   buildHardlineBooth: ['mtx.fixture.hardline_booth'],
+  buildMtxFloorField: ['mtx.plaza.floor_field'],
+  buildMtxArrivalCircle: ['mtx.plaza.arrival_circle'],
+  buildMtxCodeWall: ['mtx.surface.code_wall'],
+  buildMtxGlassRail: ['mtx.edge.glass_rail'],
+  buildMtxHeroAvatar: ['mtx.actor.hero_avatar'],
+  buildMtxCrowdFigure: ['mtx.actor.crowd_figure'],
   buildWinterholdShell: ['arch.winterhold_shell'],
   buildLibraryShell: ['arch.library_shell'],
   buildAlchemistShell: ['arch.alchemist_shell'],

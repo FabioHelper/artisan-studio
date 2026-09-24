@@ -121,7 +121,7 @@ export function validateMtxWorld(doc) {
       if (e.interaction !== null) errors.push(`${at}: interaction must be null`);
     } else {
       const n = e.interaction || {};
-      if (!['hardline', 'arrival'].includes(n.kind) || n.kind !== archetype?.interaction?.kind || n.zone !== 'cylinder' || !(n.reachM > 0) || !(n.heightM > 0) || !e.anchors?.[n.anchor]) errors.push(`${at}: interaction must name an anchor and a positive cylinder`);
+      if (!['hardline', 'arrival', 'artifact'].includes(n.kind) || n.kind !== archetype?.interaction?.kind || n.zone !== 'cylinder' || !(n.reachM > 0) || !(n.heightM > 0) || !e.anchors?.[n.anchor]) errors.push(`${at}: interaction must name an anchor and a positive cylinder`);
     }
     if (!Array.isArray(e.clearance) || !e.clearance.every(z => typeof z.id === 'string' && z.kind === 'box' && isPositive3(z.sizeM) && isVec3(z.centerM))) errors.push(`${at}: clearance must be a list of boxes`);
     if (!['hero_static', 'static', 'hero_actor', 'crowd_actor'].includes(e.lodClass) || e.lodClass !== archetype?.lodClass) errors.push(`${at}: lodClass must match the archetype`);

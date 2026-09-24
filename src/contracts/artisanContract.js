@@ -400,6 +400,30 @@ export const ARCHETYPE_CATALOG = {
     lodClass: 'crowd_actor', variantSeed: 'entity.seed',
     mesoFeatures: ['coat silhouette', 'shoulder line', 'head']
   },
+  'mtx.construct.white_floor': {
+    category: 'architecture', dimensions: [12, 0.05, 12],
+    description: 'MTX Construct floor: 1 m white slabs with hairline stone seams; the loading-program void',
+    anchors: ['anchor.surface.floor'],
+    anchorPositionsM: { centerTopM: [0, 0.05, 0] },
+    clearance: [],
+    collision: { kind: 'box', class: 'walkable', sizeM: [12, 0.05, 12], centerM: [0, 0.025, 0] },
+    interaction: null,
+    surfaces: ['mtx.construct.white', 'mtx.neutral.stone'],
+    lodClass: 'static', variantSeed: 'entity.seed',
+    mesoFeatures: ['1 m white slab grid', 'hairline stone seams', 'white edge skirt']
+  },
+  'mtx.construct.artifact_plinth': {
+    category: 'architecture', dimensions: [0.9, 1.0, 0.9],
+    description: 'MTX Construct plinth: a stepped white pedestal with an inset green code band; it holds the Program artifact',
+    anchors: ['anchor.front_interaction', 'anchor.artifact'],
+    anchorPositionsM: { frontInteractionM: [0, 0, 0.8], artifactM: [0, 1.0, 0] },
+    clearance: [{ id: 'front', kind: 'box', sizeM: [1.0, 2, 1.0], centerM: [0, 1, 1.0] }],
+    collision: { kind: 'box', class: 'static_solid', sizeM: [0.9, 1.0, 0.9], centerM: [0, 0.5, 0] },
+    interaction: { kind: 'artifact', anchor: 'frontInteractionM', zone: 'cylinder', reachM: 1.4, heightM: 2 },
+    surfaces: ['mtx.construct.white', 'mtx.signal.green_code'],
+    lodClass: 'hero_static', variantSeed: 'entity.seed',
+    mesoFeatures: ['stepped white plinth', 'inset green code band', 'artifact socket']
+  },
   // Architecture — diorama shells (dimensions are approximate footprints)
   'arch.forge_pavilion': { category: 'architecture', dimensions: SHELL, description: 'Open timber-and-stone forge pavilion diorama shell with twilight valley backdrop', anchors: ['anchor.surface.floor'], mesoFeatures: ['timber posts', 'stone plinth', 'skyline backdrop'] },
   'arch.tavern_hall': { category: 'architecture', dimensions: SHELL, description: 'Medieval tavern hall shell with plaster, timber framing and village sunset window', anchors: ['anchor.surface.floor', 'anchor.wall.mount'], mesoFeatures: ['timber framing', 'plaster', 'skyline backdrop'] },
@@ -465,6 +489,8 @@ const FOUNDRY_ROUTE_GROUPS = {
   buildMtxGlassRail: ['mtx.edge.glass_rail'],
   buildMtxHeroAvatar: ['mtx.actor.hero_avatar'],
   buildMtxCrowdFigure: ['mtx.actor.crowd_figure'],
+  buildMtxConstructFloor: ['mtx.construct.white_floor'],
+  buildMtxArtifactPlinth: ['mtx.construct.artifact_plinth'],
   buildWinterholdShell: ['arch.winterhold_shell'],
   buildLibraryShell: ['arch.library_shell'],
   buildAlchemistShell: ['arch.alchemist_shell'],

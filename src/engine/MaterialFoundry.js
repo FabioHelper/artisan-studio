@@ -23,6 +23,18 @@ export class MaterialFoundry {
   }
 
   initCoreMaterials() {
+    // MTX meanings are shared with the Godot manifest. These PBR values affect preview only.
+    for (const ref of [
+      'mtx.neutral.stone', 'mtx.neutral.black_lacquer', 'mtx.metal.brushed_dark',
+      'mtx.glass.cyan', 'mtx.signal.green_code', 'mtx.signal.red_alarm',
+      'mtx.real.amber', 'mtx.construct.white'
+    ]) {
+      const spec = MATERIAL_CATALOG[ref];
+      this.register(ref, new THREE.MeshStandardMaterial({
+        color: spec.color, roughness: spec.roughness, metalness: spec.metalness,
+        ...(spec.emissive ? { emissive: spec.emissive, emissiveIntensity: spec.emissiveIntensity } : {})
+      }));
+    }
     // Wood families
     this.register('wood.dark_oak', new THREE.MeshStandardMaterial({
       color: 0x3d2817,
@@ -1760,4 +1772,3 @@ export class MaterialFoundry {
     });
   }
 }
-

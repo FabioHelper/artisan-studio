@@ -63,6 +63,56 @@ export class UniversalFoundry {
   // 1. ARCHITECTURE
   // ==========================================
 
+  /** MTX preview geometry only. Godot compiles the semantic Hardline record independently. */
+  buildHardlineBooth(group, lacquerMat, glassMat, signalMat) {
+    const body = [];
+    const glass = [];
+    const signal = [];
+    const box = (parts, w, h, d, x, y, z) => parts.push(this.createTransformedBox(w, h, d, x, y, z));
+
+    // Ground contact and plinth: stepped foot, chamfered corners, and cable landing.
+    box(body, 1.10, 0.09, 1.10, 0, 0.045, 0);
+    box(body, 0.98, 0.10, 0.92, 0, 0.14, 0);
+    box(body, 0.86, 0.07, 0.74, 0, 0.225, 0);
+
+    // The main enclosure is bevelled, not a single unworked block.
+    const outline = new THREE.Shape();
+    outline.moveTo(-0.37, 0.27);
+    outline.lineTo(0.37, 0.27);
+    outline.lineTo(0.37, 2.38);
+    outline.lineTo(-0.37, 2.38);
+    outline.closePath();
+    const core = new THREE.ExtrudeGeometry(outline, { depth: 0.55, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.055, bevelThickness: 0.045, curveSegments: 1 });
+    core.translate(0, 0, -0.34);
+    body.push(core);
+    box(body, 0.82, 0.055, 0.66, 0, 2.43, -0.065);
+
+    // Articulation: recessed handset well, side rails, bolted faceplate and cable.
+    box(body, 0.48, 0.74, 0.045, 0, 1.44, 0.25);
+    box(body, 0.40, 0.61, 0.03, 0, 1.44, 0.28);
+    box(body, 0.10, 1.02, 0.05, -0.43, 1.62, 0.13);
+    box(body, 0.10, 1.02, 0.05, 0.43, 1.62, 0.13);
+    for (const x of [-0.34, 0.34]) for (const y of [0.43, 2.22]) {
+      body.push(this.createTransformedCylinder(0.025, 0.025, 0.025, 8, x, y, 0.26, Math.PI / 2));
+    }
+    box(glass, 0.31, 0.18, 0.018, 0, 1.81, 0.31);
+    box(glass, 0.13, 0.42, 0.085, -0.11, 1.38, 0.34);
+    box(signal, 0.18, 0.025, 0.022, 0, 2.08, 0.30);
+
+    // Asymmetric service tag and cable exit tell the player which face is interactive.
+    box(body, 0.15, 0.23, 0.025, 0.30, 0.86, 0.30);
+    box(body, 0.08, 0.22, 0.08, 0, 2.36, -0.38);
+    body.push(this.createTransformedCylinder(0.035, 0.035, 0.34, 8, 0, 2.37, -0.51, Math.PI / 2));
+
+    for (const [parts, material] of [[body, lacquerMat], [glass, glassMat], [signal, signalMat]]) {
+      const geometry = this.mergeGeometries(parts);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.castShadow = material === lacquerMat;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+  }
+
   buildHearth(group, stoneMat, plasterMat, fireMat) {
     const ironMat = this.materials.get('metal.forged_iron') || stoneMat;
     const woodMat = this.materials.get('wood.weathered_oak') || plasterMat;

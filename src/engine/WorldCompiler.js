@@ -9,6 +9,7 @@ import { isKnownArchetype } from '../contracts/artisanContract.js';
 // on the builders, executes every route, and compares the builder that actually ran against the
 // independent ARCHETYPE_EXPECTED_ROUTES oracle in the contract (SOL-FIX-1), never against this label.
 const ARCHETYPE_ROUTES = {
+  'mtx.fixture.hardline_booth': { route: 'buildHardlineBooth', build(g, m) { this.foundry.buildHardlineBooth(g, m(0, 'mtx.neutral.black_lacquer'), m(1, 'mtx.glass.cyan'), m(2, 'mtx.signal.green_code')); } },
   'arch.winterhold_shell': { route: 'buildWinterholdShell', build(g, m) { this.foundry.buildWinterholdShell(g, m(0, 'stone.winterhold_masonry'), m(1, 'stone.nordic_carved'), m(2, 'magic.arcane_rune'), m(3, 'banner.winterhold'), m(4, 'metal.forged_iron'), m(5, 'skyline.winterhold_aurora'), m(6, 'magic.witchlight_blue'), m(7, 'ice.glacial')); } },
   'arch.library_shell': { route: 'buildLibraryShell', build(g, m) { this.foundry.buildLibraryShell(g, m(0, 'stone.rough_local'), m(1, 'wood.dark_oak'), m(2, 'glass.window'), m(3, 'skyline.misty_mountains')); } },
   'arch.alchemist_shell': { route: 'buildAlchemistShell', build(g, m) { this.foundry.buildAlchemistShell(g, m(0, 'stone.rough_local'), m(1, 'wood.dark_oak'), m(2, 'glass.window'), m(3, 'skyline.cobblestone_alley')); } },

@@ -66,7 +66,7 @@ async function main() {
   const info = client.getServerVersion();
   check('initialize', info?.name === 'artisan-3d', JSON.stringify(info));
   const { tools } = await client.listTools();
-  check('tools/list count == 13', tools.length === 13, tools.length);
+  check('tools/list count == 14', tools.length === 14, tools.length);
   check('every tool has outputSchema + annotations', tools.every(t => t.outputSchema && t.annotations && typeof t.annotations.readOnlyHint === 'boolean' && t.annotations.title));
   const toolChars = JSON.stringify(tools).length;
   const toolTokens = Math.ceil(toolChars / 4);
@@ -129,12 +129,14 @@ async function main() {
   check('valid:get_telemetry pre-render manifest export rejected',
     r.isError === true && r.structuredContent?.error?.code === 'EVIDENCE_UNVERIFIED' && r.structuredContent?.manifest === undefined,
     `got ${r.structuredContent?.error?.code || 'success-with-manifest'}`);
+  r = await call('export_mtx_manifest');
+  check('MTX export requires identity-verified preview', r.isError === true && r.structuredContent?.error?.code === 'EVIDENCE_UNVERIFIED');
   r = await call('compile_preview');
   check('valid:compile_preview (no studio → livePreview false)', r.structuredContent?.ok && r.structuredContent.livePreview === false);
   r = await call('remove_entity', { entityId: 'prop.lantern.001' });
   check('valid:remove_entity', r.structuredContent?.ok && r.structuredContent.entityCount === 2);
 
-  // --- invalid calls (all 13 tools)
+  // --- invalid calls (all 14 tools)
   await expectError(client, 'create_world', { worldId: '../evil' }, 'INVALID_ARGUMENT');
   await expectError(client, 'create_world', { worldId: 'ok_world', lighting: 'neon' }, 'INVALID_ARGUMENT');
   await expectError(client, 'create_world', { worldId: 'ok_world', roomSize: [1, 2] }, 'INVALID_ARGUMENT');

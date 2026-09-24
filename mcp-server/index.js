@@ -34,6 +34,7 @@ import {
   deriveSeed
 } from '../src/contracts/artisanContract.js';
 import { WorldSession } from './WorldSession.js';
+import { buildMtxManifest } from './mtxExport.js';
 import {
   validateWorld, formatIssues, checkId, checkPosition, checkRotation, checkScale,
   checkMaterials, checkSeed, checkLighting, checkArchetype
@@ -448,6 +449,13 @@ const TOOLS = [
     annotations: ann('Capture screenshot', false, false, false)
   },
   {
+    name: 'export_mtx_manifest',
+    description: 'Write the verified Hardline MTX manifest to Studio artifacts.',
+    inputSchema: noArgs,
+    outputSchema: out({ path: S('string') }),
+    annotations: ann('MTX export', false, false, true)
+  },
+  {
     name: 'import_telemetry_logs',
     description: 'Save identity-verified engine telemetry + manifest as a JSON artifact.',
     inputSchema: noArgs,
@@ -647,12 +655,13 @@ const HANDLERS = {
     rejectUnknownArgs(args, ['timeoutMs']);
     const timeoutMs = Number.isInteger(args.timeoutMs) ? Math.min(Math.max(args.timeoutMs, 500), 30000) : 10000;
     const manifest = session.getManifest();
+    const previewProfile = manifest.entities.length > 0 && manifest.entities.every(entity => entity.assetRef?.startsWith('mtx.')) ? 'mtx_preview' : 'diorama';
     const report = validateWorld(manifest);
     if (!report.valid) throw new ToolError('CONTRACT_VIOLATION', 'World is invalid; not pushed to preview', report.errors);
     const summary = worldSummary(manifest);
     const warnings = formatIssues(report.warnings).slice(0, 15);
     if (!bridge) {
-      return ok({ ...summary, studioUrl: STUDIO_URL, warnings, bridge: bridgeInfo(), livePreview: false, ack: null, budget: evaluateBudget('diorama', null) },
+      return ok({ ...summary, studioUrl: STUDIO_URL, warnings, bridge: bridgeInfo(), livePreview: false, ack: null, budget: evaluateBudget(previewProfile, null) },
         'Valid world; live preview bridge disabled (ARTISAN_BRIDGE=off).');
     }
     await bridge.ready();
@@ -669,7 +678,7 @@ const HANDLERS = {
       if (bridge.unverifiedCount() > 0) {
         throw new ToolError('STUDIO_UNVERIFIED', `${bridge.unverifiedCount()} Studio tab(s) on port ${bridge.port} never completed the protocol-v2 handshake with MCP instance ${bridge.instanceId} (a stale pre-P0.5 page?). Reload the tab or open ${studioUrl}.`);
       }
-      return ok({ ...base, livePreview: false, ack: null, budget: evaluateBudget('diorama', null) },
+      return ok({ ...base, livePreview: false, ack: null, budget: evaluateBudget(previewProfile, null) },
         `Valid world; no live Studio connected to MCP instance ${bridge.instanceId.slice(0, 8)}. Open ${studioUrl} to preview.`);
     }
     const expect = { worldId: summary.worldId, version: summary.version, entityCount: summary.entityCount, sceneIdentity: summary.sceneIdentity };
@@ -706,9 +715,9 @@ const HANDLERS = {
     const triangles = r.triangles ?? ack.triangles ?? null;
     const settled = (r.settled ?? ack.settled) === true;
     const ackData = { sceneIdentity: r.sceneIdentity, sceneReference: r.sceneReference, rendererHash: r.rendererHash, renderPlanHash: r.renderPlanHash, worldId: r.worldId, version: r.version, entityCount: ack.entityCount, renderedEntityIds: rendered, instanceId: ack.instanceId, clientId: ack.clientId, connectionId: res.connectionId, drawCalls, triangles, settled, warnings: ack.warnings, render: { drawCalls, triangles, settled }, evidence: compileEvidence };
-    const budget = evaluateBudget('diorama', { drawCalls, triangles, settled });
+    const budget = evaluateBudget(previewProfile, { drawCalls, triangles, settled });
     return ok({ ...base, livePreview: true, ack: ackData, budget },
-      `Preview compiled and verified in Studio ${res.clientId.slice(0, 8)} (${r.sceneIdentity}): ${ackData.entityCount} entities, ${drawCalls ?? '?'} draws, ${triangles ?? '?'} tris${settled ? '' : ' (NOT settled)'} (diorama max ${budget.drawCallsMax} draws / ${budget.trianglesTarget} tris).`);
+      `Preview compiled and verified in Studio ${res.clientId.slice(0, 8)} (${r.sceneIdentity}): ${ackData.entityCount} entities, ${drawCalls ?? '?'} draws, ${triangles ?? '?'} tris${settled ? '' : ' (NOT settled)'} (${previewProfile} max ${budget.drawCallsMax} draws / ${budget.trianglesTarget} tris).`);
   },
 
   async get_engine_telemetry(args) {
@@ -828,6 +837,31 @@ const HANDLERS = {
     evidence = { ...evidence, artifactSha256: 'sha256:' + pngSha256 };
     return ok({ source: tgt.source, sceneIdentity: evidence.sceneIdentity, requestedFilename: args.filename ?? null, path: target, bytes: png.length, pngSha256, width, height, normalized: rel.normalized, evidence },
       `${sourceTag(tgt.source)} canvas ${width}x${height} of ${evidence.sceneIdentity}${evidence.inFrustum ? ` (${evidence.inFrustum.length}/${evidence.entityCount} entities in frustum)` : ''}: ${png.length} bytes -> ${target}`);
+  },
+
+  export_mtx_manifest(args) {
+    rejectUnknownArgs(args, []);
+    const manifest = session.getManifest();
+    const validation = validateWorld(manifest);
+    if (!validation.valid) throw new ToolError('CONTRACT_VIOLATION', 'World is invalid; no MTX artifact written', validation.errors);
+    // Reuse the established render-epoch/entity binding gate. A stale or unverified preview cannot export.
+    const verified = HANDLERS.get_telemetry({ includeManifest: true }).structuredContent;
+    let projected;
+    try { projected = buildMtxManifest(manifest, verified.sceneReference); }
+    catch (error) {
+      const message = String(error?.message || error);
+      throw new ToolError(message.split(':')[0], message);
+    }
+    const bytes = Buffer.from(JSON.stringify(projected, null, 2) + '\n', 'utf8');
+    const hash = 'sha256:' + crypto.createHash('sha256').update(bytes).digest('hex');
+    const file = identityArtifactPath(verified.sceneReference, `mtx_world_1_${verified.sourceManifestHash.slice(7)}.json`);
+    if (fs.existsSync(file)) {
+      if (!fs.readFileSync(file).equals(bytes)) throw new ToolError('ARTIFACT_CONFLICT', 'Content-addressed MTX export already exists with different bytes');
+    } else {
+      writeArtifactAt(file, bytes);
+    }
+    return ok({ path: file, sceneIdentity: verified.sceneIdentity, sourceManifestHash: verified.sourceManifestHash, artifactSha256: hash, schemaVersion: projected.schemaVersion },
+      `MTX Hardline manifest ${verified.sceneIdentity} -> ${file}`);
   },
 
   async import_telemetry_logs(args) {

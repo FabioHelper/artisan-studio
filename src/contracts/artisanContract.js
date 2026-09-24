@@ -54,6 +54,12 @@ export const LIMITS = {
 // Mode-specific performance budgets. There is no universal budget: each render
 // mode is governed by its own profile.
 export const PERFORMANCE_PROFILES = {
+  mtx_preview: {
+    description: 'MTX Hardline authoring preview; runtime frame budgets are verified in Godot.',
+    drawCallsMax: 30,
+    trianglesTarget: 15000,
+    targetFps: 60
+  },
   diorama: {
     description: 'Declarative World Compass dioramas (the 7 preset scenes and MCP-authored worlds).',
     drawCallsMax: 30,
@@ -243,6 +249,14 @@ export function authoredLighting(manifest) {
 export const CAMERA_ANGLES = ['hero', 'enchanter', 'shelf', 'aurora'];
 
 export const MATERIAL_CATALOG = {
+  'mtx.neutral.stone': { color: '#676E73', roughness: 0.88, metalness: 0.04, description: 'MTX semantic neutral stone; preview swatch only' },
+  'mtx.neutral.black_lacquer': { color: '#15191D', roughness: 0.25, metalness: 0.35, description: 'MTX semantic black lacquer; preview swatch only' },
+  'mtx.metal.brushed_dark': { color: '#303A40', roughness: 0.48, metalness: 0.75, description: 'MTX semantic brushed dark metal; preview swatch only' },
+  'mtx.glass.cyan': { color: '#42C8D5', roughness: 0.12, metalness: 0.10, description: 'MTX semantic cyan glass; preview swatch only' },
+  'mtx.signal.green_code': { color: '#52D890', roughness: 0.55, metalness: 0.0, emissive: '#168F50', emissiveIntensity: 0.8, description: 'MTX semantic green code signal; preview swatch only' },
+  'mtx.signal.red_alarm': { color: '#D94A4A', roughness: 0.55, metalness: 0.0, emissive: '#A52424', emissiveIntensity: 0.8, description: 'MTX semantic red alarm; preview swatch only' },
+  'mtx.real.amber': { color: '#D7A14C', roughness: 0.72, metalness: 0.0, description: 'MTX semantic human refuge amber; preview swatch only' },
+  'mtx.construct.white': { color: '#E8ECEB', roughness: 0.82, metalness: 0.0, description: 'MTX semantic Construct white; preview swatch only' },
   'wood.dark_oak': { color: '#3D2817', roughness: 0.85, metalness: 0.05, description: 'Heavy dark brown timber, matte finish' },
   'wood.weathered_oak': { color: '#4E3E32', roughness: 0.9, metalness: 0.02, description: 'Age-greyed and weather-beaten oak' },
   'wood.floor_oak': { color: '#2E1E12', roughness: 0.8, metalness: 0.05, description: 'Dark stained floorboard planks' },
@@ -301,6 +315,18 @@ export const MATERIAL_CATALOG = {
 const SHELL = [4.8, 3.6, 4.8];
 
 export const ARCHETYPE_CATALOG = {
+  'mtx.fixture.hardline_booth': {
+    category: 'architecture', dimensions: [1.1, 2.55, 1.1],
+    description: 'MTX Hardline booth with stepped plinth, bevelled enclosure, inset cyan receiver, cable, latches, and restrained code signal',
+    anchors: ['anchor.front_interaction', 'anchor.cable_exit'],
+    anchorPositionsM: { frontInteractionM: [0, 0, 0.85], cableExitM: [0, 2.4, -0.4] },
+    clearance: { frontM: [1.2, 2, 1.2] },
+    collision: { kind: 'box', sizeM: [1.1, 2.55, 1.1], centerM: [0, 1.275, 0] },
+    interaction: { kind: 'hardline', reachM: 1.25 },
+    surfaces: ['mtx.neutral.black_lacquer', 'mtx.glass.cyan', 'mtx.signal.green_code'],
+    lodClass: 'hero_static', variantSeed: 'entity.seed',
+    mesoFeatures: ['stepped grounded plinth', 'bevelled enclosure', 'receiver recess', 'steel latches', 'cable exit', 'asymmetric service tag']
+  },
   // Architecture — diorama shells (dimensions are approximate footprints)
   'arch.forge_pavilion': { category: 'architecture', dimensions: SHELL, description: 'Open timber-and-stone forge pavilion diorama shell with twilight valley backdrop', anchors: ['anchor.surface.floor'], mesoFeatures: ['timber posts', 'stone plinth', 'skyline backdrop'] },
   'arch.tavern_hall': { category: 'architecture', dimensions: SHELL, description: 'Medieval tavern hall shell with plaster, timber framing and village sunset window', anchors: ['anchor.surface.floor', 'anchor.wall.mount'], mesoFeatures: ['timber framing', 'plaster', 'skyline backdrop'] },
@@ -359,6 +385,7 @@ export const ARCHETYPE_CATALOG = {
 // to equal this entry. `kind`: 'foundry' = UniversalFoundry method, 'inline' = WorldCompiler compound.
 // `temporary` marks a route P1 must replace; do not re-baseline these from runtime output.
 const FOUNDRY_ROUTE_GROUPS = {
+  buildHardlineBooth: ['mtx.fixture.hardline_booth'],
   buildWinterholdShell: ['arch.winterhold_shell'],
   buildLibraryShell: ['arch.library_shell'],
   buildAlchemistShell: ['arch.alchemist_shell'],

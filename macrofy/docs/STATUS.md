@@ -32,5 +32,6 @@
 
 ## Recent handoffs
 
+- #7 2026-09-28 (claude-code): research in progress: nutrition/density notes done (USDA FDC CC0; TACO reusable with citation; TBCA needs commercial license; FAO density license unverified -> derive densities from FNDDS portions); 5 research angles still running
 - #6 2026-09-28 (claude-code): done: token-discipline rules added to AGENTS.md/CLAUDE.md / next: camera food weight+macro research running (notes in research/), then report -> ADR 0002, draft mission goals, plan M1 for owner approval (T-002) / gotchas: don't read raw research notes, use the report
 - #5 2026-09-28 (claude-code): done: T-001 mission-control harness (mc CLI, 16 gates with negative fixtures, Claude Code SessionStart/Stop hooks, CI workflow, docs system, ADR 0001) / next: T-002 is blocked on the owner's product definition; once answered, follow docs/runbooks/planning.md to fill mission.json and plan milestone M1 / gotchas: hooks live in the repo-root .claude/settings.json and stay inert unless a session touches macrofy/; the cartograph skill was not available in the cloud environment

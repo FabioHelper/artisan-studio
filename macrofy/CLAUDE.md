@@ -9,3 +9,5 @@
   (`.claude/agents/macrofy-reviewer.md`); protocol in `docs/runbooks/review.md`.
 - Unattended runs: `/goal node macrofy/harness/mc.mjs check exits 0 and mc brief shows T-nnn done`.
 - When compacting, preserve: the active task id, failing check output, and files changed.
+- Token hygiene: `/clear` after `mc done` + `mc note`; `/compact <focus>` in long tasks; check
+  `/context` when a session feels slow; give every `/goal` a turn cap ("or stop after 15 turns").

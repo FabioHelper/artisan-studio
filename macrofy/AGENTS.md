@@ -42,6 +42,21 @@ invent product scope.
 - **Two failed attempts at the same fix → stop.** Record a finding or block, write a note, and
   report; a fresh context with a better plan beats a third blind attempt.
 
+## Token discipline (context is the scarcest resource)
+
+- **Orient from `mc brief`, not by reading the repo.** Open only files the task names; search
+  (grep) before opening; read the relevant range of a large file, not all of it.
+- **Keep tool output small.** Use `mc check --fast` while working and the full `mc check` once
+  before `done`; tail logs instead of dumping them; never paste large generated files.
+- **One task per session.** After `done` + `note`, start fresh — the handoff makes that safe,
+  and a clean context beats a long one full of stale attempts.
+- **Delegate only broad exploration** (many files, or web research) to a sub-agent, and ask for
+  a short summary. Don't delegate what one search or read answers.
+- **Don't load research notes or datasets by default.** Read the report's summary; open the
+  notes only for the specific fact you need.
+- **Use the smallest model that handles the task**; reserve the largest for design and hard
+  debugging.
+
 ## Evidence over assertion
 
 A green gate means the declared rules were obeyed — not that the work is good. When reporting,

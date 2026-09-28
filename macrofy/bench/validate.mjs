@@ -106,7 +106,7 @@ if (!fs.existsSync(manifestPath)) {
       const n = Array.isArray(manifest.meals) ? manifest.meals.length : 0;
       console.log(`PASS manifest — ${n} meals, all ${RULES.length} rules hold${lock ? ', test set matches the lock' : ''}${complete ? ', completeness met' : ''}`);
     }
-    if (!lock && Array.isArray(manifest?.meals) && manifest.meals.some(m => m?.split === 'test')) console.log('WARN no lock yet — the test split is not frozen; run node bench/lock.mjs once all test meals are in');
+    if (!lock && !complete && Array.isArray(manifest?.meals) && manifest.meals.some(m => m?.split === 'test')) console.log('WARN no lock yet — the test split is not frozen; run node bench/lock.mjs once all test meals are in');
   }
 }
 

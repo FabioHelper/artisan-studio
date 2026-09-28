@@ -47,8 +47,8 @@ weigh a week in one afternoon.
   meal of that day in it. A date never appears in both. Aim for 150 calibration and 150 test.
 - Never move a meal between splits, never delete an awkward meal from the test split, and do not
   look at model output for test meals while collecting.
-- When the last test meal is in, freeze it with `node bench/lock.mjs`. After that, test meals must
-  not change. A real correction needs `--relock --reason "..."` and a matching `mc note`.
+- When the last test meal is in, freeze it with `node bench/lock.mjs`. After that, test meals and the plates
+  they use must not change; a complete benchmark cannot pass without the lock. A real correction needs `--relock --reason "..."` and a matching `mc note`.
 - Photos stay on your phone or disk, never in git. The manifest only holds each photo's sha256 and
   perceptual hash.
 

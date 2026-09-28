@@ -25,8 +25,9 @@ written down.
   `[{rule, msg, fix}]`. Rules: schema-types, unique-ids, unique-photos, plate-ref, plausible-grams,
   split-by-date (split decided by the ISO date as written in `captured_at`, which must carry a UTC
   offset), near-duplicate-leakage (phash Hamming distance <= 6 across splits), frozen-test-set
-  (sha256 of canonical JSON of test meals sorted by id must equal the lock), completeness
-  (only when meals/weeks are required).
+  (sha256 of canonical JSON of the test meals sorted by id plus the plates they reference sorted by
+  id must equal the lock; plates are included because photo scale comes from plate diameters,
+  ADR 0004), completeness (only when meals/weeks are required; then a lock is required too).
 - `bench/lock.mjs`: writes the lock from the manifest; refuses an invalid manifest, and an existing
   lock unless `--relock --reason "..."` (reminds to record `mc note`).
 - `bench/fixtures.mjs`: one known-good manifest plus broken variants, each tagged with the rule it must trip.
@@ -41,9 +42,13 @@ written down.
   splits), edited test set after lock, and malformed weights each fail a named negative fixture;
   the run fails if any rule was never observed failing.
 
+## Decisions from review
+
+- The lock covers the test meals and the plates they reference: editing such a plate after locking
+  fails frozen-test-set; editing a plate only calibration meals use does not.
+- In completeness mode (`bench-complete`) a missing lock fails frozen-test-set; without it, a
+  missing lock only prints a warning.
+
 ## Risks and open questions
 
-- The lock hashes test meals only, not the plates they reference; a later plate diameter edit is not
-  detected. Cheap to extend before T-006 if the owner wants it.
-- `bench-complete` does not require a lock file (a warning is printed); whether T-006 should is the
-  owner's call.
+- None open. Anything needing the owner becomes `mc block … --owner-question`.

@@ -4,6 +4,14 @@
     {
       "id": "M0",
       "title": "Foundations: mission control and product definition"
+    },
+    {
+      "id": "M1",
+      "title": "Phase 0: weighed Brazilian benchmark, evaluation engine and baselines"
+    },
+    {
+      "id": "M2",
+      "title": "Phase 1: on-device single-photo MVP passing the phase-1 accuracy gate"
     }
   ],
   "tasks": [
@@ -52,13 +60,159 @@
       "acceptance": [
         {
           "id": "A1",
-          "criterion": "The owner approved control/mission.json (status approved) with at least one product goal, non-goals and constraints",
+          "criterion": "The owner approved control/mission.json (status approved) and ADR 0002 (Status: Accepted), including the open platform and data-collection decisions",
           "manual": true
         },
         {
           "id": "A2",
           "criterion": "A product milestone exists whose tasks cover every product goal, each with check-backed acceptance criteria",
           "check": "harness-gate-fast"
+        }
+      ]
+    },
+    {
+      "id": "T-003",
+      "milestone": "M1",
+      "title": "Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules",
+      "goals": [
+        "G-2",
+        "G-4"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-002"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Validator rejects leakage (same household or near-duplicate photo across splits), unhashed test-set changes and malformed weights, each proven by a negative fixture",
+          "check": "bench-validate"
+        }
+      ]
+    },
+    {
+      "id": "T-004",
+      "milestone": "M1",
+      "title": "Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI",
+      "goals": [
+        "G-2",
+        "G-4"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-002"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Every metric matches hand-computed values on synthetic fixtures, and the CI procedure bootstraps by household",
+          "check": "eval-selftest"
+        }
+      ]
+    },
+    {
+      "id": "T-005",
+      "milestone": "M1",
+      "title": "Food vocabulary and nutrient mapping v0: Brazilian classes mapped to TACO/FNDDS with state, method and default-oil facets and FNDDS-derived densities",
+      "goals": [
+        "G-2",
+        "G-3"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-002"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Every class resolves to a nutrient entry, has all three facets and a density; licenses of every bundled source are recorded",
+          "check": "nutrition-map-validate"
+        }
+      ]
+    },
+    {
+      "id": "T-006",
+      "milestone": "M1",
+      "title": "Collect 300 weighed meals (150 calibration, 150 locked test) following the capture protocol",
+      "goals": [
+        "G-2"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-003"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Benchmark has >=300 meals from >=10 households with per-item weights and passes the validator",
+          "check": "bench-validate"
+        },
+        {
+          "id": "A2",
+          "criterion": "Owner confirms the weighing protocol was followed",
+          "manual": true
+        }
+      ]
+    },
+    {
+      "id": "T-007",
+      "milestone": "M1",
+      "title": "Experiment: metric scale error of single-frame AR plane (and LiDAR where available) at 25-40 cm",
+      "goals": [
+        "G-2",
+        "G-5"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-002"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Written result with scale error distribution on >=30 captures across >=2 phones, reviewed independently",
+          "manual": true
+        }
+      ]
+    },
+    {
+      "id": "T-008",
+      "milestone": "M2",
+      "title": "On-device MVP (segment, classify, depth, AR scale, volume, density, nutrients, one-tap confirm, conformal ranges) passes the phase-1 gate",
+      "goals": [
+        "G-2",
+        "G-3",
+        "G-4",
+        "G-5"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-004",
+        "T-005",
+        "T-006",
+        "T-007"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Locked test set: upper 95% CI of meal kcal MAPE <=30%, item mass MAPE <=35%, |bias| <=10%, 80% ranges cover 75-85%",
+          "check": "eval-gate-phase1"
+        },
+        {
+          "id": "A2",
+          "criterion": "On a 2024+ phone with no network: result in <=2 s and <=1 confirmation tap for a typical plate",
+          "manual": true
         }
       ]
     }

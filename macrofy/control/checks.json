@@ -3,18 +3,63 @@
   "checks": [
     {
       "id": "harness-selftest",
-      "cmd": ["node", "harness/selftest.mjs"],
+      "cmd": [
+        "node",
+        "harness/selftest.mjs"
+      ],
       "description": "Every gate passes on a known-good fixture and fails on each broken fixture"
     },
     {
       "id": "harness-hooks-selftest",
-      "cmd": ["node", "harness/hooks/selftest-hooks.mjs"],
+      "cmd": [
+        "node",
+        "harness/hooks/selftest-hooks.mjs"
+      ],
       "description": "Claude Code hook adapters behave correctly in a throwaway git repository"
     },
     {
       "id": "harness-gate-fast",
-      "cmd": ["node", "harness/mc.mjs", "check", "--fast"],
+      "cmd": [
+        "node",
+        "harness/mc.mjs",
+        "check",
+        "--fast"
+      ],
       "description": "The live control state and documentation pass all fast gates"
+    },
+    {
+      "id": "bench-validate",
+      "cmd": [
+        "node",
+        "bench/validate.mjs"
+      ],
+      "description": "Benchmark manifest, splits and leakage rules are valid (with negative fixtures)"
+    },
+    {
+      "id": "eval-selftest",
+      "cmd": [
+        "node",
+        "eval/selftest.mjs"
+      ],
+      "description": "Evaluation metrics match hand-computed fixtures"
+    },
+    {
+      "id": "nutrition-map-validate",
+      "cmd": [
+        "node",
+        "nutrition/validate.mjs"
+      ],
+      "description": "Every food class maps to a nutrient entry with facets, density and license"
+    },
+    {
+      "id": "eval-gate-phase1",
+      "cmd": [
+        "node",
+        "eval/gate.mjs",
+        "--phase",
+        "1"
+      ],
+      "description": "Phase-1 accuracy gate on the locked weighed test set"
     }
   ]
 }

@@ -11,7 +11,7 @@
     },
     {
       "id": "M2",
-      "title": "Phase 1: on-device single-photo MVP passing the phase-1 accuracy gate"
+      "title": "Phase 1: on-device iPhone single-photo MVP passing the phase-1 accuracy gate"
     }
   ],
   "tasks": [
@@ -51,7 +51,7 @@
       "goals": [
         "G-1"
       ],
-      "status": "blocked",
+      "status": "done",
       "review": "required",
       "depends_on": [
         "T-001"
@@ -87,7 +87,7 @@
       "acceptance": [
         {
           "id": "A1",
-          "criterion": "Validator rejects leakage (same household or near-duplicate photo across splits), unhashed test-set changes and malformed weights, each proven by a negative fixture",
+          "criterion": "Validator rejects leakage (same meal or near-duplicate photo across splits; splits by capture date), unhashed test-set changes and malformed weights, each proven by a negative fixture",
           "check": "bench-validate"
         }
       ]
@@ -109,7 +109,7 @@
       "acceptance": [
         {
           "id": "A1",
-          "criterion": "Every metric matches hand-computed values on synthetic fixtures, and the CI procedure bootstraps by household",
+          "criterion": "Every metric matches hand-computed values on synthetic fixtures, and the CI procedure bootstraps by capture day",
           "check": "eval-selftest"
         }
       ]
@@ -117,7 +117,7 @@
     {
       "id": "T-005",
       "milestone": "M1",
-      "title": "Food vocabulary and nutrient mapping v0: Brazilian classes mapped to TACO/FNDDS with state, method and default-oil facets and FNDDS-derived densities",
+      "title": "Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities",
       "goals": [
         "G-2",
         "G-3"
@@ -139,7 +139,7 @@
     {
       "id": "T-006",
       "milestone": "M1",
-      "title": "Collect 300 weighed meals (150 calibration, 150 locked test) following the capture protocol",
+      "title": "Owner collects 300 weighed meals (150 calibration, 150 locked test) following the capture protocol, split by capture date",
       "goals": [
         "G-2"
       ],
@@ -152,7 +152,7 @@
       "acceptance": [
         {
           "id": "A1",
-          "criterion": "Benchmark has >=300 meals from >=10 households with per-item weights and passes the validator",
+          "criterion": "Benchmark has >=300 meals captured over >=8 weeks with per-item weights, varied plates/lighting/angles as the protocol requires, and passes the validator",
           "check": "bench-validate"
         },
         {
@@ -179,7 +179,7 @@
       "acceptance": [
         {
           "id": "A1",
-          "criterion": "Written result with scale error distribution on >=30 captures across >=2 phones, reviewed independently",
+          "criterion": "Written result with scale error distribution on >=30 captures on the owner iPhone (AR plane; LiDAR too if it is a Pro model), reviewed independently",
           "manual": true
         }
       ]
@@ -187,7 +187,7 @@
     {
       "id": "T-008",
       "milestone": "M2",
-      "title": "On-device MVP (segment, classify, depth, AR scale, volume, density, nutrients, one-tap confirm, conformal ranges) passes the phase-1 gate",
+      "title": "On-device iPhone MVP (segment, classify, depth, AR scale, volume, density, nutrients, one-tap confirm, conformal ranges) passes the phase-1 gate",
       "goals": [
         "G-2",
         "G-3",
@@ -211,7 +211,28 @@
         },
         {
           "id": "A2",
-          "criterion": "On a 2024+ phone with no network: result in <=2 s and <=1 confirmation tap for a typical plate",
+          "criterion": "On the owner iPhone with no network: result in <=2 s and <=1 confirmation tap for a typical plate",
+          "manual": true
+        }
+      ]
+    },
+    {
+      "id": "T-009",
+      "milestone": "M1",
+      "title": "Request a TBCA commercial license from USP/FoRC (draft by agent, sent by owner); fall back to free sources if refused",
+      "goals": [
+        "G-2"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-002"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Request sent and the reply (grant, terms, or refusal) recorded as a journal note; if refused or unanswered after 30 days, T-005 free-source mapping is the recorded decision",
           "manual": true
         }
       ]

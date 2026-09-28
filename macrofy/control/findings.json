@@ -1,4 +1,14 @@
 {
   "schema": "macrofy.findings/1",
-  "findings": []
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "Benchmark comes from a single household, so accuracy may not generalize to other cooks, plates and phones",
+      "severity": "medium",
+      "status": "open",
+      "task": "T-006",
+      "evidence": "Owner decision 2026-09-28: only the owner collects the 300 weighed meals; ADR 0002 assumed 10-20 households",
+      "expected_failing": []
+    }
+  ]
 }

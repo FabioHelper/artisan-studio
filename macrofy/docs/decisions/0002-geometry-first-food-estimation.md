@@ -1,6 +1,6 @@
 # ADR 0002: Geometry-first, on-device food weight and macro estimation
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-09-28 · Task: T-002 · Evidence: [research report](<../../research/reports/Camera food weight and macro estimation.md>)
 
@@ -40,21 +40,23 @@ spend. Research (six angles, 51 citations) found:
 2. **Metric scale comes from the AR session.** ARKit/ARCore camera poses and the table plane set
    the scale, with LiDAR fused on iPhone Pro models. The plate diameter or a card is the
    fallback. Geometric volume feeds a learned mass head; it is not trusted raw.
-3. **Native apps** (Swift + ARKit + Core ML; Kotlin + ARCore + LiteRT). A web app cannot use
-   LiDAR or AR poses on iPhone, so it is a demo only.
+3. **Native iPhone app first** (Swift + ARKit + Core ML), per the owner. Android (Kotlin + ARCore
+   + LiteRT) follows only after the iPhone MVP passes its gate. A web app cannot use LiDAR or AR
+   poses on iPhone, so it is a demo only.
 4. **Nutrition data:**
    - TACO (bundled with citation) plus USDA FDC/FNDDS (CC0).
    - Densities are derived from FNDDS portion weights.
    - Every food class is mapped by hand to a nutrient entry with mandatory facets: state,
      method and default oil.
-   - A TBCA license is pursued for as-eaten Brazilian preparations.
+   - A TBCA license is requested for as-eaten Brazilian preparations; until granted, mixed
+     dishes are computed from TACO/FNDDS ingredients plus a Brazilian default oil amount.
 5. **One-tap confirmation** of items and cooking oil using fixed choices, never free gram entry.
    The app shows calibrated (conformal) ranges, not a single confident number.
 6. **An optional cheap VLM**, only if Phase-2 recognition falls short: a confidence-gated Gemini
    Flash-Lite call for long-tail labels and hidden-fat flags, never for grams. Cost is about
    $0.6 per 1,000 calls, or about $5–13/month per 1,000 daily users when gated.
-7. **Benchmark first.** A 300-meal weighed Brazilian benchmark (150 for calibration and 150
-   locked for testing) gates every phase, judged on the upper bound of the 95% confidence
+7. **Benchmark first.** A 300-meal weighed Brazilian benchmark collected by the owner (150 for
+   calibration and 150 locked for testing, split by capture date) gates every phase, judged on the upper bound of the 95% confidence
    interval:
 
    | Phase | Meal kcal error | Other conditions |
@@ -63,11 +65,16 @@ spend. Research (six angles, 51 citations) found:
    | 2 | ≤20% | fat bias within ±15% |
    | 3 | ≤15% | — |
 
+## Owner decisions (2026-09-28)
+
+Approved this design; iPhone first; the owner alone collects the benchmark (generalization
+risk tracked as finding F-001); request a TBCA license but proceed with free sources first.
+
 ## Consequences
 
 - Zero marginal cost per photo. Accuracy depends on scale quality and data mapping, not on
   model size.
-- Two apps to build, plus model conversion for Core ML and LiteRT.
+- One native iPhone app first (Core ML model conversion); Android later.
 - The first real work is weighing meals, not coding the app. Without the benchmark, no accuracy
   claim is allowed.
 - Open risks:

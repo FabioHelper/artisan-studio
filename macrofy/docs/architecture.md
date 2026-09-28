@@ -5,7 +5,7 @@ numbers or counts. Update it in the same commit as any change that makes it wron
 
 ## Product
 
-Not started. Proposed design: [ADR 0002](decisions/0002-geometry-first-food-estimation.md), pending owner approval in T-002 (see [STATUS.md](STATUS.md));
+Not started. Design: [ADR 0002](decisions/0002-geometry-first-food-estimation.md) (native iPhone first) (see [STATUS.md](STATUS.md));
 its modules will be mapped here as they land.
 
 ## Mission-control harness (`harness/`)

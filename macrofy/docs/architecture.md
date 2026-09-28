@@ -52,5 +52,5 @@ The weighed benchmark is the only judge of accuracy. Procedure: [weighing protoc
 | `bench/fixtures.mjs` | One known-good manifest plus broken variants, each tagged with the rule it must trip |
 
 Invariants: photos are never in git (a manifest references each by sha256 and perceptual hash);
-the test split is frozen by the hash of its canonical JSON and never edited without an explicit,
-recorded relock; a date belongs to one split only; a rule with no failing fixture fails the run.
+the test split (its meals and the plates they reference) is frozen by the hash of its canonical
+JSON, required for a complete benchmark, and never edited without an explicit, recorded relock; a date belongs to one split only; a rule with no failing fixture fails the run.

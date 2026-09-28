@@ -15,7 +15,7 @@ export const RULES = [
   { id: 'plausible-grams', title: 'item grams > 0 and <= 3000; oil_g and leftovers_g >= 0' },
   { id: 'split-by-date', title: 'no calendar date (as written in captured_at) has meals in both splits' },
   { id: 'near-duplicate-leakage', title: 'no photos in different splits within phash Hamming distance 6' },
-  { id: 'frozen-test-set', title: 'canonical hash of the test meals equals the lock (when a lock is given)' },
+  { id: 'frozen-test-set', title: 'canonical hash of the test meals and their plates equals the lock; a lock is required when completeness is' },
   { id: 'completeness', title: 'enough meals over enough weeks (only when required)' },
 ];
 
@@ -30,11 +30,19 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const arr = (v) => (Array.isArray(v) ? v : []);
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
-/** The test meals, sorted by id: exactly what the lock freezes. */
-export function testMeals(manifest) {
-  return arr(manifest?.meals).filter(m => isObj(m) && m.split === 'test').sort((a, b) => (String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0));
+const byId = (a, b) => (String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0);
+/** The test meals, sorted by id. */
+export const testMeals = (manifest) => arr(manifest?.meals).filter(m => isObj(m) && m.split === 'test').sort(byId);
+/**
+ * Exactly what the lock freezes: the test meals plus the plates they reference (sorted by id).
+ * Plates are included because the scale of a photo comes from the registered plate diameter (ADR 0004).
+ */
+export function frozenSet(manifest) {
+  const meals = testMeals(manifest);
+  const used = new Set(meals.map(m => m.plate_id));
+  return { meals, plates: arr(manifest?.plates).filter(p => isObj(p) && used.has(p.id)).sort(byId) };
 }
-export const testSetHash = (manifest) => sha(canonicalJson(testMeals(manifest)));
+export const testSetHash = (manifest) => sha(canonicalJson(frozenSet(manifest)));
 
 const POP = [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4];
 /** Hamming distance between two 16-hex-char perceptual hashes. */
@@ -180,13 +188,15 @@ export function validateManifest(manifest, { lock = null, requireMeals = null, m
   }
 
   // frozen test set
+  const frozen = add('frozen-test-set');
+  const completeness = requireMeals !== null || minWeeks !== null;
+  if ((lock === null || lock === undefined) && completeness) frozen('no lock: a complete benchmark must have its test set frozen', 'Once all test meals are in, run node bench/lock.mjs and commit the lock; evaluation is only meaningful against a frozen test set.');
   if (lock !== null && lock !== undefined) {
-    const frozen = add('frozen-test-set');
     if (!isObj(lock) || !isHex(64)(lock.sha256)) frozen('lock is malformed; expected {sha256 (64 hex), meals, locked_at}', 'Do not hand-edit the lock; restore it from git or recreate it with node bench/lock.mjs.');
     else {
       const actual = testSetHash(manifest);
       const n = testMeals(manifest).length;
-      if (actual !== lock.sha256) frozen(`test meals changed since the lock (hash ${actual.slice(0, 12)}..., locked ${lock.sha256.slice(0, 12)}...; ${n} test meals now, ${lock.meals} locked)`, 'Revert edits to test-split meals (git diff shows them). A deliberate correction needs: node bench/lock.mjs --relock --reason "<why>" and a matching mc note.');
+      if (actual !== lock.sha256) frozen(`test meals or the plates they use changed since the lock (hash ${actual.slice(0, 12)}..., locked ${lock.sha256.slice(0, 12)}...; ${n} test meals now, ${lock.meals} locked)`, 'Revert edits to test-split meals and to the plates they reference (git diff shows them). A deliberate correction needs: node bench/lock.mjs --relock --reason "<why>" and a matching mc note.');
     }
   }
 

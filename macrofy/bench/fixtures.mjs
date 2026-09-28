@@ -1,4 +1,5 @@
 // Fixtures for the benchmark validator: one known-good manifest, plus broken and edge variants.
+// Plates: p1 (c1, t1), p2 (t2), p3 (c2 only) - so p3 is not referenced by any test meal.
 // Each case names the rule it must trip (`rule`) or must NOT trip (`pass: true`). Reused by validate.mjs.
 import { createHash } from 'node:crypto';
 import { SCHEMA_ID, testSetHash, testMeals } from './schema.mjs';
@@ -25,14 +26,14 @@ export function goodManifest() {
   return {
     schema: SCHEMA_ID,
     scale: { model: 'Fixture Kitchen Scale', resolution_g: 1 },
-    plates: [{ id: 'p1', diameter_mm: 260, kind: 'plate' }, { id: 'p2', diameter_mm: 180, depth_mm: 55, kind: 'bowl' }],
+    plates: [{ id: 'p1', diameter_mm: 260, kind: 'plate' }, { id: 'p2', diameter_mm: 180, depth_mm: 55, kind: 'bowl' }, { id: 'p3', diameter_mm: 200, depth_mm: 45, kind: 'bowl' }],
     meals: [
       meal('c1', '2026-09-01T12:30:00-03:00', 'calibration', 'p1', [
         { id: 'i1', label: 'arroz branco', grams: 180, state: 'cooked', method: 'boiled' },
         { id: 'i2', label: 'feijao carioca', grams: 120, state: 'cooked', method: 'boiled' },
         { id: 'i3', label: 'frango', grams: 110, state: 'cooked', method: 'pan-fried', oil_g: 6.5 },
       ], { leftovers_g: 20 }),
-      meal('c2', '2026-09-02T19:45:00-03:00', 'calibration', 'p2', [
+      meal('c2', '2026-09-02T19:45:00-03:00', 'calibration', 'p3', [
         { id: 'i1', label: 'banana', grams: 95, state: 'raw', method: 'raw' },
         { id: 'i2', label: 'aveia', grams: 40, state: 'cooked', method: 'boiled' },
       ]),
@@ -58,7 +59,7 @@ const isoWithoutOffset = '2026-09-01T12:30:00';
 export const CASES = [
   pass('the known-good manifest', () => {}),
   pass('the known-good manifest with a lock', () => {}, { lock: true }),
-  pass('complete enough: 4 meals over more than one week', () => {}, { requireMeals: 4, minWeeks: 1 }),
+  pass('complete enough and locked: 4 meals over more than one week', () => {}, { requireMeals: 4, minWeeks: 1, lock: true }),
 
   // schema-types
   fail('schema-types', 'manifest is null', () => null),
@@ -122,14 +123,17 @@ export const CASES = [
   fail('frozen-test-set', 'calibration meal promoted into the test split', m => { m.meals[C2].split = 'test'; }, { lock: true }),
   fail('frozen-test-set', 'test photo replaced', m => { m.meals[T1].photos[0].sha256 = sha('another photo'); }, { lock: true }),
   fail('frozen-test-set', 'test notes edited', m => { m.meals[T2].notes = 'edited'; }, { lock: true }),
+  fail('frozen-test-set', 'complete but unlocked (completeness requires a lock)', () => {}, { requireMeals: 4, minWeeks: 1 }),
+  fail('frozen-test-set', 'diameter of a plate used by a test meal edited after the lock', m => { m.plates[0].diameter_mm = 270; }, { lock: true }),
   fail('frozen-test-set', 'malformed lock', () => {}, { lock: { sha256: 'nothex', meals: 2, locked_at: 'x' } }),
+  pass('a plate used only by calibration meals may change after the lock', m => { m.plates[2].diameter_mm = 210; }, { lock: true }),
   pass('calibration meals may still change after the lock', m => { m.meals[C1].items[0].grams += 5; }, { lock: true }),
   pass('meal order does not matter to the lock', m => { m.meals.reverse(); }, { lock: true }),
   pass('key order does not matter to the lock', m => { m.meals[T1] = Object.fromEntries(Object.entries(m.meals[T1]).reverse()); }, { lock: true }),
 
   // completeness (only when required)
-  fail('completeness', 'fewer meals than required', () => {}, { requireMeals: 5 }),
-  fail('completeness', 'captured over too few weeks', () => {}, { minWeeks: 2 }),
-  fail('completeness', 'no meals at all', m => { m.meals = []; }, { requireMeals: 1, minWeeks: 1 }),
+  fail('completeness', 'fewer meals than required', () => {}, { requireMeals: 5, lock: true }),
+  fail('completeness', 'captured over too few weeks', () => {}, { minWeeks: 2, lock: true }),
+  fail('completeness', 'no meals at all', m => { m.meals = []; }, { requireMeals: 1, minWeeks: 1, lock: lockFor({ ...goodManifest(), meals: [] }) }),
   pass('an incomplete manifest is fine when completeness is not required', m => { m.meals.pop(); }),
 ];

@@ -78,7 +78,7 @@
         "G-2",
         "G-4"
       ],
-      "status": "active",
+      "status": "done",
       "review": "required",
       "depends_on": [
         "T-002"

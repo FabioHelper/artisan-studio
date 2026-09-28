@@ -3,16 +3,16 @@
 
 **Mission** (approved): Point the phone camera at a food or meal and get the most likely real weight of each item plus protein, carbs, fat and kcal, with honest ranges and the lowest achievable error, starting with Brazilian meals and running on-device with no paid LLM on the critical path.
 
-**Next action:** continue T-003 "Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules" → make its acceptance checks pass, then `mc verify T-003`, review, `mc done T-003`
+**Next action:** start T-004 "Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI" with `mc start T-004`
 
 ## Goals
 
 | Goal | Title | Measure | Tasks done |
 |---|---|---|---|
 | G-1 | Trustworthy delivery | mc check passes on every commit to main, and every done task carries verify evidence (plus an accepting review when required) in the journal | 2/2 |
-| G-2 | Low portion and macro error | On the locked weighed Brazilian benchmark, the upper 95% CI of per-meal kcal MAPE is <=30% (phase 1), <=20% (phase 2), <=15% (phase 3), with signed bias within +-10% | 0/9 |
+| G-2 | Low portion and macro error | On the locked weighed Brazilian benchmark, the upper 95% CI of per-meal kcal MAPE is <=30% (phase 1), <=20% (phase 2), <=15% (phase 3), with signed bias within +-10% | 1/9 |
 | G-3 | Zero marginal inference cost | The capture-to-result pipeline runs on-device with no network call; any optional cloud fallback is confidence-gated and costs <= US$0.001 per photo | 0/4 |
-| G-4 | Honest uncertainty | Shown 80% ranges contain the weighed truth for 75-85% of benchmark items | 0/3 |
+| G-4 | Honest uncertainty | Shown 80% ranges contain the weighed truth for 75-85% of benchmark items | 1/3 |
 | G-5 | Effortless capture | Result in <= 2 s on a recent iPhone, with at most one confirmation tap for a typical plate | 0/4 |
 
 **Non-goals:** Estimating grams with an LLM/VLM; A native iOS app in phases 0-1 (no Mac or developer account; PWA first, see ADR 0004); Meal plans, coaching or social features in v1; Packaged-food barcode lookup in v1; Android in v1 (iPhone first; Android after the iPhone MVP passes its gate)
@@ -28,11 +28,11 @@
 | T-001 | Mission-control harness and documentation system | done | G-1 | — | optional | [spec](decisions/0001-agent-harness-architecture.md) |
 | T-002 | Define Macrofy's mission, goals, non-goals and first product milestone with the owner | done | G-1 | T-001 | required | — |
 
-### M1 — Phase 0: weighed Brazilian benchmark, evaluation engine and baselines (0/9 done)
+### M1 — Phase 0: weighed Brazilian benchmark, evaluation engine and baselines (1/9 done)
 
 | Task | Title | Status | Goals | Depends on | Review | Spec |
 |---|---|---|---|---|---|---|
-| T-003 | Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules | active | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-003-benchmark-tooling.md) |
+| T-003 | Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules | done | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-003-benchmark-tooling.md) |
 | T-004 | Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI | todo | G-2, G-4 | T-002 | required | — |
 | T-005 | Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities | todo | G-2, G-3 | T-002 | required | — |
 | T-006 | Owner collects 300 weighed meals (150 calibration, 150 locked test) following the capture protocol, split by capture date | todo | G-2 | T-003, T-011 | required | — |
@@ -58,8 +58,8 @@
 
 ## Recent handoffs
 
+- #32 2026-09-28 (claude-code): done: T-003 benchmark tooling (review round 2 accepted #30) / next: T-004 evaluation engine via implementer sub-agent in worktree / gotchas: worktree journal rule added to CLAUDE.md
 - #29 2026-09-28 (claude-code): T-003 review fixes merged (lock covers referenced plates; completeness mode fails without a lock); verify re-run on merged main because the branch journal diverged from main / next: re-review T-003 / gotchas: while a worktree sub-agent holds a task, avoid appending to main's journal; if unavoidable, keep main's journal on merge and re-run verify
 - #27 2026-09-28 (claude-code): T-003 active: implementation merged, independent review REJECTED (#26): completeness mode must fail without a test lock; lock must also hash plates referenced by test meals. Implementer fixing in its worktree / next: merge fix, re-review, done, then T-004
 - #25 2026-09-28 (implementer): done: T-003 bench tooling built and verified (bench/schema.mjs 9 named rules, lock.mjs, validate.mjs, fixtures.mjs, weighing-protocol runbook, SPEC-T-003, architecture section); bench-validate passes, check --fast green; awaiting independent review / next: reviewer runs 'mc review T-003' then 'mc done T-003'; then T-004 / gotchas: captured_at must carry a UTC offset (date-as-written decides split); lock hashes test meals only, not plates; bench-complete does not require a lock (WARN only) - both listed in SPEC-T-003 open questions; bench/fixtures.mjs goodManifest() is reusable by T-011 capture-selftest
 - #22 2026-09-28 (claude-code): done: ADR 0004 (owner has iPhone 16e, no Mac/dev account: PWA-first, on-device WebGPU, scale from registered plates; native deferred), mission non-goal/constraint updated, T-011 capture PWA + T-012 browser feasibility added, T-006->bench-complete check / next: T-003 bench tooling via implementer subagent in worktree, then review, then T-004 / gotchas: mission edit made under owner's 'do your best' delegation - owner may veto
-- #21 2026-09-28 (claude-code): done: owner decision recorded as ADR 0003 (pretrained models only: zero-shot SigLIP2 + k-NN gallery, SAM 2.1 as-is, grams = volume x FNDDS density x per-group calibration; weighings calibrate, never train); T-010 added to test zero-training naming before MVP / next: T-003/T-004 ready; owner's iPhone model still unknown / gotchas: k-NN gallery must come only from the calibration split

@@ -39,3 +39,18 @@ subagent is `.claude/agents/macrofy-reviewer.md`, and CI runs `.github/workflows
   has never been observed failing.
 - **Another agent tool:** reuse `mc`; only write a thin adapter like `harness/hooks/` if that tool
   has lifecycle hooks.
+
+## Benchmark (`bench/`)
+
+The weighed benchmark is the only judge of accuracy. Procedure: [weighing protocol](runbooks/weighing-protocol.md).
+
+| Module | Responsibility |
+|---|---|
+| `bench/schema.mjs` | Manifest format and the pure `validateManifest` (named rules: types, unique ids and photos, plate references, plausible grams, split by date, near-duplicate leakage, frozen test set, completeness); canonical JSON and the test-set hash |
+| `bench/lock.mjs` | CLI that freezes the test split into a lock file; refuses invalid manifests and silent relocks |
+| `bench/validate.mjs` | CLI and the checks `bench-validate` / `bench-complete`: runs the negative fixtures, then validates the real manifest and lock |
+| `bench/fixtures.mjs` | One known-good manifest plus broken variants, each tagged with the rule it must trip |
+
+Invariants: photos are never in git (a manifest references each by sha256 and perceptual hash);
+the test split is frozen by the hash of its canonical JSON and never edited without an explicit,
+recorded relock; a date belongs to one split only; a rule with no failing fixture fails the run.

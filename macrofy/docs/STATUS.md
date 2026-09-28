@@ -3,7 +3,7 @@
 
 **Mission** (approved): Point the phone camera at a food or meal and get the most likely real weight of each item plus protein, carbs, fat and kcal, with honest ranges and the lowest achievable error, starting with Brazilian meals and running on-device with no paid LLM on the critical path.
 
-**Next action:** start T-003 "Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules" with `mc start T-003`
+**Next action:** continue T-003 "Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules" → make its acceptance checks pass, then `mc verify T-003`, review, `mc done T-003`
 
 ## Goals
 
@@ -32,7 +32,7 @@
 
 | Task | Title | Status | Goals | Depends on | Review | Spec |
 |---|---|---|---|---|---|---|
-| T-003 | Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules | todo | G-2, G-4 | T-002 | required | — |
+| T-003 | Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules | active | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-003-benchmark-tooling.md) |
 | T-004 | Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI | todo | G-2, G-4 | T-002 | required | — |
 | T-005 | Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities | todo | G-2, G-3 | T-002 | required | — |
 | T-006 | Owner collects 300 weighed meals (150 calibration, 150 locked test) following the capture protocol, split by capture date | todo | G-2 | T-003, T-011 | required | — |
@@ -58,8 +58,8 @@
 
 ## Recent handoffs
 
+- #25 2026-09-28 (implementer): done: T-003 bench tooling built and verified (bench/schema.mjs 9 named rules, lock.mjs, validate.mjs, fixtures.mjs, weighing-protocol runbook, SPEC-T-003, architecture section); bench-validate passes, check --fast green; awaiting independent review / next: reviewer runs 'mc review T-003' then 'mc done T-003'; then T-004 / gotchas: captured_at must carry a UTC offset (date-as-written decides split); lock hashes test meals only, not plates; bench-complete does not require a lock (WARN only) - both listed in SPEC-T-003 open questions; bench/fixtures.mjs goodManifest() is reusable by T-011 capture-selftest
 - #22 2026-09-28 (claude-code): done: ADR 0004 (owner has iPhone 16e, no Mac/dev account: PWA-first, on-device WebGPU, scale from registered plates; native deferred), mission non-goal/constraint updated, T-011 capture PWA + T-012 browser feasibility added, T-006->bench-complete check / next: T-003 bench tooling via implementer subagent in worktree, then review, then T-004 / gotchas: mission edit made under owner's 'do your best' delegation - owner may veto
 - #21 2026-09-28 (claude-code): done: owner decision recorded as ADR 0003 (pretrained models only: zero-shot SigLIP2 + k-NN gallery, SAM 2.1 as-is, grams = volume x FNDDS density x per-group calibration; weighings calibrate, never train); T-010 added to test zero-training naming before MVP / next: T-003/T-004 ready; owner's iPhone model still unknown / gotchas: k-NN gallery must come only from the calibration split
 - #20 2026-09-28 (claude-code): done: T-002 closed with owner approval (mission approved, ADR 0002 Accepted: iPhone-first native, free nutrition data first, owner-collected benchmark -> F-001) / next: T-003 benchmark tooling or T-004 eval engine (both ready); T-009 TBCA license email draft for owner; T-007 needs owner's iPhone model / gotchas: T-006 needs the owner's weighing, 8+ weeks
 - #14 2026-09-28 (claude-code): done: research report (research/reports/), ADR 0002 proposed (geometry-first, on-device, no LLM for grams), mission drafted with G-2..G-5 + measures, M1 phase-0 (T-003..T-007) and M2 MVP gate (T-008) planned, 4 checks registered (scripts not written yet) / next: owner answers T-002's 4 questions -> approve mission (status approved) + ADR (Accepted) -> start T-003/T-004 / gotchas: nothing starts before T-002 is done; checks bench/eval/nutrition scripts don't exist until their tasks build them
-- #11 2026-09-28 (claude-code): research: all 6 angles done (open-source CV: SigLIP2/DINO head for recognition, SAM2.1-tiny or EfficientViT-SAM on device, SAM 3 server-side for labeling, LiDAR depth preferred, DA-V2-Small relative depth + scale anchor fallback; native app ~150-300 ms); report being written

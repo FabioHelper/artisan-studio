@@ -78,12 +78,12 @@
         "G-2",
         "G-4"
       ],
-      "status": "todo",
+      "status": "active",
       "review": "required",
       "depends_on": [
         "T-002"
       ],
-      "spec": null,
+      "spec": "docs/specs/SPEC-T-003-benchmark-tooling.md",
       "acceptance": [
         {
           "id": "A1",

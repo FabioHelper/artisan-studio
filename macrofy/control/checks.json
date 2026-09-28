@@ -1,0 +1,20 @@
+{
+  "schema": "macrofy.checks/1",
+  "checks": [
+    {
+      "id": "harness-selftest",
+      "cmd": ["node", "harness/selftest.mjs"],
+      "description": "Every gate passes on a known-good fixture and fails on each broken fixture"
+    },
+    {
+      "id": "harness-hooks-selftest",
+      "cmd": ["node", "harness/hooks/selftest-hooks.mjs"],
+      "description": "Claude Code hook adapters behave correctly in a throwaway git repository"
+    },
+    {
+      "id": "harness-gate-fast",
+      "cmd": ["node", "harness/mc.mjs", "check", "--fast"],
+      "description": "The live control state and documentation pass all fast gates"
+    }
+  ]
+}

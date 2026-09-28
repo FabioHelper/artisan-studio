@@ -1,0 +1,17 @@
+{
+  "schema": "macrofy.mission/1",
+  "status": "draft",
+  "statement": "Macrofy is a product centred on macronutrients (protein, carbohydrate, fat). The owner will define who it serves and what it does; until then the mission is a draft and only foundations are built.",
+  "goals": [
+    {
+      "id": "G-1",
+      "title": "Trustworthy delivery",
+      "measure": "mc check passes on every commit to main, and every done task carries verify evidence (plus an accepting review when required) in the journal"
+    }
+  ],
+  "non_goals": [],
+  "constraints": [
+    "Isolated from Artisan Studio: no shared dependencies, build config or source files",
+    "The harness stays dependency-free (Node 18+ built-ins only) so any agent or CI can run it"
+  ]
+}

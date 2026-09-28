@@ -1,0 +1,66 @@
+{
+  "schema": "macrofy.plan/1",
+  "milestones": [
+    {
+      "id": "M0",
+      "title": "Foundations: mission control and product definition"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T-001",
+      "milestone": "M0",
+      "title": "Mission-control harness and documentation system",
+      "goals": [
+        "G-1"
+      ],
+      "status": "done",
+      "review": "optional",
+      "depends_on": [],
+      "spec": "docs/decisions/0001-agent-harness-architecture.md",
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Every gate passes on a known-good fixture and is proven to fail on at least one broken fixture",
+          "check": "harness-selftest"
+        },
+        {
+          "id": "A2",
+          "criterion": "Claude Code hooks: silent when macrofy is untouched, block turn end on gate failure or missing handoff, release when stuck, re-inject the brief after compaction",
+          "check": "harness-hooks-selftest"
+        },
+        {
+          "id": "A3",
+          "criterion": "The live Macrofy control state and documentation pass every fast gate",
+          "check": "harness-gate-fast"
+        }
+      ]
+    },
+    {
+      "id": "T-002",
+      "milestone": "M0",
+      "title": "Define Macrofy's mission, goals, non-goals and first product milestone with the owner",
+      "goals": [
+        "G-1"
+      ],
+      "status": "blocked",
+      "review": "required",
+      "depends_on": [
+        "T-001"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "The owner approved control/mission.json (status approved) with at least one product goal, non-goals and constraints",
+          "manual": true
+        },
+        {
+          "id": "A2",
+          "criterion": "A product milestone exists whose tasks cover every product goal, each with check-backed acceptance criteria",
+          "check": "harness-gate-fast"
+        }
+      ]
+    }
+  ]
+}

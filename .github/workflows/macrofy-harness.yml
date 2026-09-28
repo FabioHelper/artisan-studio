@@ -1,0 +1,25 @@
+name: macrofy-harness
+
+on:
+  push:
+    paths: ['macrofy/**', '.github/workflows/macrofy-harness.yml', '.claude/settings.json']
+  pull_request:
+    paths: ['macrofy/**', '.github/workflows/macrofy-harness.yml', '.claude/settings.json']
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: macrofy
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Harness selftest (every gate proven able to fail)
+        run: node harness/mc.mjs selftest
+      - name: Full gate (append-only journal vs base, re-run checks of done work)
+        run: node harness/mc.mjs check --base "${{ github.event.pull_request.base.sha || github.event.before }}"

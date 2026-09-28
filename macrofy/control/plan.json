@@ -11,7 +11,7 @@
     },
     {
       "id": "M2",
-      "title": "Phase 1: on-device iPhone single-photo MVP passing the phase-1 accuracy gate"
+      "title": "Phase 1: on-device PWA MVP on the owner iPhone 16e passing the phase-1 accuracy gate"
     }
   ],
   "tasks": [
@@ -146,14 +146,15 @@
       "status": "todo",
       "review": "required",
       "depends_on": [
-        "T-003"
+        "T-003",
+        "T-011"
       ],
       "spec": null,
       "acceptance": [
         {
           "id": "A1",
           "criterion": "Benchmark has >=300 meals captured over >=8 weeks with per-item weights, varied plates/lighting/angles as the protocol requires, and passes the validator",
-          "check": "bench-validate"
+          "check": "bench-complete"
         },
         {
           "id": "A2",
@@ -165,7 +166,7 @@
     {
       "id": "T-007",
       "milestone": "M1",
-      "title": "Experiment: metric scale error of single-frame AR plane (and LiDAR where available) at 25-40 cm",
+      "title": "Experiment: metric scale error from a registered plate (known diameter, rim ellipse fit) on the iPhone 16e at 25-40 cm",
       "goals": [
         "G-2",
         "G-5"
@@ -173,13 +174,13 @@
       "status": "todo",
       "review": "required",
       "depends_on": [
-        "T-002"
+        "T-011"
       ],
       "spec": null,
       "acceptance": [
         {
           "id": "A1",
-          "criterion": "Written result with scale error distribution on >=30 captures on the owner iPhone (AR plane; LiDAR too if it is a Pro model), reviewed independently",
+          "criterion": "Written result with scale error distribution on >=30 captures of objects of known size on the owner iPhone 16e, reviewed independently",
           "manual": true
         }
       ]
@@ -187,7 +188,7 @@
     {
       "id": "T-008",
       "milestone": "M2",
-      "title": "On-device iPhone MVP (segment, classify, depth, AR scale, volume, density, nutrients, one-tap confirm, conformal ranges) passes the phase-1 gate",
+      "title": "On-device PWA MVP on the iPhone 16e (segment, name, depth, plate scale, volume, density, nutrients, one-tap confirm, conformal ranges) passes the phase-1 gate",
       "goals": [
         "G-2",
         "G-3",
@@ -201,7 +202,9 @@
         "T-005",
         "T-006",
         "T-007",
-        "T-010"
+        "T-010",
+        "T-011",
+        "T-012"
       ],
       "spec": null,
       "acceptance": [
@@ -212,7 +215,7 @@
         },
         {
           "id": "A2",
-          "criterion": "On the owner iPhone with no network: result in <=2 s and <=1 confirmation tap for a typical plate",
+          "criterion": "On the owner iPhone 16e in Safari with no network after first load: result in <=2 s and <=1 confirmation tap for a typical plate",
           "manual": true
         }
       ]
@@ -257,6 +260,55 @@
           "id": "A1",
           "criterion": "Top-1 and top-3 naming accuracy reported on held-out owner photos with no gallery leakage; result recorded as go / no-go against a 85% top-3 bar",
           "check": "eval-recognition"
+        }
+      ]
+    },
+    {
+      "id": "T-011",
+      "milestone": "M1",
+      "title": "Capture PWA: guided photo capture, plate registry, per-item weight entry, export in the benchmark manifest format",
+      "goals": [
+        "G-2",
+        "G-5"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-003"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "A generated sample export passes the benchmark validator",
+          "check": "capture-selftest"
+        },
+        {
+          "id": "A2",
+          "criterion": "Owner captures and exports one real weighed meal end to end on the iPhone 16e",
+          "manual": true
+        }
+      ]
+    },
+    {
+      "id": "T-012",
+      "milestone": "M1",
+      "title": "Feasibility: load and run Depth Anything V2-Small, SAM 2.1-tiny and SigLIP 2 in Safari on the iPhone 16e (WebGPU/WASM)",
+      "goals": [
+        "G-3",
+        "G-5"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-002"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Owner runs the hosted feasibility page; first-load time, cached load, peak memory and per-model latency are recorded; go/no-go against <=2 s total inference",
+          "manual": true
         }
       ]
     }

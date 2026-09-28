@@ -31,7 +31,7 @@
   ],
   "non_goals": [
     "Estimating grams with an LLM/VLM",
-    "A web app as the primary product (demo only: no LiDAR or AR poses on iPhone)",
+    "A native iOS app in phases 0-1 (no Mac or developer account; PWA first, see ADR 0004)",
     "Meal plans, coaching or social features in v1",
     "Packaged-food barcode lookup in v1",
     "Android in v1 (iPhone first; Android after the iPhone MVP passes its gate)"
@@ -42,6 +42,7 @@
     "No paid LLM API on the critical path; any fallback is optional and gated",
     "Only commercially usable licenses for models and data (no non-commercial or AGPL components shipped)",
     "No accuracy claim without the locked weighed benchmark",
-    "Nutrition data: free sources first (TACO + USDA FDC/FNDDS); TBCA only if a commercial license is granted"
+    "Nutrition data: free sources first (TACO + USDA FDC/FNDDS); TBCA only if a commercial license is granted",
+    "Zero spending until the phase-1 gate passes: no Mac, no Apple Developer Program, free hosting only"
   ]
 }

@@ -5,7 +5,7 @@ numbers or counts. Update it in the same commit as any change that makes it wron
 
 ## Product
 
-Not started. Design: [ADR 0002](decisions/0002-geometry-first-food-estimation.md) (native iPhone first) and [ADR 0003](decisions/0003-no-model-training.md) (pretrained models only, no training) (see [STATUS.md](STATUS.md));
+Not started. Design: [ADR 0002](decisions/0002-geometry-first-food-estimation.md) (amended by [ADR 0004](decisions/0004-pwa-first-on-iphone-16e.md): PWA first on iPhone 16e) and [ADR 0003](decisions/0003-no-model-training.md) (pretrained models only, no training) (see [STATUS.md](STATUS.md));
 its modules will be mapped here as they land.
 
 ## Mission-control harness (`harness/`)

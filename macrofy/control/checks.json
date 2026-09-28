@@ -68,6 +68,26 @@
         "eval/recognition.mjs"
       ],
       "description": "Zero-training food naming accuracy on held-out owner photos, with leakage guard"
+    },
+    {
+      "id": "bench-complete",
+      "cmd": [
+        "node",
+        "bench/validate.mjs",
+        "--require-meals",
+        "300",
+        "--min-weeks",
+        "8"
+      ],
+      "description": "The real benchmark is complete: >=300 valid meals over >=8 weeks"
+    },
+    {
+      "id": "capture-selftest",
+      "cmd": [
+        "node",
+        "capture/selftest.mjs"
+      ],
+      "description": "Capture PWA export format passes the benchmark validator"
     }
   ]
 }

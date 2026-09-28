@@ -6,3 +6,4 @@ Thumbs.db
 .artisan-artifacts/
 .snapshots/
 scripts/*.png
+.claude/worktrees/

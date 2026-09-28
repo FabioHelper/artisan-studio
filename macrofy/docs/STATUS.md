@@ -32,6 +32,7 @@
 
 ## Recent handoffs
 
+- #9 2026-09-28 (claude-code): research: VLM/apps notes done (no LLM needed for grams; optional Gemini Flash-Lite <$1/1k photos for low-confidence labels only; commercial apps underestimate ~33% kcal, ~30 g fat); 2 angles still running
 - #8 2026-09-28 (claude-code): research: evaluation notes done (Nutrition5k: 26% kcal error from photo vs 9.5% given true weight -> portion is the dominant error; guided correction beats free gram entry; proposed tiered kcal-error targets and 150+150 weighed-meal benchmark); 4 angles still running
 - #7 2026-09-28 (claude-code): research in progress: nutrition/density notes done (USDA FDC CC0; TACO reusable with citation; TBCA needs commercial license; FAO density license unverified -> derive densities from FNDDS portions); 5 research angles still running
 - #6 2026-09-28 (claude-code): done: token-discipline rules added to AGENTS.md/CLAUDE.md / next: camera food weight+macro research running (notes in research/), then report -> ADR 0002, draft mission goals, plan M1 for owner approval (T-002) / gotchas: don't read raw research notes, use the report

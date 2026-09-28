@@ -200,7 +200,8 @@
         "T-004",
         "T-005",
         "T-006",
-        "T-007"
+        "T-007",
+        "T-010"
       ],
       "spec": null,
       "acceptance": [
@@ -234,6 +235,28 @@
           "id": "A1",
           "criterion": "Request sent and the reply (grant, terms, or refusal) recorded as a journal note; if refused or unanswered after 30 days, T-005 free-source mapping is the recorded decision",
           "manual": true
+        }
+      ]
+    },
+    {
+      "id": "T-010",
+      "milestone": "M1",
+      "title": "Measure zero-training food naming (SigLIP 2 zero-shot + k-NN gallery from calibration photos) on Brazilian dishes",
+      "goals": [
+        "G-2",
+        "G-3"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-004"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Top-1 and top-3 naming accuracy reported on held-out owner photos with no gallery leakage; result recorded as go / no-go against a 85% top-3 bar",
+          "check": "eval-recognition"
         }
       ]
     }

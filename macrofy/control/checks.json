@@ -60,6 +60,14 @@
         "1"
       ],
       "description": "Phase-1 accuracy gate on the locked weighed test set"
+    },
+    {
+      "id": "eval-recognition",
+      "cmd": [
+        "node",
+        "eval/recognition.mjs"
+      ],
+      "description": "Zero-training food naming accuracy on held-out owner photos, with leakage guard"
     }
   ]
 }

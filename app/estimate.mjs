@@ -1,4 +1,8 @@
-// Estimate screens. T-014 automatic mode (default): photo -> automatic plate and foods -> ONE confirmation screen (names, grams, macros,
+// Estimate screens. T-016 (ADR 0006): zero setup. The default flow is camera -> automatic analysis -> result, with no plate registration,
+// ruler or tap; plate scale is the typical-plate prior. Plate choice, taps, oil and weighed-meal linking live under "Ajustes / Corrigir".
+// On the result the owner may "Conferir com balança" (optional): each check is stored in the checks store and web/estimate/calibration.mjs
+// learns a factor and conformal ranges from them.
+// T-014 automatic mode (default): photo -> automatic plate and foods -> ONE confirmation screen (names, grams, macros,
 // ranges) where taps only correct (rename, remove, merge, split, add a missed item). T-013 manual mode ("Modo manual"): photo -> plate
 // -> rim tap -> food taps -> names -> oil -> result. Both end in save/export.
 // The maths is in vendor/estimate-core.mjs and the mask post-processing in vendor/autoseg.mjs (pure, tested in Node); the models come
@@ -6,6 +10,8 @@
 import * as core from './vendor/estimate-core.mjs';
 import * as auto from './vendor/autoseg.mjs';
 import { createLookup } from './vendor/lookup-core.mjs';
+import * as cal from './vendor/calibration.mjs';
+import { sha256Hex } from './lib.mjs';
 
 const MAX_SIDE = 1024; // the working photo: SAM resizes to 1024 anyway, and masks come back in these pixels
 const COLORS = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#008080', '#9a6324', '#800000'];
@@ -22,7 +28,7 @@ export function createEstimate(ctx) {
   let staticData = null; let modelsP = null; let lookup = null;
 
   function fresh() {
-    return { mode: 'auto', notice: '', auto: null, tapMode: null, timings: null, encoder_ms: null, corrections: {}, step: 'photo', work: null, workBlob: null, imageSetFor: null, plateId: '', rim: null, items: [], oil: 'normal', mealId: '', saved: null, busy: '', error: '', model: { status: 'idle' }, query: {}, naming: false, namingRun: 0 };
+    return { mode: 'auto', notice: '', auto: null, tapMode: null, timings: null, encoder_ms: null, corrections: {}, step: 'photo', work: null, workBlob: null, imageSetFor: null, plateId: '', rim: null, items: [], oil: 'normal', mealId: '', saved: null, busy: '', error: '', model: { status: 'idle' }, query: {}, naming: false, namingRun: 0, snap: null, adjustOpen: false, checkOpen: false, checkForm: { items: {}, total: '', other: '' }, checkErrors: [], checkSaved: null };
   }
   const getModels = () => globalThis.__macrofyModels ?? (modelsP ??= import('./vendor/models.mjs').then((m) => m.createModels({ labels: () => getVocab().classes.map((c) => c.pt) })));
   async function loadStatic() {
@@ -51,7 +57,7 @@ export function createEstimate(ctx) {
         mine.status = 'ready';
         await syncImage();
       } catch (e) { mine.status = 'error'; mine.error = e.message; }
-      if (st.model === mine) render();
+      if (st.model === mine && /^#\/estimate/.test(location.hash)) render(); // the home screen warms the models up: never paint over it
     })();
   }
   async function syncImage() {
@@ -92,13 +98,14 @@ export function createEstimate(ctx) {
 
   // ---------------------------------------------------------------- flow control
   const VIEWS = { photo: viewPhoto, auto: viewAuto, confirm: viewConfirm, plate: viewPlate, rim: viewRim, foods: viewFoods, names: viewNames, oil: viewOil, result: viewResult };
+  let renderSeq = 0; // a slower view that started earlier must not paint over a newer one
   function render(top = false) {
-    const y = top ? 0 : window.scrollY;
-    VIEWS[st.step]().then((nodes) => { show(back('#/', 'Início'), h('h1', {}, 'Estimar'), stepper(), st.notice ? h('div', { class: 'banner', role: 'status', id: 'notice' }, st.notice) : null, errorBox(st.error ? [st.error] : []), ...[nodes].flat(4)); window.scrollTo(0, y); })
-      .catch((e) => { console.error(e); show(back(), h('div', { class: 'errors', role: 'alert' }, `Erro: ${e.message}`)); });
+    const y = top ? 0 : window.scrollY; const mine = ++renderSeq;
+    VIEWS[st.step]().then((nodes) => { if (mine !== renderSeq) return; show(back('#/', 'Início'), h('h1', {}, 'Estimar'), stepper(), st.notice ? h('div', { class: 'banner', role: 'status', id: 'notice' }, st.notice) : null, errorBox(st.error ? [st.error] : []), ...[nodes].flat(4)); window.scrollTo(0, y); })
+      .catch((e) => { console.error(e); if (mine === renderSeq) show(back(), h('div', { class: 'errors', role: 'alert' }, `Erro: ${e.message}`)); });
   }
   const STEPS = [['photo', 'Foto'], ['plate', 'Prato'], ['rim', 'Borda'], ['foods', 'Alimentos'], ['names', 'Nomes'], ['oil', 'Óleo'], ['result', 'Resultado']];
-  const STEPS_AUTO = [['photo', 'Foto'], ['auto', 'Análise'], ['confirm', 'Conferir']];
+  const STEPS_AUTO = [['photo', 'Foto'], ['auto', 'Análise'], ['confirm', 'Resultado']];
   const stepper = () => {
     const steps = st.mode === 'auto' ? STEPS_AUTO : STEPS; const i = steps.findIndex((x) => x[0] === st.step);
     return i < 0 ? null : h('p', { class: 'muted', 'aria-label': 'Etapa' }, `Etapa ${i + 1} de ${steps.length}: ${steps[i][1]}`);
@@ -123,19 +130,18 @@ export function createEstimate(ctx) {
     render();
   }
   async function viewPhoto() {
-    const plates = await db.getAll('plates'); const isAuto = st.mode === 'auto';
+    const isAuto = st.mode === 'auto';
     const draft = st.work ? null : await db.getSetting(DRAFT).catch(() => null);
     const picker = (label, capture, cls) => h('label', { class: `btn ${cls}` }, label,
       h('input', { type: 'file', accept: 'image/*', ...(capture ? { capture: 'environment' } : {}), onchange: (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) useFile(f); } }));
     ensureModels();
-    return [h('p', {}, isAuto ? 'Fotografe o prato de cima (ou o mais de cima que der), inteiro no quadro, com a borda visível. Sem zoom. O Macrofy acha o prato e os alimentos sozinho: você só confere.'
+    return [h('p', {}, isAuto ? 'Fotografe o prato de cima (ou o mais de cima que der), inteiro no quadro, com a borda visível. Sem zoom. O Macrofy acha o prato e os alimentos sozinho.'
         : 'Modo manual. Fotografe o prato de cima (ou o mais de cima que der), inteiro no quadro, com a borda visível. Sem zoom.'),
       draft?.photo ? h('div', { class: 'card', id: 'draft' }, h('p', {}, `Você tinha uma estimativa em andamento (${fmtDate(draft.savedAt)}).`),
         h('div', { class: 'row' }, h('button', { id: 'resume', class: 'small', onclick: resumeDraft }, 'Retomar'),
           h('button', { class: 'secondary small', onclick: async () => { await db.setSetting(DRAFT, null); render(); } }, 'Descartar'))) : null,
       st.work ? h('button', { class: 'secondary', onclick: () => (isAuto ? startAuto() : go('plate')) }, 'Continuar com a foto atual') : null,
       picker('Tirar foto', true, ''), h('div', { style: 'height:10px' }), picker('Escolher da galeria', false, 'secondary'), busyBox(), modelBox(),
-      !plates.length ? h('p', { class: 'muted' }, 'Nenhum prato cadastrado: o modo automático usa um prato típico e a faixa fica mais larga. ', h('a', { href: '#/plates/new' }, 'Cadastrar meu prato')) : null,
       h('button', { id: 'mode-toggle', class: 'secondary', style: 'margin-top:14px', onclick: () => { st.mode = isAuto ? 'manual' : 'auto'; render(); } }, isAuto ? 'Modo manual (marcar com toques)' : 'Voltar ao modo automático')];
   }
 
@@ -203,7 +209,7 @@ export function createEstimate(ctx) {
     return [h('h2', {}, 'Analisando a foto'), stage({}),
       h('div', { class: 'card', role: 'status' }, h('p', { id: 'auto-label' }, `${AUTO_LABELS[a.phase] ?? ''}${a.total ? ` ${a.done}/${a.total}` : ''}`), h('progress', { id: 'auto-progress', max: 100, ...(a.total ? { value: Math.round(100 * a.done / a.total) } : {}) })),
       a.phase === 'models' ? modelBox() : null,
-      h('button', { id: 'go-manual', class: 'secondary', onclick: () => { st.mode = 'manual'; go('plate'); } }, 'Modo manual (marcar com toques)')];
+      h('details', { class: 'fix' }, h('summary', {}, 'Ajustes / Corrigir'), h('button', { id: 'go-manual', class: 'secondary', onclick: () => { st.mode = 'manual'; go('plate'); } }, 'Modo manual (marcar com toques)'))];
   }
 
   // draft: the estimate in progress lives in IndexedDB, so a tab that Safari killed (or a reload) resumes instead of starting over
@@ -344,29 +350,78 @@ export function createEstimate(ctx) {
     const named = st.items.filter((it) => it.cls);
     const counts = core.exclusiveCounts(named.map((it) => it.masks[it.idx]));
     const priors = auto.priorsForPlate(data.priors, st.rim.setup ?? auto.plateSetup(data.priors, null));
-    const items = named.map((it, i) => core.estimateItem({ cls: it.cls, pixels: counts[i], scale: st.rim.scale, oil: st.oil, priors, calibration: data.calibration, lookup: getLookup() }));
-    return { items, totals: core.totals(items), byItem: new Map(named.map((it, i) => [it, items[i]])) };
+    const raw = named.map((it, i) => core.estimateItem({ cls: it.cls, pixels: counts[i], scale: st.rim.scale, oil: st.oil, priors, calibration: st.snap.calibration, lookup: getLookup() }));
+    const { items, totals } = cal.applyRanges(raw, core.totals(raw), st.snap.state); // conformal ranges once there are enough checks
+    return { items, totals, byItem: new Map(named.map((it, i) => [it, items[i]])) };
+  }
+  /** What the checks taught so far, fixed for the estimate on screen (a check saved now applies from the next estimate). */
+  async function ensureSnap() {
+    if (st.snap) return st.snap;
+    const data = await loadStatic(); const checks = await db.getAll('checks').catch(() => []);
+    const state = cal.learn(checks, cal.paramsFrom(data.priors));
+    return (st.snap = { state, calibration: state.n_obs > 0 ? core.loadCalibration(cal.toCalibration(state)) : data.calibration });
   }
   const macros = (x) => `${n0(x.kcal)} kcal · proteína ${n1(x.protein_g)} g · carboidrato ${n1(x.carbs_g)} g · gordura ${n1(x.fat_g)} g`;
   const howCalc = (it) => h('details', {}, h('summary', {}, 'Como calculamos'),
     h('p', { class: 'muted' }, `Área ${n0(it.area_mm2 / 100)} cm² × espessura assumida ${n0(it.thickness_mm)} mm = ${n0(it.volume_ml)} mL; densidade ${n2(it.density_g_per_ml)} g/mL (${{ served: 'porção medida', pieces: 'pedaços', solid_prior: 'suposição de sólido' }[it.density_basis]}); óleo ${n1(it.oil_g)} g.`));
-  const uncalBanner = () => h('div', { class: 'banner', role: 'note' }, h('span', { class: 'badge uncal', id: 'uncal' }, 'Não calibrado — estimativa inicial'),
-    h('p', {}, 'Espessuras e densidades são suposições, ainda não ajustadas com refeições pesadas. Use como ordem de grandeza.'));
-  const totalsCard = (r) => h('div', { class: 'card', id: 'totals' }, h('strong', {}, `Total do prato: ${n0(r.totals.grams)} g`), h('br'), `Faixa de 80%: ${n0(r.totals.lo80)} a ${n0(r.totals.hi80)} g`, h('br'), macros(r.totals));
-  async function saveBlock(r, prev) {
+  const calBanner = () => {
+    const state = st.snap.state;
+    return h('div', { class: 'banner', role: 'note' }, h('span', { class: `badge ${state.n_checks ? 'cal' : 'uncal'}`, id: 'calstate' }, state.label),
+      h('p', {}, state.n_checks ? `Os gramas já levam o fator aprendido nas suas pesagens${state.ranges.item ? '; as faixas são calibradas.' : '; as faixas ainda são as do modelo.'}`
+        : 'Espessuras e densidades são suposições e a escala vem de um prato típico: use como ordem de grandeza. Conferir com a balança (abaixo) calibra.'));
+  };
+  const totalsCard = (r) => h('div', { class: 'card', id: 'totals' }, h('strong', {}, `Total do prato: ${n0(r.totals.grams)} g`), h('br'), `Faixa de 80%: ${n0(r.totals.lo80)} a ${n0(r.totals.hi80)} g`, h('br'), macros(r.totals),
+    h('p', { class: 'muted', id: 'range-basis' }, `${r.totals.range_basis === 'conformal' ? 'Faixas calibradas pelas suas conferências.' : 'Faixas do modelo, sem conferências suficientes.'}${st.rim?.setup?.typical ? ` Escala pelo prato típico (${n0(st.rim.setup.diameter_mm / 10)} cm): faixa mais larga.` : ''}`));
+  const mealLink = async () => {
     const meals = [...(await db.getAll('meals'))].sort((a, b) => (a.captured_at < b.captured_at ? 1 : -1));
-    return st.saved ? [h('div', { class: 'good', role: 'status' }, 'Estimativa salva.'), h('div', { class: 'stack' }, h('a', { class: 'btn', href: '#/estimates' }, 'Estimativas salvas e exportar previsões'), h('a', { class: 'btn secondary', href: '#/estimate/new' }, 'Estimar outro prato'))] : [
-      h('label', { class: 'field' }, h('span', {}, 'Esta refeição também foi pesada?'),
-        h('select', { id: 'meal-link', onchange: (e) => { st.mealId = e.target.value; }, value: st.mealId }, [h('option', { value: '' }, 'Não pesei esta refeição'), ...meals.map((m) => h('option', { value: m.id }, `${fmtDate(m.captured_at)} · ${m.items.reduce((s, it) => s + it.grams, 0)} g pesados`))]),
-        h('span', { class: 'muted' }, 'Ao vincular, o motor de avaliação compara esta estimativa com o peso real.')),
+    return h('label', { class: 'field' }, h('span', {}, 'Esta refeição também foi pesada?'),
+      h('select', { id: 'meal-link', onchange: (e) => { st.mealId = e.target.value; }, value: st.mealId }, [h('option', { value: '' }, 'Não pesei esta refeição'), ...meals.map((m) => h('option', { value: m.id }, `${fmtDate(m.captured_at)} · ${m.items.reduce((s, it) => s + it.grams, 0)} g pesados`))]),
+      h('span', { class: 'muted' }, 'Ao vincular, o motor de avaliação compara esta estimativa com o peso real.'));
+  };
+  function saveBlock(r, prev) {
+    return st.saved ? [h('div', { class: 'good', role: 'status' }, 'Estimativa salva.'), h('div', { class: 'stack' }, h('a', { class: 'btn', href: '#/' }, 'Apontar para outro prato'), h('a', { class: 'btn secondary', href: '#/estimates' }, 'Estimativas salvas e exportar previsões'))] : [
       h('button', { id: 'save', style: 'margin-top:12px', disabled: !r.items.length, onclick: () => save(r) }, 'Salvar estimativa'), prev ? nav(prev, null) : null];
   }
+
+  // ---------------------------------------------------------------- "Conferir com balança" (optional): the owner's scale grams next to what was shown
+  const checkInput = (label, attrs, get, set, hint) => h('label', { class: 'field' }, h('span', {}, label), h('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', value: get(), oninput: (e) => set(e.target.value), ...attrs }), hint ? h('span', { class: 'muted' }, hint) : null);
+  function checkSection(r) {
+    if (!r.items.length) return null;
+    if (st.checkSaved) {
+      const { check, state } = st.checkSaved;
+      const lines = check.truth_kind === 'items' ? check.items.filter((it) => it.truth_g).map((it) => h('p', {}, `${cap(it.label)}: balança ${n0(it.truth_g)} g, estimativa ${n0(it.grams)} g`))
+        : [h('p', {}, `Total do prato: balança ${n0(check.truth_total_g)} g, estimativa ${n0(check.items.reduce((a, it) => a + it.grams, 0))} g`)];
+      return h('div', { class: 'card', id: 'check-done' }, h('strong', {}, 'Conferência salva.'), lines,
+        h('p', { id: 'calstate-now' }, `Agora: ${state.label}. Vale a partir da próxima estimativa.`), h('a', { href: '#/accuracy' }, 'Ver a precisão'));
+    }
+    const f = st.checkForm;
+    return h('details', { id: 'check', class: 'card', open: st.checkOpen, ontoggle: (e) => { st.checkOpen = e.target.open; } }, h('summary', {}, h('strong', {}, 'Conferir com balança (opcional)')),
+      h('p', { class: 'muted' }, 'Pese a comida depois da estimativa e digite os gramas: por item, ou só o total do prato. Cada conferência ajuda o Macrofy a acertar mais.'),
+      r.items.map((e, i) => checkInput(`${cap(e.label)} (g)`, { 'data-check-item': String(i), placeholder: 'g' }, () => f.items[i] ?? '', (v) => { f.items[i] = v; })),
+      checkInput('Ou o total do prato (g)', { id: 'check-total', placeholder: 'g' }, () => f.total, (v) => { f.total = v; }, 'Vale só se você não digitou os itens.'),
+      checkInput('Calorias que outro app mostrou (opcional)', { id: 'check-other-kcal', placeholder: 'kcal' }, () => f.other, (v) => { f.other = v; }, 'Só para comparar: nunca é usado como verdade.'),
+      errorBox(st.checkErrors), h('button', { id: 'check-save', style: 'margin-top:10px', onclick: () => saveCheck(r) }, 'Salvar conferência'));
+  }
+  async function saveCheck(r) {
+    try {
+      const data = await loadStatic(); const f = st.checkForm;
+      const id = st.saved ?? await persistEstimate(r);
+      const est = { id, items: r.items, totals: r.totals, plate_typical: st.rim.setup.typical, diameter_mm: st.rim.setup.diameter_mm, oil: st.oil, pipeline: core.PIPELINE };
+      const built = cal.buildCheck({ estimate: est, truth_items: r.items.map((_, i) => f.items[i] ?? ''), truth_total: f.total, other_app_kcal: f.other, photo_sha256: await sha256Hex(await st.workBlob.arrayBuffer()), created_at: isoWithOffset(), state: st.snap.state, stateOf: (cid) => getLookup().findClass(cid)?.state ?? 'cooked' });
+      st.checkOpen = true;
+      if (built.errors) { st.checkErrors = built.errors; render(); return; }
+      await db.put('checks', built.check);
+      st.checkErrors = []; st.checkSaved = { check: built.check, state: cal.learn(await db.getAll('checks'), cal.paramsFrom(data.priors)) };
+      toast('Conferência salva.');
+    } catch (e) { st.error = `Não foi possível salvar a conferência: ${e.message}`; }
+    render();
+  }
   async function viewResult() {
-    const data = await loadStatic(); const r = compute(data);
-    return [uncalBanner(),
+    const data = await loadStatic(); await ensureSnap(); const r = compute(data);
+    return [calBanner(),
       r.items.map((it) => h('div', { class: 'card item' }, h('h3', {}, `${cap(it.label)}`),
         h('p', { class: 'big' }, `${n0(it.grams)} g`), h('p', {}, `Faixa de 80%: ${n0(it.lo80)} a ${n0(it.hi80)} g`), h('p', {}, macros(it)), howCalc(it))),
-      totalsCard(r), await saveBlock(r, st.saved ? null : () => go('oil'))];
+      totalsCard(r), saveBlock(r, st.saved ? null : () => go('oil')), checkSection(r), st.saved ? null : h('details', { class: 'fix' }, h('summary', {}, 'Ajustes / Corrigir'), await mealLink())];
   }
 
   // ---------------------------------------------------------------- confirmation screen (automatic mode): the whole estimate, taps only to correct
@@ -413,8 +468,8 @@ export function createEstimate(ctx) {
     it.top = core.topNames(await m.classify(it.cropBlob, core.namePrompts(classes)), classes, 3); it.cls = it.top[0]?.cls ?? null;
   }
   async function viewConfirm() {
-    const [data, plates] = await Promise.all([loadStatic(), db.getAll('plates')]);
-    if (!st.rim?.scale) return [h('div', { class: 'errors', role: 'alert' }, 'Não tenho a escala do prato.'), h('button', { class: 'secondary', onclick: () => go('rim') }, 'Marcar o prato (modo manual)')];
+    const [data, plates] = await Promise.all([loadStatic(), db.getAll('plates')]); await ensureSnap();
+    if (!st.rim?.scale) return [h('div', { class: 'errors', role: 'alert' }, 'Não tenho a escala do prato.'), h('details', { class: 'fix' }, h('summary', {}, 'Ajustes / Corrigir'), h('button', { class: 'secondary', onclick: () => go('rim') }, 'Marcar o prato (modo manual)'))];
     const r = compute(data); const setup = st.rim.setup;
     const tapText = st.tapMode?.kind === 'add' ? 'Toque no alimento que faltou.' : st.tapMode?.kind === 'split' ? 'Toque no meio da parte que deve virar um item separado.' : null;
     const cards = st.items.map((it, i) => {
@@ -423,46 +478,56 @@ export function createEstimate(ctx) {
       return h('div', { class: 'card item', 'data-item': String(i) },
         h('div', { class: 'row' }, dot(i), h('h3', { class: 'grow' }, it.cls ? cap(it.cls.pt) : `Item ${i + 1}: escolha o nome`)),
         e ? [h('p', { class: 'big' }, `${n0(e.grams)} g`), h('p', {}, `Faixa de 80%: ${n0(e.lo80)} a ${n0(e.hi80)} g`), h('p', {}, macros(e))] : null,
-        it.editing || !it.cls ? namePicker(it, i, () => { it.editing = false; afterEdit('rename'); }) : null,
-        h('div', { class: 'row', style: 'margin-top:8px' },
-          h('button', { class: 'secondary small', 'data-action': 'rename', onclick: () => { it.editing = !it.editing; render(); } }, 'Trocar nome'),
-          h('button', { class: 'danger small', 'data-action': 'remove', onclick: () => removeItem(i) }, 'Remover'),
-          it.parts ? h('button', { class: 'secondary small', 'data-action': 'separate', onclick: () => separateItem(i) }, 'Separar') : h('button', { class: 'secondary small', 'data-action': 'split', onclick: () => { st.tapMode = { kind: 'split', item: it }; render(); } }, 'Dividir'),
-          others.length ? h('select', { 'data-action': 'merge', 'aria-label': 'Juntar com outro item', onchange: (ev) => { const j = Number(ev.target.value); if (Number.isInteger(j)) mergeItems(i, j); }, value: '' },
-            h('option', { value: '' }, 'Juntar com…'), others.map(({ o, j }) => h('option', { value: String(j) }, `Item ${j + 1}: ${o.cls ? o.cls.pt : 'sem nome'}`))) : null),
-        e ? howCalc(e) : null);
+        e ? howCalc(e) : null,
+        h('details', { class: 'fix', open: !!(it.fixOpen || it.editing || !it.cls), ontoggle: (ev) => { it.fixOpen = ev.target.open; } }, h('summary', {}, 'Corrigir'),
+          it.editing || !it.cls ? namePicker(it, i, () => { it.editing = false; afterEdit('rename'); }) : null,
+          h('div', { class: 'row', style: 'margin-top:8px' },
+            h('button', { class: 'secondary small', 'data-action': 'rename', onclick: () => { it.editing = !it.editing; render(); } }, 'Trocar nome'),
+            h('button', { class: 'danger small', 'data-action': 'remove', onclick: () => removeItem(i) }, 'Remover'),
+            it.parts ? h('button', { class: 'secondary small', 'data-action': 'separate', onclick: () => separateItem(i) }, 'Separar') : h('button', { class: 'secondary small', 'data-action': 'split', onclick: () => { st.tapMode = { kind: 'split', item: it }; render(); } }, 'Dividir'),
+            others.length ? h('select', { 'data-action': 'merge', 'aria-label': 'Juntar com outro item', onchange: (ev) => { const j = Number(ev.target.value); if (Number.isInteger(j)) mergeItems(i, j); }, value: '' },
+              h('option', { value: '' }, 'Juntar com…'), others.map(({ o, j }) => h('option', { value: String(j) }, `Item ${j + 1}: ${o.cls ? o.cls.pt : 'sem nome'}`))) : null)));
     });
-    return [h('h2', {}, 'Confira o prato'), h('p', { class: 'muted' }, 'O Macrofy achou tudo sozinho. Corrija só o que estiver errado; se estiver certo, salve.'),
-      stage({ plate: true, items: true, onTap: st.tapMode ? tapCorrect : null }), tapText ? h('div', { class: 'banner', role: 'status', id: 'tap-hint' }, tapText, h('button', { class: 'secondary small', style: 'margin-left:8px', onclick: () => { st.tapMode = null; render(); } }, 'Cancelar')) : null, busyBox(), modelBox(),
+    const adjust = h('details', { id: 'adjust', class: 'fix', open: st.adjustOpen || !!st.tapMode, ontoggle: (ev) => { st.adjustOpen = ev.target.open; } }, h('summary', {}, 'Ajustes / Corrigir'),
+      h('p', { class: 'muted' }, 'Nada aqui é necessário: o resultado acima já vale. Use só para corrigir.'),
       h('label', { class: 'field' }, h('span', {}, 'Prato usado'), h('select', { id: 'plate-select', onchange: async (e) => { st.plateId = e.target.value; await setRimScale(); saveDraft(); render(); }, value: st.plateId }, plateOptions(plates, data).map((o) => h('option', { value: o.id }, o.label))),
-        setup?.typical ? h('span', { class: 'muted' }, 'Prato típico: escala aproximada, faixa mais larga. Escolha ou cadastre seu prato para medir melhor.') : null),
-      uncalBanner(), cards,
-      h('button', { id: 'add-item', class: 'secondary', onclick: () => { st.tapMode = { kind: 'add' }; render(); } }, 'Adicionar alimento (toque)'),
+        h('span', { class: 'muted' }, setup?.typical ? 'Sem prato cadastrado a escala vem do prato típico. ' : '', h('a', { href: '#/plates/new' }, 'Cadastrar um prato'), ' mede melhor a escala.')),
       h('h3', {}, 'Quanto óleo foi usado no preparo?'), oilPicker(data.priors.oil_levels, (id) => { st.oil = id; saveDraft(); render(); }),
-      r.items.length ? totalsCard(r) : null, await saveBlock(r, null),
-      st.saved ? null : h('button', { id: 'go-manual', class: 'secondary', style: 'margin-top:14px', onclick: () => { st.mode = 'manual'; go('rim'); } }, 'Modo manual (refazer com toques)')];
+      h('button', { id: 'add-item', class: 'secondary', style: 'margin-top:10px', onclick: () => { st.tapMode = { kind: 'add' }; st.adjustOpen = true; render(); } }, 'Adicionar alimento (toque)'),
+      st.saved ? null : await mealLink(),
+      st.saved ? null : h('button', { id: 'go-manual', class: 'secondary', style: 'margin-top:14px', onclick: () => { st.mode = 'manual'; go('rim'); } }, 'Modo manual (refazer com toques)'));
+    return [h('h2', {}, 'Resultado'), h('p', { class: 'muted' }, 'O Macrofy achou o prato e os alimentos sozinho. Se algo estiver errado, use "Corrigir" no item.'),
+      stage({ plate: true, items: true, onTap: st.tapMode ? tapCorrect : null }), tapText ? h('div', { class: 'banner', role: 'status', id: 'tap-hint' }, tapText, h('button', { class: 'secondary small', style: 'margin-left:8px', onclick: () => { st.tapMode = null; render(); } }, 'Cancelar')) : null, busyBox(), modelBox(),
+      calBanner(), cards,
+      r.items.length ? totalsCard(r) : null, saveBlock(r, null), checkSection(r), adjust];
   }
 
+  /** Stores the estimate (idempotent per screen: st.saved holds its id) so a scale check can point to it. */
+  async function persistEstimate(r) {
+    if (st.saved) return st.saved;
+    const id = `e${Date.now().toString(36)}${Math.floor(Math.random() * 0x10000).toString(16)}`;
+    const setup = st.rim.setup;
+    await db.put('estimates', {
+      id, created_at: isoWithOffset(), meal_id: st.mealId || null, plate_id: setup.typical ? null : st.plateId, plate_typical: setup.typical, diameter_mm: setup.diameter_mm,
+      scale: { mm_per_px: st.rim.scale.mm_per_px, cos_tilt: st.rim.scale.cos_tilt, uncertainty: setup.scale_uncertainty }, oil: st.oil, items: r.items, totals: r.totals,
+      calibration: { label: st.snap.state.label, n_checks: st.snap.state.n_checks, global_factor: st.snap.state.global.factor, range_basis: r.totals.range_basis },
+      mode: st.mode, timings: st.mode === 'auto' ? st.timings : null, corrections: st.mode === 'auto' ? st.corrections : null,
+      pipeline: core.PIPELINE, models: st.model.info ?? null, photo: st.workBlob,
+    });
+    if (!setup.typical) await db.setSetting('last_used', { ...((await db.getSetting('last_used')) ?? {}), plate: st.plateId });
+    await db.setSetting(DRAFT, null);
+    st.saved = id;
+    return id;
+  }
   async function save(r) {
-    try {
-      const id = `e${Date.now().toString(36)}${Math.floor(Math.random() * 0x10000).toString(16)}`;
-      const setup = st.rim.setup;
-      await db.put('estimates', {
-        id, created_at: isoWithOffset(), meal_id: st.mealId || null, plate_id: setup.typical ? null : st.plateId, plate_typical: setup.typical, diameter_mm: setup.diameter_mm,
-        scale: { mm_per_px: st.rim.scale.mm_per_px, cos_tilt: st.rim.scale.cos_tilt, uncertainty: setup.scale_uncertainty }, oil: st.oil, items: r.items, totals: r.totals,
-        mode: st.mode, timings: st.mode === 'auto' ? st.timings : null, corrections: st.mode === 'auto' ? st.corrections : null,
-        pipeline: core.PIPELINE, models: st.model.info ?? null, photo: st.workBlob,
-      });
-      if (!setup.typical) await db.setSetting('last_used', { ...((await db.getSetting('last_used')) ?? {}), plate: st.plateId });
-      await db.setSetting(DRAFT, null);
-      st.saved = id; toast('Estimativa salva.');
-    } catch (e) { st.error = `Não foi possível salvar: ${e.message}`; }
+    try { await persistEstimate(r); toast('Estimativa salva.'); } catch (e) { st.error = `Não foi possível salvar: ${e.message}`; }
     render();
   }
 
   // ---------------------------------------------------------------- saved estimates and export
   async function screenEstimates() {
-    const [list, meals] = await Promise.all([db.getAll('estimates'), db.getAll('meals')]);
+    const [list, meals, checks] = await Promise.all([db.getAll('estimates'), db.getAll('meals'), db.getAll('checks')]);
+    const checked = new Set(checks.map((c) => c.estimate_id));
     const sorted = [...list].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
     const preds = core.toPredictions(sorted);
     const text = JSON.stringify(preds, null, 2);
@@ -479,7 +544,8 @@ export function createEstimate(ctx) {
     };
     show(back(), h('h1', {}, 'Estimativas salvas'),
       sorted.length ? sorted.map((e) => h('div', { class: 'card', 'data-estimate': e.id },
-        h('div', { class: 'row' }, h('strong', {}, fmtDate(e.created_at)), h('span', { class: 'badge uncal' }, 'Não calibrado')),
+        h('div', { class: 'row' }, h('strong', {}, fmtDate(e.created_at)), h('span', { class: `badge ${e.calibration?.n_checks ? 'cal' : 'uncal'}` }, e.calibration?.label ?? 'Não calibrado')),
+        checked.has(e.id) ? h('div', { class: 'muted' }, 'Conferida com a balança.') : null,
         e.timings ? h('div', { class: 'muted' }, `Automático: ${n1((e.timings.total_ms ?? 0) / 1000)} s no total (codificador ${n1((e.timings.encoder_ms ?? 0) / 1000)} s, ${e.timings.decodes ?? 0} decodificações, ${Object.values(e.corrections ?? {}).reduce((a, b) => a + b, 0)} correções)`) : null,
         h('div', { class: 'muted' }, e.meal_id ? `Vinculada à refeição pesada de ${fmtDate(meals.find((m) => m.id === e.meal_id)?.captured_at ?? e.created_at)}.` : 'Sem refeição pesada vinculada.'),
         e.items.map((it) => h('p', {}, `${cap(it.label)}: ${n0(it.grams)} g (${n0(it.lo80)} a ${n0(it.hi80)}), ${n0(it.kcal)} kcal`)),
@@ -492,9 +558,22 @@ export function createEstimate(ctx) {
       h('p', { class: 'muted' }, `Formato ${preds.schema}, ${preds.pipeline.name} ${preds.pipeline.version}. Estimativas da mesma refeição pesada: vale a mais recente.`));
   }
 
+  /** Home: the camera picture goes straight to the automatic analysis and the result (zero setup, no plate, no taps). */
+  async function beginWithFile(file) {
+    st.mode = 'auto'; await useFile(file);
+    if (location.hash !== '#/estimate') location.hash = '#/estimate';
+  }
   return {
     screenEstimate: async () => { render(); },
     screenEstimateNew: async () => { st = { ...fresh(), model: st.model }; location.hash = '#/estimate'; },
+    /** "Modo manual" under Ajustes / Corrigir: the T-013 tap flow. */
+    screenEstimateManual: async () => { st = { ...fresh(), mode: 'manual', model: st.model }; location.hash = '#/estimate'; },
+    screenEstimateResume: async () => { await resumeDraft(); location.hash = '#/estimate'; },
     screenEstimates,
+    beginWithFile,
+    /** The home screen starts loading the models in the background, so the analysis is faster after the photo. */
+    prewarm: () => { ensureModels(); },
+    draftInfo: async () => { const d = await db.getSetting(DRAFT).catch(() => null); return d?.photo ? d : null; },
+    discardDraft: () => db.setSetting(DRAFT, null),
   };
 }

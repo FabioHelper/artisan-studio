@@ -1,6 +1,8 @@
 // Macrofy capture app: hash-routed screens, no framework. Pure logic is in lib.mjs, storage in db.mjs.
 import * as db from './db.mjs';
 import { createEstimate } from './estimate.mjs';
+import { createAccuracy } from './accuracy.mjs';
+import * as cal from './vendor/calibration.mjs';
 import {
   ANGLES, LIGHTINGS, STATES, METHODS, KINDS, SPLIT_LABEL, MIN_PHOTOS_RECOMMENDED,
   sha256Hex, dHashFromRGBA, isoWithOffset, splitForCapture, plateFromForm, checkMealDraft, mealFromDraft, newMealId,
@@ -75,13 +77,16 @@ async function snapshot() {
   return { plates, meals, scale };
 }
 
-// ---------------------------------------------------------------- home
+// ---------------------------------------------------------------- home: point the camera at the plate (T-016, zero setup)
 async function screenHome() {
-  const { plates, meals } = await snapshot();
-  const estimates = await db.getAll('estimates');
-  const lastExport = await db.getSetting('last_export');
-  const cal = meals.filter(m => m.split === 'calibration').length;
-  const draft = await db.getSetting('draft');
+  const [estimates, checks, draft, priors] = await Promise.all([db.getAll('estimates'), db.getAll('checks'), estimate.draftInfo(), fetch('data/priors.json').then((r) => r.json()).catch(() => null)]);
+  const label = priors ? cal.learn(checks, cal.paramsFrom(priors)).label : 'Não calibrado';
+  estimate.prewarm(); // the models load while the owner takes the photo
+  const shoot = (text, capture, cls) => h('label', { class: `btn ${cls}` }, text,
+    h('input', { type: 'file', accept: 'image/*', ...(capture ? { capture: 'environment' } : {}), onchange: (e) => {
+      const file = e.target.files[0]; e.target.value = '';
+      if (file) estimate.beginWithFile(file).catch((err) => toast(`Não consegui abrir a foto: ${err.message}`));
+    } }));
   const nodes = [h('h1', {}, 'Macrofy')];
   if (!standalone() && !sessionStorage.getItem('macrofy-a2hs-dismissed')) {
     nodes.push(h('div', { class: 'banner', role: 'note' },
@@ -90,19 +95,39 @@ async function screenHome() {
       h('button', { class: 'secondary small', style: 'margin-top:8px', onclick: (e) => { try { sessionStorage.setItem('macrofy-a2hs-dismissed', '1'); } catch { /* private mode */ } e.target.closest('.banner').remove(); } }, 'Entendi')));
   }
   nodes.push(
+    h('div', { class: 'stack' }, shoot('Apontar para o prato', true, 'big'), shoot('Escolher da galeria', false, 'secondary small')),
+    draft ? h('div', { class: 'card', id: 'home-draft' }, h('p', {}, `Você tinha uma estimativa em andamento (${fmtDate(draft.savedAt)}).`),
+      h('div', { class: 'row' }, h('a', { class: 'btn small', href: '#/estimate/resume' }, 'Retomar'),
+        h('button', { class: 'secondary small', onclick: async () => { await estimate.discardDraft(); screenHome(); } }, 'Descartar'))) : null,
+    h('div', { class: 'card muted', id: 'home-state' }, h('span', { class: `badge ${checks.length ? 'cal' : 'uncal'}` }, label), h('br'),
+      persisted === true ? 'Armazenamento protegido pelo navegador.' : persisted === false ? 'O navegador não garantiu o armazenamento permanente: instale na Tela de Início.' : 'Armazenamento permanente indisponível neste navegador.'),
     h('div', { class: 'stack' },
-      h('a', { class: 'btn', href: '#/meal' }, draft ? 'Continuar refeição em andamento' : 'Pesar refeição'),
-      draft ? h('a', { class: 'btn secondary', href: '#/meal/new' }, 'Começar uma refeição nova') : null,
-      h('a', { class: 'btn secondary', href: '#/estimate/new' }, 'Estimar'),
       h('a', { class: 'btn secondary', href: '#/estimates' }, `Estimativas salvas (${estimates.length})`),
-      h('a', { class: 'btn secondary', href: '#/meals' }, `Refeições salvas (${meals.length})`),
-      h('a', { class: 'btn secondary', href: '#/plates' }, `Pratos e balança (${plates.length})`),
-      h('a', { class: 'btn secondary', href: '#/export' }, 'Exportar manifesto')),
-    h('div', { class: 'card muted' },
-      `${meals.length} refeições: ${cal} de calibração, ${meals.length - cal} de teste.`, h('br'),
-      lastExport ? `Último export: ${fmtDate(lastExport)}.` : 'Ainda não exportou. Exporte de vez em quando: é a sua cópia de segurança.', h('br'),
-      persisted === true ? 'Armazenamento protegido pelo navegador.' : persisted === false ? 'O navegador não garantiu o armazenamento permanente: instale na Tela de Início e exporte com frequência.' : 'Armazenamento permanente indisponível neste navegador.'));
+      h('a', { class: 'btn secondary', href: '#/accuracy' }, `Precisão (${checks.length} conferência${checks.length === 1 ? '' : 's'})`),
+      h('a', { class: 'small-link', href: '#/settings', id: 'settings-link' }, 'Ajustes / Corrigir')));
   show(...nodes);
+}
+
+// ---------------------------------------------------------------- Ajustes / Corrigir: everything optional (plates, manual taps, the old weighing flow)
+async function screenSettings() {
+  const { plates, meals } = await snapshot();
+  const draft = await db.getSetting('draft');
+  const lastExport = await db.getSetting('last_export');
+  const cal_ = meals.filter(m => m.split === 'calibration').length;
+  show(back(), h('h1', {}, 'Ajustes / Corrigir'),
+    h('p', { class: 'muted' }, 'Nada daqui é necessário para usar o Macrofy: aponte a câmera e pronto. Estas são ferramentas opcionais.'),
+    h('h2', {}, 'Corrigir uma estimativa'),
+    h('div', { class: 'stack' }, h('a', { class: 'btn secondary', href: '#/estimate/manual' }, 'Modo manual (marcar com toques)')),
+    h('h2', {}, 'Escala mais precisa'),
+    h('div', { class: 'stack' }, h('a', { class: 'btn secondary', href: '#/plates' }, `Pratos e balança (${plates.length})`)),
+    h('h2', {}, 'Pesar refeição (fluxo antigo)'),
+    h('div', { class: 'stack' },
+      h('a', { class: 'btn secondary', href: '#/meal' }, draft ? 'Continuar refeição em andamento' : 'Pesar refeição'),
+      draft ? h('a', { class: 'btn secondary', href: '#/meal/new' }, 'Começar uma refeição nova') : null,
+      h('a', { class: 'btn secondary', href: '#/meals' }, `Refeições salvas (${meals.length})`),
+      h('a', { class: 'btn secondary', href: '#/export' }, 'Exportar manifesto')),
+    h('div', { class: 'card muted' }, `${meals.length} refeições pesadas: ${cal_} de calibração, ${meals.length - cal_} de teste.`, h('br'),
+      lastExport ? `Último export: ${fmtDate(lastExport)}.` : 'Ainda não exportou o manifesto.'));
 }
 
 // ---------------------------------------------------------------- plates and scale
@@ -350,9 +375,12 @@ async function screenExport() {
 
 // ---------------------------------------------------------------- estimation (T-013): screens live in estimate.mjs
 const estimate = createEstimate({ h, show, back, errorBox, toast, db, objUrl, fmtDate, bitmapOf, searchVocab, isoWithOffset, getVocab: () => vocab });
+// ---------------------------------------------------------------- accuracy (T-016): scale checks scored by the evaluation engine
+const accuracy = createAccuracy({ h, show, back, errorBox, db, objUrl, isoWithOffset, getVocab: () => vocab });
 
 // ---------------------------------------------------------------- router and start
 const ROUTES = [
+  [/^#\/settings$/, screenSettings], [/^#\/accuracy$/, accuracy.screenAccuracy], [/^#\/estimate\/manual$/, estimate.screenEstimateManual], [/^#\/estimate\/resume$/, estimate.screenEstimateResume],
   [/^#\/estimate\/new$/, estimate.screenEstimateNew], [/^#\/estimate$/, estimate.screenEstimate], [/^#\/estimates$/, estimate.screenEstimates],
   [/^#\/?$/, screenHome], [/^#\/meal$/, () => screenMeal(false)], [/^#\/meal\/new$/, () => screenMeal(true)],
   [/^#\/meals$/, screenMeals], [/^#\/meals\/(.+)$/, (m) => screenMealDetail(decodeURIComponent(m[1]))],

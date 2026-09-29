@@ -367,12 +367,12 @@ await t('the 4.3.0 to 3.8.1 fallback and the injectable model layer are unchange
 
 // ---------------------------------------------------------------- capture app (web/app)
 const { staleCopies, COPIES } = await import(pathToFileURL(f('sync-data.mjs')));
-const appFiles = ['index.html', 'app.css', 'app.mjs', 'lib.mjs', 'db.mjs', 'estimate.mjs', 'sw.js', 'manifest.webmanifest', 'vendor/schema-core.mjs', 'vendor/lookup-core.mjs', 'vendor/estimate-core.mjs', 'vendor/models.mjs', 'vendor/autoseg.mjs', 'data/vocab.json', 'data/priors.json', 'data/calibration.json', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
+const appFiles = ['index.html', 'app.css', 'app.mjs', 'lib.mjs', 'db.mjs', 'estimate.mjs', 'accuracy.mjs', 'sw.js', 'manifest.webmanifest', 'vendor/calibration.mjs', 'vendor/metrics.mjs', 'vendor/schema-core.mjs', 'vendor/lookup-core.mjs', 'vendor/estimate-core.mjs', 'vendor/models.mjs', 'vendor/autoseg.mjs', 'data/vocab.json', 'data/priors.json', 'data/calibration.json', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 t('capture app files exist', () => appFiles.forEach((p) => assert.ok(existsSync(f(`app/${p}`)), `missing web/app/${p}`)));
 t('DRIFT: web/app copies equal their sources (else run node web/sync-data.mjs)', () => {
   const stale = staleCopies();
   assert.deepEqual(stale.map((c) => c.to), [], `stale copies: ${stale.map((c) => c.to).join(', ')}. Run: node web/sync-data.mjs`);
-  for (const to of ['web/app/vendor/lookup-core.mjs', 'web/app/vendor/estimate-core.mjs', 'web/app/vendor/models.mjs', 'web/app/vendor/autoseg.mjs', 'web/app/data/priors.json', 'web/app/data/calibration.json']) assert.ok(COPIES.some((c) => c.to === to), `sync-data.mjs does not copy ${to}`);
+  for (const to of ['web/app/vendor/lookup-core.mjs', 'web/app/vendor/estimate-core.mjs', 'web/app/vendor/models.mjs', 'web/app/vendor/autoseg.mjs', 'web/app/vendor/calibration.mjs', 'web/app/vendor/metrics.mjs', 'web/app/data/priors.json', 'web/app/data/calibration.json']) assert.ok(COPIES.some((c) => c.to === to), `sync-data.mjs does not copy ${to}`);
 });
 t('the drift check really fails on a stale copy', () => {
   const copy = COPIES.find((c) => c.to.endsWith('vocab.json')); const p = f(copy.to.replace(/^web\//, ''));
@@ -382,7 +382,7 @@ t('the drift check really fails on a stale copy', () => {
   assert.deepEqual(staleCopies(), []);
 });
 t('the drift check also catches a stale estimation core, the automatic-mode module and priors', () => {
-  for (const to of ['web/app/vendor/estimate-core.mjs', 'web/app/vendor/autoseg.mjs', 'web/app/data/priors.json']) {
+  for (const to of ['web/app/vendor/estimate-core.mjs', 'web/app/vendor/autoseg.mjs', 'web/app/vendor/calibration.mjs', 'web/app/vendor/metrics.mjs', 'web/app/data/priors.json']) {
     const p = f(to.replace(/^web\//, '')); const good = readFileSync(p);
     try { writeFileSync(p, Buffer.concat([good, Buffer.from(' ')])); assert.deepEqual(staleCopies().map((c) => c.to), [to]); } finally { writeFileSync(p, good); }
   }
@@ -408,13 +408,13 @@ t('service worker shell lists every app file (except itself) so offline use is c
   for (const p of shell.filter((x) => x !== './')) assert.ok(existsSync(f(`app/${p}`)), `sw.js SHELL names missing ${p}`);
 });
 t('app code has no absolute URLs or root-relative paths (it is served under /artisan-studio/app/)', () => {
-  for (const p of ['app.mjs', 'lib.mjs', 'db.mjs', 'estimate.mjs', 'sw.js', 'index.html', 'manifest.webmanifest']) {
+  for (const p of ['app.mjs', 'lib.mjs', 'db.mjs', 'estimate.mjs', 'accuracy.mjs', 'sw.js', 'index.html', 'manifest.webmanifest']) {
     assert.doesNotMatch(text(`app/${p}`).replace(/xmlns="[^"]*"/g, ''), /(?:src|href|fetch\(|register\(|from )\s*=?\s*['"]\/[^/]/, `root-relative URL in web/app/${p}`);
   }
 });
 t('app has the home actions and the required file input', () => {
   const js = text('app/app.mjs');
-  assert.match(js, /Pesar refeição/); assert.match(js, /href: '#\/estimate\/new'/); assert.doesNotMatch(js, /Estimar \(em breve\)/); assert.match(js, /capture: 'environment'/); assert.match(js, /accept: 'image\/\*'/);
+  assert.match(js, /Pesar refeição/); assert.match(js, /Apontar para o prato/); assert.match(js, /Ajustes \/ Corrigir/); assert.match(js, /href: '#\/accuracy'/); assert.doesNotMatch(js, /Estimar \(em breve\)/); assert.match(js, /capture: 'environment'/); assert.match(js, /accept: 'image\/\*'/);
   assert.match(js, /navigator\.storage\?\.persist/); assert.match(js, /Adicionar à Tela de Início/); assert.match(js, /navigator\.share/);
 });
 t('every relative import of the app modules resolves to a file that is also in the service worker shell', () => {
@@ -425,10 +425,10 @@ t('every relative import of the app modules resolves to a file that is also in t
 });
 t('estimate screens: pt-BR flow, uncalibrated badge, oil question, predictions export, injectable models', () => {
   const js = text('app/estimate.mjs');
-  for (const re of [/Toque uma vez na borda do prato/, /Toque em cada alimento/, /outro…/, /oil_levels/, /Não calibrado — estimativa inicial/, /Exportar previsões/, /Salvar estimativa/, /__macrofyModels/, /namePrompts/, /toPredictions/, /Esta refeição também foi pesada\?/, /Encontrando o prato…/, /Encontrando os alimentos…/, /Modo manual/, /detectAuto/, /segmentPoints/, /plateSetup/, /timings/, /estimate_draft/, /Adicionar alimento/, /Juntar com…/, /Dividir/, /Remover/, /Trocar nome/]) assert.match(js, re);
+  for (const re of [/Toque uma vez na borda do prato/, /Toque em cada alimento/, /outro…/, /oil_levels/, /Não calibrado/, /Exportar previsões/, /Salvar estimativa/, /__macrofyModels/, /namePrompts/, /toPredictions/, /Esta refeição também foi pesada\?/, /Encontrando o prato…/, /Encontrando os alimentos…/, /Modo manual/, /detectAuto/, /segmentPoints/, /plateSetup/, /timings/, /estimate_draft/, /Adicionar alimento/, /Juntar com…/, /Dividir/, /Remover/, /Trocar nome/]) assert.match(js, re);
 });
 t('estimation files exist and the estimate selftest is registered', () => {
-  for (const p of ['estimate/core.mjs', 'estimate/priors.json', 'estimate/calibration.json', 'estimate/selftest.mjs']) assert.ok(existsSync(f(p)), `missing web/${p}`);
+  for (const p of ['estimate/core.mjs', 'estimate/priors.json', 'estimate/calibration.json', 'estimate/calibration.mjs', 'estimate/selftest.mjs', 'estimate/calibration-selftest.mjs']) assert.ok(existsSync(f(p)), `missing web/${p}`);
   const checks = JSON.parse(readFileSync(join(web, '..', 'control', 'checks.json'), 'utf8')).checks;
   assert.deepEqual(checks.find((c) => c.id === 'estimator-selftest')?.cmd, ['node', 'web/estimate/selftest.mjs']);
 });

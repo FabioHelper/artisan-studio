@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as core from './core.mjs';
+import * as calib from './calibration.mjs';
+import { plateSetup, priorsForPlate } from './autoseg.mjs';
 import { createLookup } from '../../nutrition/lookup-core.mjs';
 import { truthNutrients, VOCAB } from '../../nutrition/lookup.mjs';
 import { SCHEMA_ID } from '../../bench/schema.mjs';
@@ -202,6 +204,7 @@ check('predictions: unlinked estimates get an est- id; the newest estimate of a 
 })());
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
+const sha256 = sha;
 const tinyManifest = {
   schema: SCHEMA_ID, scale: { model: 'Fixture Scale', resolution_g: 1 }, plates: [{ id: 'p1', diameter_mm: 260, kind: 'plate' }],
   meals: [{
@@ -224,6 +227,48 @@ if (report) {
   closeTo('eval: 80% interval coverage 1', report.interval80.coverage, 1, 1e-12);
   check('eval: meal kcal is scored (not skipped)', report.meal_kcal.n === 1 && near(report.per_meal[0].kcal_pred, 421.63, 0.01) && report.per_meal[0].kcal_true > 0);
 }
+
+// ---------------------------------------------------------------- T-016 zero setup: the no-plate walk, scale checks and the default path
+// The browser walk is web/estimate/smoke.mjs (manual); this is its pure counterpart: photo (a plate mask) -> typical-plate scale -> estimate -> scale check
+// -> learned correction -> the next estimate. No plate is registered and nothing is tapped anywhere in it.
+const typicalSetup = plateSetup(priors, null);
+const typicalScale = core.scaleFromPlateMask(plateMask, typicalSetup.diameter_mm); // the plate mask of the ellipse fixture, scaled by the 260 mm typical plate
+const zeroState = calib.learn([], calib.paramsFrom(priors));
+const walk = (calibration) => ['arroz-branco-cozido', 'bife-grelhado', 'salada-mista-crua'].map((id, i) => core.estimateItem({ cls: cls(id), pixels: [20000, 12000, 15000][i], scale: typicalScale, priors: priorsForPlate(priors, typicalSetup), lookup, calibration }));
+const w0 = walk(core.loadCalibration(calib.toCalibration(zeroState)));
+check('zero setup: with no plate registered the typical plate (26 cm) sets the scale and every factor is 1', typicalSetup.typical === true && typicalSetup.diameter_mm === 260 && w0.every((i) => i.grams === i.raw_grams && i.calibrated === false) && zeroState.label === 'Não calibrado');
+check('zero setup: the typical plate widens every range against a measured plate (0.12 vs 0.05 scale uncertainty)', w0.every((i) => i.sigma_scale > core.scaleSigma(0.05) + 0.1));
+const shownAll = calib.applyRanges(w0, core.totals(w0), zeroState);
+check('zero setup: with no checks the ranges stay the model ranges', shownAll.items.every((i, k) => i.lo80 === w0[k].lo80 && i.hi80 === w0[k].hi80 && i.range_basis === 'model') && shownAll.totals.range_basis === 'model');
+const stateOf = (id) => cls(id).state;
+const est1 = { id: 'e1', items: w0, totals: core.totals(w0), plate_typical: true, diameter_mm: 260, oil: 'normal', pipeline: core.PIPELINE };
+const built = calib.buildCheck({ estimate: est1, truth_items: [String(w0[0].grams * 1.25), '', ''], other_app_kcal: '500', photo_sha256: sha256('walk-photo'), created_at: '2026-09-29T12:00:00-03:00', state: zeroState, stateOf });
+check('scale check: the owner types the rice grams (x1.25 of the estimate) and an other-app kcal; nothing else is required', !!built.check && built.check.truth_kind === 'items' && built.check.other_app_kcal === 500 && built.check.items[1].truth_g === null);
+const afterOne = calib.learn([built.check], calib.paramsFrom(priors));
+// truth / raw = 1.25 and k = 5: weight 1/6, factor 1.25^(1/6) = exp(0.223144 / 6) = exp(0.0371906) = 1.03789
+closeTo('scale check: one weighing moves the global factor to 1.25^(1/6) = 1.03789', afterOne.global.factor, 1.03789, 1e-4);
+check('scale check: the calibration state changes from "Não calibrado" to "Calibrado com 1 conferência"', zeroState.label === 'Não calibrado' && afterOne.label === 'Calibrado com 1 conferência');
+const w1 = walk(core.loadCalibration(calib.toCalibration(afterOne)));
+check('scale check: the next estimate shows grams x 1.03789 and is flagged calibrated', w1.every((i, k) => near(i.grams, w0[k].raw_grams * 1.03789, 0.1) && i.calibrated === true && i.raw_grams === w0[k].raw_grams));
+check('scale check: the other-app kcal is never learned from (it is not in learn)', !/other_app/.test(calib.learn.toString()) && !/other_app/.test(calib.observations.toString()));
+check('scale check: the checks export is an engine input the validator and evaluate accept (round trip in calibration-selftest)', validatePredictions(calib.checksToBench([built.check]).predictions).length === 0);
+
+// The default path, by source: the home screen, the photo screen and the result show no plate, ruler, registration or weighing prompt outside "Ajustes / Corrigir".
+const appDir = join(HERE, '..', 'app');
+const appJs = fs.readFileSync(join(appDir, 'app.mjs'), 'utf8'); const estJs = fs.readFileSync(join(appDir, 'estimate.mjs'), 'utf8');
+const between = (text, a, b) => { const i = text.indexOf(a); const j = text.indexOf(b, i + a.length); return i < 0 || j < 0 ? '' : text.slice(i, j); };
+const home = between(appJs, 'async function screenHome()', 'async function screenSettings()');
+const photo = between(estJs, 'async function viewPhoto()', '// plate scale:');
+const confirmView = between(estJs, 'async function viewConfirm()', 'async function persistEstimate');
+const NAGS = /#\/plates|#\/meal|#\/estimate\/new|Pesar refeição|régua|Cadastr|Nenhum prato/i;
+check('default path: home is "Apontar para o prato" (camera capture) with a small "Ajustes / Corrigir" link', /Apontar para o prato/.test(home) && /capture: 'environment'/.test(home) && /Ajustes \/ Corrigir/.test(home) && home.length > 200);
+check('default path: no plate, ruler, registration or weighing prompt on the home screen', !NAGS.test(home), (home.match(NAGS) ?? [])[0]);
+check('default path: no plate prompt on the photo screen', photo.length > 100 && !NAGS.test(photo.replace(/Modo manual/g, '')), (photo.match(NAGS) ?? [])[0]);
+const pickerHidden = (view) => { const i = view.indexOf("id: 'adjust'"); return i > 100 && !/plate-select|add-item|go-manual|meal-link|#\/plates/.test(view.slice(0, i)) && /plate-select/.test(view.slice(i)); };
+check('default path: on the result the plate picker, manual taps and the weighed-meal link exist only inside the "Ajustes / Corrigir" details', confirmView.length > 500 && pickerHidden(confirmView));
+check('default path: "Conferir com balança" is on the result, optional, and stores other_app_kcal as comparison only', /Conferir com balança \(opcional\)/.test(estJs) && /other_app_kcal/.test(fs.readFileSync(join(HERE, 'calibration.mjs'), 'utf8')) && /Nunca é usado como verdade|nunca é usado como verdade/.test(estJs));
+check('default path: the checks store exists in IndexedDB and the accuracy screen is routed', /checks: 'id'/.test(fs.readFileSync(join(appDir, 'db.mjs'), 'utf8')) && /#\\\/accuracy/.test(appJs));
+check('default path: the "Pesar refeição" code is kept, under Ajustes / Corrigir', /Pesar refeição/.test(between(appJs, 'async function screenSettings()', '// ---------------------------------------------------------------- plates and scale')) && /async function screenMeal/.test(appJs));
 
 // ---------------------------------------------------------------- negative checks: the assertions must bite
 const bites = (name, fn) => check(`negative: ${name}`, fn() === true);
@@ -248,6 +293,13 @@ bites('summing the item bounds would fail the totals fixture (202.7 / 451.6 inst
 bites('treating the scale error as independent per item (no shared term) would fail the totals fixture', () => {
   const noShared = core.totals(items3.map((i) => ({ ...i, sigma_scale: 0 })));
   return !near(noShared.sigma, 0.2052, 1e-4) && !near(noShared.lo80, 232.2, 0.15);
+});
+bites('a home screen with a plate link or a weighing prompt is caught by the default-path rule', () => NAGS.test(home.replace('Ajustes / Corrigir', 'Cadastrar prato #/plates')) && NAGS.test(`${home} Pesar refeição`) && !NAGS.test(home));
+bites('a result whose plate picker sits before the Ajustes details fails the default-path rule', () => pickerHidden(confirmView) && !pickerHidden(`h('select', { id: 'plate-select' }) ${confirmView}`));
+bites('a check whose rice was weighed at x1.25 must not leave the state at "Não calibrado"', () => afterOne.label !== 'Não calibrado' && !near(afterOne.global.factor, 1, 1e-3));
+bites('learning from the shown (already corrected) grams instead of raw would compound: shown x1.03789 with truth x1.25 gives a different factor', () => {
+  const shown = w1[0].grams; const wrong = Math.exp(Math.log(w0[0].raw_grams * 1.25 / shown) / 6);
+  return !near(wrong, 1.03789, 1e-3);
 });
 bites('the eval validator rejects a broken export (negative grams, lo80 > hi80, bad schema)', () => {
   const broken = JSON.parse(JSON.stringify(preds)); broken.meals[0].items[0].grams = -1;

@@ -1,9 +1,9 @@
 // App-shell cache for offline use. Network first (so a new deploy shows up on the next open), cache as fallback.
 // web/selftest.mjs checks that SHELL lists every file of the app, so add new files here.
-const CACHE = 'macrofy-app-v3';
+const CACHE = 'macrofy-app-v4';
 const SHELL = [
   './', 'index.html', 'app.css', 'app.mjs', 'lib.mjs', 'db.mjs', 'manifest.webmanifest',
-  'estimate.mjs', 'vendor/schema-core.mjs', 'vendor/lookup-core.mjs', 'vendor/estimate-core.mjs', 'vendor/models.mjs', 'vendor/autoseg.mjs',
+  'estimate.mjs', 'accuracy.mjs', 'vendor/calibration.mjs', 'vendor/metrics.mjs', 'vendor/schema-core.mjs', 'vendor/lookup-core.mjs', 'vendor/estimate-core.mjs', 'vendor/models.mjs', 'vendor/autoseg.mjs',
   'data/vocab.json', 'data/priors.json', 'data/calibration.json',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];

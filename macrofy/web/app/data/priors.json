@@ -96,7 +96,7 @@
     },
     "decode_batch": {
       "value": 4,
-      "rationale": "Point prompts decoded per model call; larger batches cost memory on the phone, smaller ones cost call overhead.",
+      "rationale": "Points decoded between time-budget checks and progress updates. Each point is its own decoder run (T-017: SAM 2.1 takes one prompt group per run, so runs are not batched); larger chunks check the budget less often.",
       "assumption": true,
       "calibrate_from": "phone timing"
     },

@@ -442,12 +442,12 @@
         "G-1",
         "G-5"
       ],
-      "status": "todo",
+      "status": "active",
       "review": "required",
       "depends_on": [
         "T-005"
       ],
-      "spec": null,
+      "spec": "docs/specs/SPEC-T-017-real-model-contract.md",
       "acceptance": [
         {
           "id": "A1",

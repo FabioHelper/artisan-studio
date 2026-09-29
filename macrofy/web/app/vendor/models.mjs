@@ -117,10 +117,13 @@ export function buildTable(file) {
   return table;
 }
 const unit = (v) => { let n = 0; for (const x of v) n += x * x; n = Math.sqrt(n) || 1; return Float32Array.from(v, (x) => x / n); };
-/** Image embedding from a vision-only handle (CLIP: image_embeds; SigLIP has no projection: pooler_output). Normalized. */
+/** Output names of a vision tower that carry the image embedding, first present wins (CLIP: image_embeds; SigLIP has no projection: pooler_output). */
+export const IMAGE_EMBED_OUTPUTS = ['image_embeds', 'pooler_output', 'embeds'];
+export const pickEmbedding = (out) => { for (const k of IMAGE_EMBED_OUTPUTS) if (out?.[k]) return out[k]; return undefined; };
+/** Image embedding from a vision-only handle. Normalized. */
 export async function embedImage(h, img) {
   const out = await h.model(await h.proc(img));
-  const t = out.image_embeds ?? out.pooler_output ?? out.embeds;
+  const t = pickEmbedding(out);
   if (!t?.data) throw new Error(`o codificador de imagem não devolveu embedding (saídas: ${Object.keys(out ?? {}).join(', ')})`);
   return unit(t.data);
 }
@@ -147,6 +150,101 @@ export async function prepareEmbeddings(modelId, { labels, base, loadEmbeddings 
   const chk = await checkEmbeddings(file, { modelId, labels: typeof labels === 'function' ? await labels() : (labels ?? await vocabLabels()) });
   if (!chk.ok) throw new EmbeddingsError(modelId, chk.reason);
   return { revision: file.revision, file, table: buildTable(file) };
+}
+
+// ---------------------------------------------------------------- ONNX input contract (T-017, F-008)
+// The real input names, ranks and fixed dimensions of every model file are recorded from the ONNX graphs in CI (web/lib/model-contracts.json,
+// written by tools/probe-contracts.mjs). Every tensor we build by hand is a plain spec { name, type, dims, data } that Node can check
+// against that contract without the library (checkTensorSpecs), so a shape the model refuses fails a local test, not the owner's phone.
+// File name suffix of each transformers.js dtype, and the ONNX file of a model part in a dtype.
+export const DTYPE_SUFFIX = { fp32: '', fp16: '_fp16', q8: '_quantized', int8: '_int8', uint8: '_uint8', q4: '_q4', q4f16: '_q4f16', bnb4: '_bnb4' };
+export const onnxFileName = (part, dtype) => `onnx/${part}${DTYPE_SUFFIX[dtype] ?? `_${dtype}`}.onnx`;
+const isFixedDim = (d) => Number.isInteger(d) && d >= 0;
+const elems = (dims) => dims.reduce((a, b) => a * b, 1);
+export const SAM_DECODER = 'prompt_encoder_mask_decoder';
+export const SAM_ENCODER = 'vision_encoder';
+/** Decoder inputs the library fills in itself (image embeddings from the encoder, default boxes), so we never build them. */
+export const SAM_LIBRARY_INPUTS = /^(image_embeddings(\.\d+)?|image_positional_embeddings|input_boxes)$/;
+
+/**
+ * Checks tensor specs against the recorded inputs of one ONNX file `{ path, inputs: [{ name, type, dims }] }`: the name is an input, the type
+ * matches, the rank matches and every FIXED dimension of the contract equals ours (symbolic dimensions accept any size >= 0); `data` has as
+ * many elements as `dims` say. `partial` contracts (a hand-written fixture) tolerate specs whose input they do not list. -> { ok, errors }
+ */
+export function checkTensorSpecs(specs, file, { partial = false } = {}) {
+  const errors = [];
+  for (const s of specs) {
+    const def = file?.inputs?.find((i) => i.name === s.name);
+    if (!def) { if (!partial) errors.push(`"${s.name}" is not an input of ${file?.path ?? 'the model'} (inputs: ${(file?.inputs ?? []).map((i) => i.name).join(', ') || 'none'})`); continue; }
+    if (def.type && s.type !== def.type) errors.push(`${s.name}: type ${s.type}, the model expects ${def.type}`);
+    if (Array.isArray(def.dims)) {
+      if (def.dims.length !== s.dims.length) { errors.push(`${s.name}: rank ${s.dims.length} (dims [${s.dims}]), the model expects rank ${def.dims.length} (dims [${def.dims}])`); continue; }
+      def.dims.forEach((d, i) => { if (isFixedDim(d) && d !== s.dims[i]) errors.push(`${s.name}: dimension ${i} is ${s.dims[i]}, the model fixes it to ${d}`); });
+    }
+    if (s.data.length !== elems(s.dims)) errors.push(`${s.name}: ${s.data.length} values for dims [${s.dims}]`);
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+/**
+ * The prompt tensors of ONE SAM prompt group (one decoder run): `points` [[x, y], ...] in the model input space (see scaleSamPoint), `labels`
+ * one per point (1 foreground, 0 background). Layout [batch 1, prompt group 1, points, 2] and [1, 1, points], the rank taken from `contract`
+ * (a file entry, or null for the default rank 4 / 3). SAM 2.1 fixes the prompt-group dimension to 1 (F-008: 4 groups in one run were refused),
+ * so callers decode one group per run and loop. Throws when the contract refuses the result. Pure: plain specs, no library.
+ */
+export function samPromptTensors(points, labels, contract = null, { partial = false } = {}) {
+  if (!Array.isArray(points) || !points.length) throw new Error('SAM precisa de pelo menos um ponto');
+  if (!Array.isArray(labels) || labels.length !== points.length) throw new Error('um rótulo por ponto');
+  if (!points.every((p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))) throw new Error('pontos inválidos');
+  const n = points.length;
+  const rank = (name, dflt) => contract?.inputs?.find((i) => i.name === name)?.dims?.length ?? dflt;
+  const layout = (r, tail) => (r === 4 ? [1, 1, n, ...tail] : r === 3 ? (tail.length ? [1, n, ...tail] : [1, 1, n]) : r === 2 ? [1, n] : null);
+  const pd = layout(rank('input_points', 4), [2]); const ld = layout(rank('input_labels', 3), []);
+  if (!pd || !ld) throw new Error('rank de input_points/input_labels não suportado pelo contrato');
+  const specs = [{ name: 'input_points', type: 'float32', dims: pd, data: points.flat() }, { name: 'input_labels', type: 'int64', dims: ld, data: labels.map(Number) }];
+  if (contract) { const r = checkTensorSpecs(specs, contract, { partial }); if (!r.ok) throw new Error(`os tensores de prompt não seguem o contrato do modelo: ${r.errors.join('; ')}`); }
+  return specs;
+}
+/** A point in image pixels -> the model input space (the processor's own resize factors: reshaped / original, per axis). */
+export const scaleSamPoint = (p, originalSize, reshapedSize) => ({ x: p.x * reshapedSize[1] / originalSize[1], y: p.y * reshapedSize[0] / originalSize[0] });
+/** A tensor spec -> a library Tensor (int64 needs BigInt values). `T` is the transformers.js module. */
+export const specToTensor = (T, s) => new T.Tensor(s.type, s.type === 'int64' ? BigInt64Array.from(s.data, (v) => BigInt(v)) : Float32Array.from(s.data), s.dims);
+
+/** The recorded files of `part` ('vision_encoder', 'vision_model', ...) of a model in a contracts object, any dtype. */
+export function contractFiles(contracts, modelId, part) {
+  const re = new RegExp(`^onnx/${part}(_[a-z0-9]+)?\\.onnx$`);
+  return (contracts?.models?.find((m) => m.id === modelId)?.files ?? []).filter((f) => re.test(f.path));
+}
+/**
+ * Whole-model check of a SAM decoder file against what our code feeds it: our tensors (single tap: one point; grid: the same, one run per point)
+ * pass checkTensorSpecs, and every OTHER decoder input is one the library provides (SAM_LIBRARY_INPUTS) and, when the matching encoder file is
+ * given, one the encoder outputs. Returns the error list (empty = fine).
+ */
+export function checkSamDecoder(decoder, { encoder = null, partial = false, nPoints = [1] } = {}) {
+  const errors = [];
+  for (const n of nPoints) {
+    const pts = Array.from({ length: n }, (_, i) => [10 + i, 20 + i]);
+    try { samPromptTensors(pts, pts.map(() => 1), decoder, { partial }); } catch (e) { errors.push(`${decoder.path}, ${n} point(s): ${e.message}`); }
+  }
+  if (!partial) {
+    for (const i of decoder.inputs) {
+      if (i.name === 'input_points' || i.name === 'input_labels') continue;
+      if (!SAM_LIBRARY_INPUTS.test(i.name)) errors.push(`${decoder.path}: input "${i.name}" is neither built by samPromptTensors nor provided by the library`);
+      else if (encoder && i.name !== 'input_boxes' && !encoder.outputs?.some((o) => o.name === i.name)) errors.push(`${decoder.path}: input "${i.name}" is not an output of ${encoder.path}`);
+    }
+    for (const name of ['input_points', 'input_labels']) if (!decoder.inputs.some((i) => i.name === name)) errors.push(`${decoder.path}: no input "${name}"`);
+  }
+  return errors;
+}
+/** A naming vision tower file: the only input is `pixel_values` (rank 4, 3 channels) and an output carries the image embedding. Returns the error list. */
+export function checkNamingVision(file) {
+  const errors = [];
+  const names = file.inputs.map((i) => i.name);
+  if (names.join() !== 'pixel_values') errors.push(`${file.path}: inputs are [${names}], our code feeds only pixel_values`);
+  const px = file.inputs.find((i) => i.name === 'pixel_values');
+  if (px?.dims && (px.dims.length !== 4 || (isFixedDim(px.dims[1]) && px.dims[1] !== 3))) errors.push(`${file.path}: pixel_values dims [${px.dims}], expected [batch, 3, H, W]`);
+  if (!file.outputs.some((o) => IMAGE_EMBED_OUTPUTS.includes(o.name))) errors.push(`${file.path}: outputs [${file.outputs.map((o) => o.name)}] contain none of ${IMAGE_EMBED_OUTPUTS.join('/')}`);
+  return errors;
 }
 
 // ---------------------------------------------------------------- which file is being fetched (diagnostics for "Load failed")
@@ -235,44 +333,25 @@ async function loadFirst(T, candidates, { hasGpu, warm, progress, prepare }) {
 const toMask = (data, width, height, score) => { const m = new Uint8Array(width * height); for (let i = 0; i < m.length; i++) m[i] = data[i] ? 1 : 0; return { width, height, data: m, score }; };
 
 /**
- * Splits a post-processed batched SAM output into masks. `masks` is { dims: [pointBatch, nMasks, H, W], data }, `scores` the flat predicted
- * IoUs (pointBatch x nMasks). Keeps the perPoint best-scoring masks of each point, tagged with that point. Pure, so Node tests it.
- */
-export function splitBatchMasks(masks, scores, points, perPoint = 1) {
-  const dims = masks.dims; const H = dims[dims.length - 2]; const W = dims[dims.length - 1]; const n = dims[dims.length - 3]; const pb = dims.length >= 4 ? dims[dims.length - 4] : 1;
-  if (pb !== points.length) throw new Error(`a decodificação em lote devolveu ${pb} conjuntos de máscaras para ${points.length} pontos`);
-  const out = [];
-  for (let p = 0; p < pb; p++) {
-    const cand = [];
-    for (let i = 0; i < n; i++) {
-      const o = (p * n + i) * H * W;
-      cand.push(toMask(masks.data.subarray ? masks.data.subarray(o, o + H * W) : masks.data.slice(o, o + H * W), W, H, scores?.[p * n + i] ?? 0));
-    }
-    cand.sort((a, b) => b.score - a.score).slice(0, perPoint).forEach((m) => out.push({ ...m, point: points[p] }));
-  }
-  return out;
-}
-
-/**
  * The model object the estimate screens use (tests inject a mock with the same methods). Memory: with `sequential` (default on iOS)
  * only one of the two models is resident at a time: SAM loads first, and the naming vision encoder loads on the first classify() after
  * freeing SAM; a later segment() frees it, reloads SAM from the browser cache and encodes the photo again. Otherwise both stay loaded.
  * Naming (T-015) loads only an image tower and scores its embedding against the committed text-embedding file of that model, whose
  * provenance is checked against the vocab labels first (no download otherwise): options `labels` (array or function returning the vocab
  * pt names; default: the vocab.json next to the data folder), `embeddingsBase` (URL of the text-emb folder), `loadEmbeddings(modelId)`
- * (tests), `probe` (the CI probe object; default: loadProbe()) which orders the candidates by real size.
+ * (tests), `probe` (the CI probe object; default: loadProbe()) which orders the candidates by real size, `segmentCandidates`, `namingCandidates` (default: the lists above; the CI integration test narrows them to one model and a CPU dtype).
  *   load(onProgress)            -> { version, backend, segmenter, namer, sequential, warnings }   loads SAM (and the namer unless sequential); progress { stage, label, fraction }
  *   setImage(blob)              -> { encoder_ms }                           the working photo the taps refer to; the image encoder runs once here
  *   segment(x, y)               -> [{ width, height, data, score }]         SAM masks for a point tap (image px), best score first
- *   segmentPoints(points, opts) -> { masks, decodes, done, total, ms, timed_out }   T-014: one prompt per point {x, y}, decoded in batches on the
- *                                  cached embedding; opts { batch, budgetMs, perPoint, onProgress({done, total}), now }; masks carry score and point
+ *   segmentPoints(points, opts) -> { masks, decodes, done, total, ms, timed_out }   T-014: one prompt per point {x, y}, ONE decoder run per point (T-017: SAM 2.1 takes a single prompt group per run) on the
+ *                                  cached embedding; opts { batch (budget check and progress granularity), budgetMs, perPoint, onProgress({done, total}), now }; masks carry score and point
  *   classify(blob, prompts)     -> [{ label, score }]                       image embedding vs text embeddings: one score per prompt (softmax); throws EmbeddingsError when the file is missing or stale
  */
-export function createModels({ importer, versions, sequential = isIOS(), labels, embeddingsBase, loadEmbeddings, probe } = {}) {
-  let segCands = SEGMENT_CANDIDATES; let nameCands = NAMING_CANDIDATES;
+export function createModels({ importer, versions, sequential = isIOS(), labels, embeddingsBase, loadEmbeddings, probe, segmentCandidates = SEGMENT_CANDIDATES, namingCandidates = NAMING_CANDIDATES } = {}) {
+  let segCands = segmentCandidates; let nameCands = namingCandidates;
   const prepare = (c) => prepareEmbeddings(c.id, { labels, base: embeddingsBase, loadEmbeddings });
   let T = null; let seg = null; let name = null; let embeddings = null; let image = null; let info = null;
-  let segP = null; let nameP = null; let hasGpu = false; let progressCb = () => {}; let encoderMs = null;
+  let segP = null; let nameP = null; let hasGpu = false; let progressCb = () => {}; let encoderMs = null; let prepared = null;
 
   async function load(onProgress = () => {}) {
     if (info) return info;
@@ -282,7 +361,7 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
     T = lib.T;
     hasGpu = await detectWebGpu();
     const pr = probe ?? await loadProbe();
-    segCands = orderBySize(SEGMENT_CANDIDATES, pr); nameCands = orderBySize(NAMING_CANDIDATES, pr);
+    segCands = orderBySize(segmentCandidates, pr); nameCands = orderBySize(namingCandidates, pr);
     info = { version: lib.version, backend: null, segmenter: null, namer: null, sequential, warnings: [...lib.errors] };
     await ensureSeg();
     if (!sequential) await ensureNaming(); // on the phone the naming model loads on first use, after the segmentation model is freed
@@ -299,7 +378,7 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
       const probe = await makeProbeImage();
       const r = await loadFirst(T, segCands, {
         hasGpu, progress: progressTracker((e) => progressCb(e), 'segmentation', 'Modelo de contorno (SAM)'),
-        warm: (h) => samRun(h, probe, { x: probe.width / 2, y: probe.height / 2 }).then(() => undefined),
+        warm: async (h) => { const prep = await preprocess(h, probe); await samDecode(h, prep, { x: probe.width / 2, y: probe.height / 2 }, null); },
       });
       seg = r; info.segmenter = r.candidate.id; info.backend = `${r.device}/${r.dtype}`; info.warnings.push(...r.errors);
       if (image) await encode(); // reloaded after being freed: the photo is encoded again
@@ -319,25 +398,21 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
       return name;
     })().finally(() => { nameP = null; }));
   }
-  async function releaseSeg() { const s = seg; seg = null; embeddings = null; try { await s?.handle.dispose(); } catch { /* ignore */ } }
+  async function releaseSeg() { const s = seg; seg = null; embeddings = null; prepared = null; try { await s?.handle.dispose(); } catch { /* ignore */ } }
   async function releaseName() { const n = name; name = null; try { await n?.handle.dispose(); } catch { /* ignore */ } }
 
-  /** One SAM decode of several points at once: one prompt per point, [image][point][1 point][x, y]; the cached embedding is reused. */
-  async function samBatch(h, img, points, cache, perPoint) {
-    const inputs = await h.proc(img, { input_points: [points.map((p) => [[p.x, p.y]])] });
-    const out = cache && typeof h.model.get_image_embeddings === 'function' ? await h.model({ ...inputs, ...cache }) : await h.model(inputs);
-    const masks = await h.proc.post_process_masks(out.pred_masks, inputs.original_sizes, inputs.reshaped_input_sizes);
-    return splitBatchMasks(masks[0], out.iou_scores ? Array.from(out.iou_scores.data) : null, points, perPoint);
-  }
+  /** The processor's output for a photo: pixel_values and the original / resized sizes the prompt points are scaled by. */
+  const preprocess = (h, img) => h.proc(img);
 
-  async function samRun(h, img, point, cache) {
-    const input_points = [[[point.x, point.y]]];
-    const inputs = await h.proc(img, { input_points });
-    let out;
-    if (cache && typeof h.model.get_image_embeddings === 'function') {
-      out = await h.model({ ...inputs, ...cache });
-    } else out = await h.model(inputs);
-    const masks = await h.proc.post_process_masks(out.pred_masks, inputs.original_sizes, inputs.reshaped_input_sizes);
+  /**
+   * One SAM decoder run for ONE prompt group (a single tap): the prompt tensors come from samPromptTensors (one group, contract-checked in Node),
+   * the image side from the cached embedding (or pixel_values when there is none). Masks of that point, best predicted IoU first.
+   */
+  async function samDecode(h, prep, point, cache) {
+    const p = scaleSamPoint(point, prep.original_sizes[0], prep.reshaped_input_sizes[0]);
+    const prompt = Object.fromEntries(samPromptTensors([[p.x, p.y]], [1]).map((spec) => [spec.name, specToTensor(T, spec)]));
+    const out = await h.model({ ...(cache && typeof h.model.get_image_embeddings === 'function' ? cache : { pixel_values: prep.pixel_values }), ...prompt });
+    const masks = await h.proc.post_process_masks(out.pred_masks, prep.original_sizes, prep.reshaped_input_sizes);
     const t = masks[0]; const dims = t.dims; const H = dims[dims.length - 2]; const W = dims[dims.length - 1]; const n = dims[dims.length - 3];
     const scores = out.iou_scores ? Array.from(out.iou_scores.data).slice(0, n) : new Array(n).fill(0);
     return scores.map((score, i) => toMask(t.data.subarray ? t.data.subarray(i * H * W, (i + 1) * H * W) : t.data.slice(i * H * W, (i + 1) * H * W), W, H, score)).sort((a, b) => b.score - a.score);
@@ -345,9 +420,10 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
 
   /** The image encoder runs once per photo; every later prompt only pays for the decoder. */
   async function encode() {
-    embeddings = null; const t0 = performance.now();
+    embeddings = null; prepared = null; const t0 = performance.now();
+    prepared = await preprocess(seg.handle, image);
     if (typeof seg.handle.model.get_image_embeddings === 'function') {
-      try { embeddings = await seg.handle.model.get_image_embeddings(await seg.handle.proc(image)); } catch { embeddings = null; } // fall back to a full run per tap
+      try { embeddings = await seg.handle.model.get_image_embeddings(prepared); } catch { embeddings = null; } // fall back to a full run per tap
     }
     encoderMs = Math.round(performance.now() - t0);
     return { encoder_ms: encoderMs, cached: !!embeddings };
@@ -358,34 +434,34 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
     get info() { return info; },
     async setImage(blob) {
       if (!info) throw new Error('modelos ainda não carregados');
-      image = await T.RawImage.fromBlob(blob); embeddings = null;
+      image = await T.RawImage.fromBlob(blob); embeddings = null; prepared = null;
       await ensureSeg();
       return encode();
     },
     async segment(x, y) {
       if (!image) throw new Error('nenhuma foto carregada');
       const s = await ensureSeg();
-      try { return await samRun(s.handle, image, { x, y }, embeddings); } catch (e) {
+      try { return await samDecode(s.handle, prepared, { x, y }, embeddings); } catch (e) {
         if (!embeddings) throw e;
-        embeddings = null; return samRun(s.handle, image, { x, y }, null); // cached embeddings not accepted by this model: recompute
+        embeddings = null; return samDecode(s.handle, prepared, { x, y }, null); // cached embeddings not accepted by this model: recompute
       }
     },
+    /**
+     * One decoder run per point (F-008: SAM 2.1 accepts one prompt group per run), on the embedding computed once in setImage. `batch` is only the
+     * granularity of the time-budget check and of the progress callbacks. A failing decode is an error (no silent fallback: it hid F-008 on the phone).
+     */
     async segmentPoints(points, { batch = 4, budgetMs = Infinity, perPoint = 1, onProgress = () => {}, now = () => performance.now() } = {}) {
       if (!image) throw new Error('nenhuma foto carregada');
       const s = await ensureSeg();
-      const t0 = now(); const masks = []; let done = 0; let decodes = 0; let timed_out = false; let batched = true;
+      const t0 = now(); const masks = []; let done = 0; let decodes = 0; let timed_out = false;
       onProgress({ done: 0, total: points.length });
       for (let i = 0; i < points.length; i += batch) {
         if (now() - t0 > budgetMs) { timed_out = true; break; }
-        const chunk = points.slice(i, i + batch); let got;
-        try { if (!batched) throw new Error('batched prompts refused earlier'); got = await samBatch(s.handle, image, chunk, embeddings, perPoint); decodes++; }
-        catch { // batched point prompts not accepted by this model build: one prompt per decode (slower, same masks)
-          batched = false; got = [];
-          for (const pt of chunk) { const r = await api.segment(pt.x, pt.y); decodes++; got.push(...r.slice(0, perPoint).map((m) => ({ ...m, point: pt }))); }
-        }
-        masks.push(...got); done += chunk.length; onProgress({ done, total: points.length });
+        const chunk = points.slice(i, i + batch);
+        for (const pt of chunk) { const r = await api.segment(pt.x, pt.y); decodes++; masks.push(...r.slice(0, perPoint).map((m) => ({ ...m, point: pt }))); }
+        done += chunk.length; onProgress({ done, total: points.length });
       }
-      return { masks, decodes, done, total: points.length, ms: Math.round(now() - t0), timed_out, batched };
+      return { masks, decodes, done, total: points.length, ms: Math.round(now() - t0), timed_out };
     },
     async classify(blob, prompts) {
       const img = await T.RawImage.fromBlob(blob);

@@ -225,7 +225,8 @@ const fakeLib = () => {
   visionModel.dispose = async () => {};
   const vision = { from_pretrained: async (id, o) => { calls.vision.push({ id, o }); o.progress_callback?.({ status: 'progress', file: 'onnx/vision_model_quantized.onnx', loaded: 50, total: 100 }); return visionModel; } };
   const forbid = (what) => ({ from_pretrained: async () => { calls.forbidden.push(what); throw new Error(`${what} must not be loaded by the naming stage`); } });
-  const T = { env: {}, RawImage,
+  class Tensor { constructor(type, data, dims) { Object.assign(this, { type, data, dims }); } }
+  const T = { env: {}, RawImage, Tensor,
     async pipeline() { calls.forbidden.push('pipeline'); throw new Error('naming must not use a pipeline'); },
     AutoModel: forbid('AutoModel'), CLIPModel: forbid('CLIPModel'), SiglipModel: forbid('SiglipModel'), CLIPTextModelWithProjection: forbid('text tower'), SiglipTextModel: forbid('text tower'),
     CLIPVisionModelWithProjection: vision, SiglipVisionModel: vision, AutoImageProcessor: { from_pretrained: async () => async () => ({ pixel_values: {} }) },
@@ -319,47 +320,191 @@ await t('parallel mode (desktop): both models load at load() and stay', async ()
   const info = await m.load(); assert.equal(info.sequential, false); assert.ok(info.segmenter && info.namer);
 });
 
-// ---------------------------------------------------------------- batched multi-point SAM decode (T-014)
-const batchLib = ({ refuseBatches = false } = {}) => {
-  const { T } = fakeLib(); const calls = { batches: [], prompts: [] };
-  let k = 1;
-  const proc = async (img, o) => { k = o?.input_points?.[0]?.length ?? 1; calls.batches.push(k); calls.prompts.push(o?.input_points); return { original_sizes: [[2, 2]], reshaped_input_sizes: [[2, 2]], k }; };
-  // mask i of point p is all (p + 1) when i is 1 (the best-scoring one) and empty otherwise, so the output says which point it answers
-  proc.post_process_masks = async () => [{ dims: [k, 3, 2, 2], data: Uint8Array.from({ length: k * 12 }, (_, j) => (Math.floor(j / 4) % 3 === 1 ? Math.floor(j / 12) + 1 : 0)) }];
-  const model = async (inputs) => { if (refuseBatches && inputs.k > 1) throw new Error('batched prompts refused'); return { pred_masks: {}, iou_scores: { data: Array.from({ length: inputs.k * 3 }, (_, j) => [0.2, 0.9, 0.5][j % 3]) } }; };
-  model.get_image_embeddings = async () => ({ image_embeddings: 'e' }); model.dispose = async () => {};
+// ---------------------------------------------------------------- SAM decode: one prompt group per run, checked against the recorded ONNX contract (T-017, F-008)
+// The contract is web/lib/model-contracts.json, recorded from the real ONNX files in CI (tools/probe-contracts.mjs). Until that file exists the
+// hand-written, clearly marked fixture (web/lib/model-contracts.fixture.json: SAM 2.1 tiny decoder, input_points with dimension 1 fixed to 1, as the
+// owner's device error proves) stands in for the parts it covers. Once the real file exists it is used and any mismatch fails.
+const realContracts = existsSync(f('lib/model-contracts.json'));
+const contracts = JSON.parse(text(realContracts ? 'lib/model-contracts.json' : 'lib/model-contracts.fixture.json'));
+const fixture = JSON.parse(text('lib/model-contracts.fixture.json'));
+const partialC = !realContracts; const SAM2 = 'onnx-community/sam2.1-hiera-tiny-ONNX';
+const { gridPoints } = await import(pathToFileURL(f('estimate/autoseg.mjs')));
+const probeContracts = await import(pathToFileURL(join(web, '..', 'tools', 'probe-contracts.mjs'))); const itTool = await import(pathToFileURL(join(web, '..', 'tools', 'model-integration-test.mjs')));
+const decoderFiles = (id) => models.contractFiles(contracts, id, models.SAM_DECODER);
+const F008 = { name: 'input_points', type: 'float32', dims: [1, 4, 1, 2], data: Array(8).fill(0) }; // what the app sent: 4 prompt groups in one run
+await t('contracts: the real recording is complete (every SAM and naming file of every candidate and dtype), or the fixture is marked as one', () => {
+  assert.equal(contracts.schema, 'macrofy.model-contracts/1');
+  if (!realContracts) { assert.equal(fixture.fixture, true); assert.equal(fixture.partial, true); assert.match(fixture.note, /HAND-WRITTEN FIXTURE/); console.log('note: web/lib/model-contracts.json does not exist yet (the macrofy-models workflow writes it): the tests below use the hand-written fixture for SAM 2.1 tiny only'); return; }
+  assert.ok(!contracts.fixture && !contracts.partial, 'the real contracts file must not be a fixture');
+  const probe = JSON.parse(text('lib/model-probe.json'));
+  for (const m of probeContracts.contractModels()) {
+    if (m.kind === 'depth' && !probe.models.some((x) => x.id === m.id && x.revision)) continue; // depth is informational and only probed by newer workflow runs
+    const { paths } = probeContracts.contractPaths(m, probe.models.find((x) => x.id === m.id)); const rec = contracts.models.find((x) => x.id === m.id);
+    assert.ok(rec, `no contracts recorded for ${m.id}: run the macrofy-models workflow`);
+    for (const p of paths) { const file = rec.files.find((x) => x.path === p); assert.ok(file, `${m.id}: ${p} is not recorded`); assert.ok(!file.error && file.inputs.length && file.outputs.length, `${m.id}: ${p} has no usable recording (${file.error ?? 'empty'})`); }
+  }
+});
+await t('single tap: input_points [1,1,1,2] float32 and input_labels [1,1,1] int64, matching the input names, ranks and fixed dimensions of every recorded SAM decoder', () => {
+  const tap = models.samPromptTensors([[3, 4]], [1]);
+  assert.deepEqual(tap, [{ name: 'input_points', type: 'float32', dims: [1, 1, 1, 2], data: [3, 4] }, { name: 'input_labels', type: 'int64', dims: [1, 1, 1], data: [1] }]);
+  let seen = 0;
+  for (const c of models.SEGMENT_CANDIDATES) {
+    for (const file of decoderFiles(c.id)) {
+      seen++; assert.deepEqual(models.checkTensorSpecs(tap, file, { partial: partialC }), { ok: true, errors: [] }, file.path);
+      assert.deepEqual(models.samPromptTensors([[3, 4]], [1], file, { partial: partialC }), tap);
+      const enc = models.contractFiles(contracts, c.id, models.SAM_ENCODER).find((e) => e.path === file.path.replace(models.SAM_DECODER, models.SAM_ENCODER));
+      if (realContracts) assert.ok(enc, `${file.path}: the matching vision encoder is not recorded`);
+      assert.deepEqual(models.checkSamDecoder(file, { encoder: enc ?? null, partial: partialC }), [], file.path);
+    }
+    if (realContracts) for (const [, dtype] of models.backendsOf(c)) for (const part of [models.SAM_ENCODER, models.SAM_DECODER]) assert.ok(models.contractFiles(contracts, c.id, part).some((x) => x.path === models.onnxFileName(part, dtype)), `${c.id}: no ${part} contract for dtype ${dtype}`);
+  }
+  assert.ok(seen >= 1 && decoderFiles(SAM2).length >= 1, 'no SAM 2.1 tiny decoder contract to check against');
+});
+await t('grid of N points: N separate decoder runs, each one prompt group of one point, each matching the contract', () => {
+  const pts = gridPoints(640, 480, 8); assert.equal(pts.length, 64);
+  for (const file of decoderFiles(SAM2)) {
+    const runs = pts.map((p) => models.samPromptTensors([[p.x, p.y]], [1], file, { partial: partialC }));
+    assert.equal(runs.length, 64); assert.ok(runs.every((r) => r[0].dims.join() === '1,1,1,2' && r[1].dims.join() === '1,1,1' && models.checkTensorSpecs(r, file, { partial: partialC }).ok));
+    assert.deepEqual(runs.map((r) => r[0].data), pts.map((p) => [p.x, p.y]));
+  }
+});
+await t('negative fixture: the F-008 shape (4 in the dimension fixed to 1) is rejected, and so are wrong ranks, types, names and sizes', () => {
+  const fx = fixture.models[0].files[0];
+  const r = models.checkTensorSpecs([F008], fx, { partial: true });
+  assert.equal(r.ok, false); assert.match(r.errors[0], /input_points: dimension 1 is 4, the model fixes it to 1/);
+  for (const file of realContracts ? decoderFiles(SAM2) : []) assert.equal(models.checkTensorSpecs([F008], file).ok, false, file.path);
+  assert.match(models.checkTensorSpecs([{ ...F008, dims: [1, 1, 2], data: [0, 0] }], fx, { partial: true }).errors[0], /rank 3.*expects rank 4/);
+  assert.match(models.checkTensorSpecs([{ ...F008, dims: [1, 1, 1, 2], type: 'int64', data: [0, 0] }], fx, { partial: true }).errors[0], /type int64, the model expects float32/);
+  assert.match(models.checkTensorSpecs([{ ...F008, dims: [1, 1, 1, 2], data: [0] }], fx, { partial: true }).errors[0], /1 values for dims/);
+  assert.match(models.checkTensorSpecs([{ name: 'points', type: 'float32', dims: [1], data: [0] }], fx).errors[0], /"points" is not an input/); // strict: a name the model does not have
+  const groupsOfOne = { path: 'x', inputs: [{ name: 'input_points', type: 'float32', dims: ['b', 1, 1, 2] }] }; // a model that fixes points per group to 1 too
+  assert.throws(() => models.samPromptTensors([[1, 2], [3, 4]], [1, 1], groupsOfOne), /do modelo.*dimension 2 is 2, the model fixes it to 1/);
+  assert.throws(() => models.samPromptTensors([], [], null), /pelo menos um ponto/); assert.throws(() => models.samPromptTensors([[1, 2]], [], null), /um rótulo/); assert.throws(() => models.samPromptTensors([[NaN, 2]], [1], null), /inválidos/);
+});
+await t('the tensor rank follows the contract (rank 4 with a prompt group, rank 3 without) and the whole-decoder check names unknown inputs', () => {
+  const v1 = { path: 'v1', inputs: [{ name: 'input_points', type: 'float32', dims: ['b', 'pb', 'n', 2] }, { name: 'input_labels', type: 'int64', dims: ['b', 'pb', 'n'] }, { name: 'image_embeddings', type: 'float32', dims: ['b', 256, 64, 64] }, { name: 'image_positional_embeddings', type: 'float32', dims: ['b', 256, 64, 64] }] };
+  assert.deepEqual(models.samPromptTensors([[1, 2]], [1], v1).map((s) => s.dims), [[1, 1, 1, 2], [1, 1, 1]]);
+  assert.deepEqual(models.samPromptTensors([[1, 2], [3, 4]], [1, 0], v1).map((s) => s.dims), [[1, 1, 2, 2], [1, 1, 2]]); // several points of ONE group are fine where the contract allows it
+  const flat = { path: 'flat', inputs: [{ name: 'input_points', type: 'float32', dims: ['b', 'n', 2] }, { name: 'input_labels', type: 'int64', dims: ['b', 'n'] }] };
+  assert.deepEqual(models.samPromptTensors([[1, 2]], [1], flat).map((s) => s.dims), [[1, 1, 2], [1, 1]]);
+  const enc = { path: 'e', outputs: [{ name: 'image_embeddings' }, { name: 'image_positional_embeddings' }] };
+  assert.deepEqual(models.checkSamDecoder(v1, { encoder: enc }), []);
+  assert.match(models.checkSamDecoder({ ...v1, inputs: [...v1.inputs, { name: 'point_mask', type: 'float32', dims: [1] }] })[0], /"point_mask" is neither built by samPromptTensors nor provided/);
+  assert.match(models.checkSamDecoder(v1, { encoder: { path: 'e', outputs: [{ name: 'image_embeddings' }] } })[0], /"image_positional_embeddings" is not an output of e/);
+  assert.match(models.checkSamDecoder({ path: 'd', inputs: [v1.inputs[2]] }).join(), /no input "input_points"/);
+  assert.equal(models.scaleSamPoint({ x: 10, y: 20 }, [480, 640], [768, 1024]).x, 16); assert.equal(models.scaleSamPoint({ x: 10, y: 20 }, [480, 640], [768, 1024]).y, 32);
+  assert.equal(models.onnxFileName('vision_encoder', 'q8'), 'onnx/vision_encoder_quantized.onnx'); assert.equal(models.onnxFileName('vision_model', 'fp32'), 'onnx/vision_model.onnx'); assert.equal(models.onnxFileName('x', 'q4f16'), 'onnx/x_q4f16.onnx');
+});
+// a decoder that enforces the recorded contract exactly like OrtRun does: the layer under test must survive it
+const strictLib = ({ file, partial }) => {
+  const { T } = fakeLib(); const calls = { decodes: [], embeds: 0, pre: 0, fail: false };
+  const proc = async () => { calls.pre++; return { pixel_values: { p: 1 }, original_sizes: [[2, 2]], reshaped_input_sizes: [[4, 4]] }; };
+  proc.post_process_masks = async () => [{ dims: [1, 3, 2, 2], data: new Uint8Array([1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0]) }]; // three 2x2 masks
+  const model = async (inputs) => {
+    if (calls.fail) throw new Error('decoder boom');
+    const specs = ['input_points', 'input_labels'].map((name) => ({ name, type: inputs[name].type, dims: inputs[name].dims, data: Array.from(inputs[name].data, Number) }));
+    const r = models.checkTensorSpecs(specs, file, { partial }); if (!r.ok) throw new Error(`failed to call OrtRun(). Got invalid dimensions for input: ${r.errors.join('; ')}`);
+    calls.decodes.push(Object.fromEntries(specs.map((s) => [s.name, s]))); return { pred_masks: {}, iou_scores: { data: [0.2, 0.9, 0.5] } };
+  };
+  model.get_image_embeddings = async () => { calls.embeds++; return { 'image_embeddings.0': 'e' }; }; model.dispose = async () => {};
   return { T: { ...T, Sam2Model: { from_pretrained: async () => model }, AutoProcessor: { from_pretrained: async () => proc } }, calls };
 };
 const pts = (n) => Array.from({ length: n }, (_, i) => ({ x: i, y: 2 * i }));
-await t('splitBatchMasks: the best-scoring mask of each point, tagged with its point; a wrong batch size is an error', () => {
-  const out = models.splitBatchMasks({ dims: [2, 3, 1, 2], data: Uint8Array.from([0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1]) }, [0.1, 0.9, 0.3, 0.6, 0.2, 0.7], pts(2), 1);
-  assert.deepEqual(out.map((m) => [m.score, [...m.data]]), [[0.9, [1, 1]], [0.7, [1, 1]]]); // the non-best masks are empty, so picking the wrong one would show assert.deepEqual(out.map((m) => m.point), pts(2));
-  assert.equal(models.splitBatchMasks({ dims: [1, 3, 1, 2], data: Uint8Array.from([1, 1, 1, 1, 1, 1]) }, [0.1, 0.9, 0.3], pts(1), 2).length, 2);
-  assert.throws(() => models.splitBatchMasks({ dims: [2, 3, 1, 2], data: new Uint8Array(12) }, [], pts(3), 1), /3 pontos/);
-});
-await t('segmentPoints: one prompt per point in batches, on the cached embedding; masks + predicted IoU; progress and timings', async () => {
-  const { T, calls } = batchLib(); const m = mkModels({ importer: async () => T }); await m.load();
-  const enc = await m.setImage(new Blob(['x'])); assert.equal(typeof enc.encoder_ms, 'number'); assert.equal(enc.cached, true);
-  calls.batches.length = 0; calls.prompts.length = 0; const prog = [];
-  const r = await m.segmentPoints(pts(10), { batch: 4, onProgress: (e) => prog.push(`${e.done}/${e.total}`) });
-  assert.deepEqual(calls.batches, [4, 4, 2]); assert.equal(r.decodes, 3); assert.equal(r.done, 10); assert.equal(r.timed_out, false); assert.equal(r.masks.length, 10);
-  assert.deepEqual(calls.prompts[0], [[[[0, 0]], [[1, 2]], [[2, 4]], [[3, 6]]]]); // [image][point][1 point][x, y]
-  assert.ok(r.masks.every((x) => x.score === 0.9 && x.width === 2 && x.data[0] === 1)); assert.deepEqual(r.masks.map((x) => x.point.x), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]); assert.deepEqual(r.masks[5].point, { x: 5, y: 10 });
+await t('createModels with a contract-enforcing decoder: a tap and a grid decode one prompt group per run on an embedding computed once', async () => {
+  const { T, calls } = strictLib({ file: decoderFiles(SAM2)[0], partial: partialC }); const m = mkModels({ importer: async () => T }); await m.load();
+  const enc = await m.setImage(new Blob(['x'])); assert.equal(enc.cached, true); const pre = calls.pre; calls.decodes.length = 0;
+  const tap = await m.segment(1, 1);
+  assert.deepEqual(tap.map((x) => x.score), [0.9, 0.5, 0.2]); assert.deepEqual([...tap[0].data], [1, 1, 0, 0]);
+  assert.deepEqual(calls.decodes[0].input_points.dims, [1, 1, 1, 2]); assert.deepEqual(calls.decodes[0].input_points.data, [2, 2]); // scaled from 2x2 to the 4x4 model input
+  assert.equal(calls.decodes[0].input_labels.type, 'int64'); assert.deepEqual(calls.decodes[0].input_labels.dims, [1, 1, 1]); assert.deepEqual(calls.decodes[0].input_labels.data, [1]);
+  const prog = []; const r = await m.segmentPoints(pts(10), { batch: 4, onProgress: (e) => prog.push(`${e.done}/${e.total}`) });
+  assert.equal(r.decodes, 10); assert.equal(r.done, 10); assert.equal(r.timed_out, false); assert.equal(r.masks.length, 10); assert.equal(calls.decodes.length, 11);
+  assert.ok(calls.decodes.every((d) => d.input_points.dims.join() === '1,1,1,2' && d.input_labels.dims.join() === '1,1,1')); // never more than one prompt group per run
+  assert.deepEqual(calls.decodes.slice(1).map((d) => d.input_points.data), pts(10).map((p) => [2 * p.x, 2 * p.y]));
+  assert.ok(r.masks.every((x) => x.score === 0.9 && x.width === 2 && x.height === 2 && x.data[0] === 1)); assert.deepEqual(r.masks.map((x) => x.point), pts(10));
   assert.deepEqual(prog, ['0/10', '4/10', '8/10', '10/10']); assert.equal(typeof r.ms, 'number');
+  assert.equal(calls.embeds, 1); assert.equal(calls.pre, pre); // the photo was encoded and preprocessed once, not per decode
 });
-await t('segmentPoints: the time budget stops the grid early and says so', async () => {
-  const { T } = batchLib(); const m = mkModels({ importer: async () => T }); await m.load(); await m.setImage(new Blob(['x']));
+await t('segmentPoints: the time budget stops the grid early and says so; a failing decode is an error, not a silent fallback', async () => {
+  const { T, calls } = strictLib({ file: decoderFiles(SAM2)[0], partial: partialC }); const m = mkModels({ importer: async () => T }); await m.load(); await m.setImage(new Blob(['x']));
   let clock = 0; const r = await m.segmentPoints(pts(12), { batch: 4, budgetMs: 250, now: () => (clock += 100) });
   assert.equal(r.timed_out, true); assert.equal(r.done, 8); assert.equal(r.masks.length, 8); assert.equal(r.total, 12);
-});
-await t('segmentPoints: falls back to one prompt per decode when batched prompts are refused, with the same masks', async () => {
-  const { T, calls } = batchLib({ refuseBatches: true }); const m = mkModels({ importer: async () => T }); await m.load(); await m.setImage(new Blob(['x']));
-  calls.batches.length = 0; const r = await m.segmentPoints(pts(5), { batch: 4 });
-  assert.equal(r.masks.length, 5); assert.equal(r.batched, false); assert.ok(r.decodes >= 5); assert.ok(r.masks.every((x, i) => x.score === 0.9 && x.point.x === i));
+  calls.fail = true; await assert.rejects(m.segmentPoints(pts(3)), /decoder boom/); await assert.rejects(m.segment(1, 1), /decoder boom/);
   await assert.rejects(mkModels({ importer: async () => T }).segmentPoints(pts(1)), /nenhuma foto/);
 });
-await t('the 4.3.0 to 3.8.1 fallback and the injectable model layer are unchanged by the batched decode', async () => {
-  const { T } = batchLib(); const seen = [];
+await t('createModels REFUSES what the old code sent: a decoder whose contract fixes the prompt group to 1 rejects a 4-group tensor, and the layer never builds one', async () => {
+  const fx = fixture.models[0].files[0]; assert.throws(() => { const r = models.checkTensorSpecs([F008], fx, { partial: true }); if (!r.ok) throw new Error(r.errors[0]); }, /fixes it to 1/);
+  const { T, calls } = strictLib({ file: fx, partial: true }); const m = mkModels({ importer: async () => T }); await m.load(); await m.setImage(new Blob(['x']));
+  await m.segmentPoints(pts(9), { batch: 4 }); assert.ok(calls.decodes.every((d) => d.input_points.dims[1] === 1));
+});
+await t('naming contract: the vision tower takes only pixel_values [batch, 3, H, W] and one of its outputs is the embedding the app reads', () => {
+  const clipLike = { path: 'onnx/vision_model_q8.onnx', inputs: [{ name: 'pixel_values', type: 'float32', dims: ['batch_size', 'num_channels', 'height', 'width'] }], outputs: [{ name: 'last_hidden_state' }, { name: 'image_embeds' }] };
+  assert.deepEqual(models.checkNamingVision(clipLike), []);
+  assert.deepEqual(models.checkNamingVision({ ...clipLike, inputs: [{ ...clipLike.inputs[0], dims: ['b', 3, 224, 224] }], outputs: [{ name: 'pooler_output' }] }), []);
+  assert.match(models.checkNamingVision({ ...clipLike, inputs: [...clipLike.inputs, { name: 'attention_mask', type: 'int64', dims: ['b', 'n'] }] })[0], /feeds only pixel_values/);
+  assert.match(models.checkNamingVision({ ...clipLike, inputs: [{ ...clipLike.inputs[0], dims: ['b', 'h', 'w'] }] })[0], /expected \[batch, 3, H, W\]/);
+  assert.match(models.checkNamingVision({ ...clipLike, inputs: [{ ...clipLike.inputs[0], dims: ['b', 1, 224, 224] }] })[0], /expected \[batch, 3, H, W\]/);
+  assert.match(models.checkNamingVision({ ...clipLike, outputs: [{ name: 'logits' }] })[0], /none of image_embeds\/pooler_output\/embeds/);
+  assert.equal(models.pickEmbedding({ pooler_output: 'p', embeds: 'e' }), 'p'); assert.equal(models.pickEmbedding({ image_embeds: 'i', pooler_output: 'p' }), 'i'); assert.equal(models.pickEmbedding({ other: 1 }), undefined);
+  let checked = 0;
+  for (const c of models.NAMING_CANDIDATES) for (const file of models.contractFiles(contracts, c.id, 'vision_model')) { checked++; assert.deepEqual(models.checkNamingVision(file), [], file.path); }
+  if (realContracts) assert.ok(checked >= models.NAMING_CANDIDATES.length, 'a vision tower contract per naming candidate'); else console.log('note: naming contracts are checked once the real contracts file exists (the fixture covers only the SAM 2.1 decoder)');
+});
+await t('the contract probe: protobuf reader (graph inputs and outputs, initializers excluded, symbolic and unknown dimensions) and the files it records', () => {
+  const varint = (n) => { const b = []; while (n >= 128) { b.push((n % 128) | 128); n = Math.floor(n / 128); } b.push(n); return b; };
+  const v = (fld, n) => Buffer.from([...varint(fld * 8), ...varint(n)]); const b = (fld, buf) => Buffer.concat([Buffer.from(varint(fld * 8 + 2)), Buffer.from(varint(buf.length)), Buffer.from(buf)]); const s = (fld, str) => b(fld, Buffer.from(str));
+  const dim = (d) => b(1, typeof d === 'number' ? v(1, d) : typeof d === 'string' ? s(2, d) : Buffer.alloc(0));
+  const vi = (name, elem, dims) => Buffer.concat([s(1, name), b(2, b(1, Buffer.concat([v(1, elem), ...(dims ? [b(2, Buffer.concat(dims.map(dim)))] : [])])))]);
+  const onnx = Buffer.concat([v(1, 8), b(7, Buffer.concat([s(2, 'g'), b(5, Buffer.concat([s(8, 'w'), b(9, Buffer.alloc(300, 7))])),
+    b(11, vi('input_points', 1, ['batch_size', 1, 'num_points', 2])), b(11, vi('input_labels', 7, ['batch_size', 1, 'num_points'])), b(11, vi('mask', 9, ['b', null, 4])), b(11, vi('w', 1, [3])),
+    b(12, vi('pred_masks', 1, ['batch_size', 1, 3, 256, 256])), b(12, vi('scalar', 10, [])), b(12, vi('noshape', 16, null))]))]);
+  assert.deepEqual(probeContracts.parseOnnxIO(onnx), {
+    inputs: [{ name: 'input_points', type: 'float32', dims: ['batch_size', 1, 'num_points', 2] }, { name: 'input_labels', type: 'int64', dims: ['batch_size', 1, 'num_points'] }, { name: 'mask', type: 'bool', dims: ['b', null, 4] }],
+    outputs: [{ name: 'pred_masks', type: 'float32', dims: ['batch_size', 1, 3, 256, 256] }, { name: 'scalar', type: 'float16', dims: [] }, { name: 'noshape', type: 'bfloat16', dims: null }] });
+  assert.throws(() => probeContracts.parseOnnxIO(onnx.subarray(0, onnx.length - 3)), /truncated/); assert.throws(() => probeContracts.parseOnnxIO(Buffer.alloc(0)), /no graph/);
+  // the recorded input feeds the checker: a contract parsed from a graph rejects the F-008 tensor
+  const file = { path: 'p', ...probeContracts.parseOnnxIO(onnx) }; assert.equal(models.checkTensorSpecs([F008], file).ok, false); assert.equal(models.checkTensorSpecs(models.samPromptTensors([[1, 2]], [1]), file).ok, true);
+  const ms = probeContracts.contractModels(); const sam2 = ms.find((m) => m.id === SAM2);
+  assert.deepEqual(ms.map((m) => m.kind), ['segmentation', 'segmentation', 'naming', 'naming', 'naming', 'depth', 'depth']); assert.deepEqual(sam2.parts, ['vision_encoder', 'prompt_encoder_mask_decoder']); assert.deepEqual([...sam2.dtypes].sort(), ['fp16', 'q4f16', 'q8']);
+  const cp = probeContracts.contractPaths(sam2, { onnx: [{ path: 'onnx/vision_encoder_quantized.onnx' }, { path: 'onnx/prompt_encoder_mask_decoder_q4f16.onnx' }, { path: 'onnx/other.onnx' }] });
+  assert.deepEqual(cp.paths, ['onnx/prompt_encoder_mask_decoder_q4f16.onnx', 'onnx/vision_encoder_quantized.onnx']); assert.equal(cp.missing.length, 4);
+  const probe = JSON.parse(text('lib/model-probe.json'));
+  for (const m of ms.filter((x) => x.kind !== 'depth')) assert.deepEqual(probeContracts.contractPaths(m, probe.models.find((x) => x.id === m.id)).missing, [], `${m.id}: a dtype the app loads has no file in the repository`);
+});
+await t('the CI integration test, dry run against a fake library: image, cpu mapping, single tap, grid, auto mode, naming, summary and failure reporting', async () => {
+  const photo = itTool.makePlateImage(); assert.equal(photo.data.length, 640 * 480 * 4);
+  const px = (x, y) => [...photo.data.subarray((y * 640 + x) * 4, (y * 640 + x) * 4 + 3)];
+  const corner = px(2, 2); assert.ok(corner[0] > 100 && corner[0] < 135 && corner[2] === 58, "a wooden table corner");
+  assert.deepEqual(px(Math.round(photo.blobs[0].cx), Math.round(photo.blobs[0].cy)), [200, 50, 40]); assert.ok(px(320, 100).every((c) => c > 190)); // the plate near its top edge
+  const crop = itTool.cropRgba(photo, { width: 640, height: 480, data: (() => { const m = new Uint8Array(640 * 480); m[100 * 640 + 200] = 1; m[110 * 640 + 230] = 1; return m; })() }, 4);
+  assert.equal(crop.width, 39); assert.equal(crop.height, 32); assert.equal(crop.data.length, 39 * 32 * 4); // 31 wide + 2 x 4 padding; the height is raised to the 32 minimum
+  const seen = []; const raw = class { constructor(...a) { this.a = a; } static async fromBlob() { throw new Error('not unwrapped'); } };
+  const lib = itTool.nodeLib({ env: {}, RawImage: raw, Sam2Model: { from_pretrained: async (id, o) => { seen.push(o.device); return {}; } }, AutoProcessor: { from_pretrained: async () => ({}) } });
+  await lib.Sam2Model.from_pretrained('x', { device: 'wasm', dtype: 'q8' }); await lib.Sam2Model.from_pretrained('x', { device: 'webgpu' }); assert.deepEqual(seen, ['cpu', 'webgpu']);
+  const wrapped = { raw: 1 }; assert.equal(await lib.RawImage.fromBlob(wrapped), 1); assert.equal(new lib.RawImage(1, 2, 3, 4).a.length, 4);
+  assert.deepEqual(itTool.cpuCandidate(models.SEGMENT_CANDIDATES[1]).backends, [['wasm', 'q8']]);
+  // a fake library that answers with image-sized masks: the whole script runs and reports
+  const W = 640; const H = 480; const { T } = fakeLib();
+  class Img { constructor(data, width, height, channels) { Object.assign(this, { data, width, height, channels }); } static async fromBlob() { throw new Error('unwrapped by nodeLib'); } }
+  const proc = async () => ({ pixel_values: {}, original_sizes: [[H, W]], reshaped_input_sizes: [[768, 1024]] });
+  proc.post_process_masks = async () => [{ dims: [1, 3, H, W], data: Uint8Array.from({ length: 3 * H * W }, (_, i) => { const k = Math.floor(i / (H * W)); const p = i % (H * W); const x = p % W; const y = Math.floor(p / W); return k === 1 && ((x - 320) / 240) ** 2 + ((y - 240) / 170) ** 2 <= 1 ? 1 : 0; }) }];
+  const model = async () => ({ pred_masks: {}, iou_scores: { data: [0.3, 0.9, 0.5] } }); model.get_image_embeddings = async () => ({ 'image_embeddings.0': 'e' }); model.dispose = async () => {};
+  const vocab = JSON.parse(text('../nutrition/vocab.json')); const labels = vocab.classes.map((c) => c.pt); const dim = 4;
+  const vision = async () => ({ image_embeds: { data: Float32Array.from([1, 0, 0, 0]), dims: [1, dim] } }); vision.dispose = async () => {};
+  const emb = async (id) => ({ ...(await fakeEmb(id, labels)), dim, embeddings: labels.map((_, i) => { const v = [0, 0, 0, 0]; v[i % dim] = 1; return v; }), extra_labels: JSON.parse(text('estimate/priors.json')).autoseg.non_food_labels.value, extra_embeddings: JSON.parse(text('estimate/priors.json')).autoseg.non_food_labels.value.map(() => [0, 0, 0, 1]) });
+  const fake = { ...T, RawImage: Img, Sam2Model: { from_pretrained: async () => model }, SamModel: { from_pretrained: async () => model }, AutoProcessor: { from_pretrained: async () => proc }, CLIPVisionModelWithProjection: { from_pretrained: async () => vision }, SiglipVisionModel: { from_pretrained: async () => vision } };
+  const run = await itTool.runIntegration({ T: fake, root: join(web, '..'), loadEmbeddings: emb, gridN: 3 });
+  assert.equal(run.ok, true, JSON.stringify(run.summary.failures));
+  assert.deepEqual(run.summary.sam.map((e) => e.id), models.SEGMENT_CANDIDATES.map((c) => c.id));
+  for (const e of run.summary.sam) { assert.equal(e.single_tap.masks, 3); assert.equal(e.single_tap.best_iou, 0.9); assert.equal(e.grid.points, 9); assert.equal(e.grid.decodes, 9); assert.ok(['ok', 'no_plate', 'empty_plate'].includes(e.auto.status)); assert.equal(e.naming.top3.length, 3); assert.equal(e.load.backend, 'wasm/q8'); }
+  assert.equal(run.summary.naming.length, 2); assert.ok(run.summary.naming.every((n) => n.ok)); JSON.parse(JSON.stringify(run.summary));
+  // failures are reported per stage: a decoder that answers with masks of the wrong size fails the run
+  const bad = { ...fake, Sam2Model: { from_pretrained: async () => Object.assign(async () => ({ pred_masks: {}, iou_scores: { data: [0.3, NaN, 0.5] } }), { get_image_embeddings: model.get_image_embeddings, dispose: model.dispose }) } };
+  const worse = await itTool.runIntegration({ T: bad, root: join(web, '..'), loadEmbeddings: emb, gridN: 2 });
+  assert.equal(worse.ok, false); assert.ok(worse.summary.failures.some((x) => /single_tap: .*predicted IoU NaN is not finite/.test(x)), worse.summary.failures.join('|'));
+});
+await t('the 4.3.0 to 3.8.1 fallback and the injectable model layer are unchanged by the per-point decode', async () => {
+  const { T } = fakeLib(); const seen = [];
   const m = mkModels({ importer: async (u) => { seen.push(u.split('@').pop()); if (u.endsWith('@4.3.0')) throw new Error('404'); return T; } });
   assert.equal((await m.load()).version, '3.8.1'); assert.deepEqual(seen, ['4.3.0', '3.8.1']);
   for (const fn of ['load', 'setImage', 'segment', 'segmentPoints', 'classify']) assert.equal(typeof m[fn], 'function', fn);
@@ -515,6 +660,16 @@ t('the CI workflow: dispatch and push triggers, contents write, runs the tool, c
   for (const out of ['macrofy/web/lib/model-probe.json', 'macrofy/web/app/data/model-probe.json', 'macrofy/web/app/data/text-emb/*.json']) assert.ok(wf.includes(out), `workflow adds ${out}`);
   for (const out of ['web/lib/model-probe.json', 'web/app/data/model-probe.json', 'web/app/data/text-emb']) assert.ok(tool.includes(out), `tool writes ${out}`);
   assert.equal(tools.TRANSFORMERS_VERSION, '4.3.0'); assert.match(tool, /npm.*install|'install'/); assert.match(tool, /api\/models\/\$\{id\}\?blobs=true/);
+});
+t('T-017 workflows: models records the contracts and is the ONLY committer; model-it is read-only, triggered by the model code paths, and runs the integration test', () => {
+  const models = readFileSync(join(web, '..', '..', '.github', 'workflows', 'macrofy-models.yml'), 'utf8'); const it = readFileSync(join(web, '..', '..', '.github', 'workflows', 'macrofy-model-it.yml'), 'utf8');
+  assert.match(models, /run: node macrofy\/tools\/probe-contracts\.mjs/); assert.ok(models.includes('macrofy/web/lib/model-contracts.json')); assert.match(models, /id: selftest\n\s+continue-on-error: true/);
+  assert.match(models, /SELFTEST_OUTCOME/); assert.match(models, /if: steps\.selftest\.outcome == 'failure'/); // a red selftest still commits the evidence (probe, contracts), then fails the job
+  assert.match(it, /workflow_dispatch:/); assert.match(it, /branches: \[main\]/); assert.match(it, /permissions:\n  contents: read/);
+  for (const p of ['macrofy/web/lib/**', 'macrofy/web/estimate/**', 'macrofy/web/app/estimate.mjs', 'macrofy/tools/**']) assert.ok(it.includes(`- '${p}'`), `push path ${p}`);
+  assert.match(it, /node macrofy\/tools\/model-integration-test\.mjs/); assert.doesNotMatch(it, /git (add|commit|push)|contents: write/); // never commits: no race with macrofy-models
+  for (const p of ['tools/probe-contracts.mjs', 'tools/model-integration-test.mjs', 'tools/tjs-node.mjs']) { assert.ok(existsSync(join(web, '..', p))); execFileSync(process.execPath, ['--check', join(web, '..', p)], { stdio: 'pipe' }); }
+  assert.match(readFileSync(join(web, '..', 'tools', 'tjs-node.mjs'), 'utf8'), /TRANSFORMERS_VERSION = '4\.3\.0'/); assert.match(readFileSync(join(web, '..', 'tools', 'tjs-node.mjs'), 'utf8'), /'install'/);
 });
 t('sync-data: the probe copy is optional (skipped while the workflow has not run) and checked for drift once it exists', () => {
   const src = f('lib/model-probe.json'); const dst = f('app/data/model-probe.json');

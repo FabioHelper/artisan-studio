@@ -1,9 +1,13 @@
 name: macrofy-models
 
-# T-015. Runs on a runner WITH internet access (the agent sandbox has none):
+# T-015, T-017. Runs on a runner WITH internet access (the agent sandbox has none):
 #  (a) probes every model candidate of macrofy/web/lib/models.mjs on Hugging Face (commit sha, ONNX files and sizes) and writes the probe file;
-#  (b) loads the TEXT tower of each naming candidate here in Node and writes its text embeddings over the vocab labels, with provenance.
+#  (b) loads the TEXT tower of each naming candidate here in Node and writes its text embeddings over the vocab labels, with provenance;
+#  (c) T-017: records the real ONNX input/output names, types and shapes of every model file the app can load (macrofy/web/lib/model-contracts.json),
+#      which web/selftest.mjs checks our hand-built tensors against (F-008: SAM 2.1 refused a prompt shape that only mocked models had seen).
 # The phone then loads only the image tower and scores against those committed embeddings. Outputs are committed only when they changed.
+# THIS is the only workflow that commits. macrofy-model-it (the real-model pipeline test) is read-only, so the two cannot race on the branch;
+# after a commit here this workflow starts macrofy-model-it (it needs the fresh embeddings) and macrofy-pages by dispatch.
 on:
   workflow_dispatch:
   push:
@@ -11,11 +15,14 @@ on:
     paths:
       - 'macrofy/nutrition/vocab.json'
       - 'macrofy/web/lib/models.mjs'
+      - 'macrofy/web/feasibility/candidates.mjs'
+      - 'macrofy/tools/probe-contracts.mjs'
+      - 'macrofy/tools/tjs-node.mjs'
       - '.github/workflows/macrofy-models.yml'
 
 permissions:
   contents: write
-  actions: write # only to start macrofy-pages after the commit: a push made with GITHUB_TOKEN does not trigger other workflows
+  actions: write # only to start macrofy-pages and macrofy-model-it after the commit: a push made with GITHUB_TOKEN does not trigger other workflows
 
 concurrency:
   group: macrofy-models
@@ -36,16 +43,29 @@ jobs:
           node-version: 22
       - name: Probe the models and build the text embeddings
         run: node macrofy/tools/build-text-embeddings.mjs
-      - name: Web selftest (the outputs must pass the same checks as the app)
+      - name: Record the ONNX input and output contracts of every model file the app can load
+        run: node macrofy/tools/probe-contracts.mjs
+      # A red selftest must not hide the evidence: a contract mismatch is exactly what has to be committed so it can be fixed. The step may fail;
+      # then only the probe and the contracts are committed (never the embeddings, which the selftest gates) and the job fails in the last step.
+      - name: Web selftest (the outputs must pass the same checks as the app, and our tensors must match the recorded contracts)
+        id: selftest
+        continue-on-error: true
         run: node macrofy/web/selftest.mjs
       - name: Commit and push the outputs
         env:
           GH_TOKEN: ${{ github.token }}
+          SELFTEST_OUTCOME: ${{ steps.selftest.outcome }}
         run: |
           set -euo pipefail
           shopt -s nullglob
           add=()
-          for f in macrofy/web/lib/model-probe.json macrofy/web/app/data/model-probe.json macrofy/web/app/data/text-emb/*.json; do
+          if [ "$SELFTEST_OUTCOME" = "success" ]; then
+            files=(macrofy/web/lib/model-probe.json macrofy/web/app/data/model-probe.json macrofy/web/lib/model-contracts.json macrofy/web/app/data/text-emb/*.json)
+          else
+            echo "::warning::the selftest failed: committing only the probe and the ONNX contracts (the evidence), not the text embeddings"
+            files=(macrofy/web/lib/model-probe.json macrofy/web/app/data/model-probe.json macrofy/web/lib/model-contracts.json)
+          fi
+          for f in "${files[@]}"; do
             [ -f "$f" ] && add+=("$f")
           done
           if [ "${#add[@]}" -eq 0 ]; then echo "::error::no outputs were written"; exit 1; fi
@@ -53,10 +73,16 @@ jobs:
           if git diff --cached --quiet; then echo "outputs unchanged: nothing to commit"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "T-015: model probe and text embeddings (CI)" \
+          git commit -m "T-015: model probe, text embeddings and ONNX contracts (CI)" \
             -m $'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01BeqUPRJeU2ToodBE3NbAEW'
           git pull --rebase origin "$GITHUB_REF_NAME"
           git push origin "HEAD:$GITHUB_REF_NAME"
-          if [ "$GITHUB_REF_NAME" = "main" ]; then
+          if [ "$GITHUB_REF_NAME" = "main" ] && [ "$SELFTEST_OUTCOME" = "success" ]; then
             gh workflow run macrofy-pages.yml --ref main || echo "::warning::could not start macrofy-pages; run it by hand"
+            gh workflow run macrofy-model-it.yml --ref main || echo "::warning::could not start macrofy-model-it; run it by hand"
           fi
+      - name: Fail the job when the selftest failed (the evidence is committed above)
+        if: steps.selftest.outcome == 'failure'
+        run: |
+          echo "::error::web/selftest.mjs failed on the freshly written outputs: see the selftest step above"
+          exit 1

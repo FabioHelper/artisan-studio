@@ -1,0 +1,53 @@
+name: macrofy-model-it
+
+# T-017. Real-model pipeline test. Runs on a runner WITH internet access (the agent sandbox has none), because mocked models hid F-008
+# (SAM 2.1 refused a prompt tensor shape that only the mocks had ever seen).
+# macrofy/tools/model-integration-test.mjs installs transformers.js 4.3.0 into a temp dir, imports OUR macrofy/web/lib/models.mjs createModels
+# with a Node importer, loads the REAL SAM 2.1 tiny, SlimSAM and CLIP B/32 on the CPU (q8), and on a test plate photo built in code runs a
+# single-tap decode, an auto-mode grid decode (autoseg) and naming against the committed text embeddings. It prints a compact JSON summary.
+# READ-ONLY on purpose: this workflow never commits or pushes. Only macrofy-models commits (probe, text embeddings, ONNX contracts), so the two
+# cannot race on the branch. macrofy-models starts this workflow by dispatch after it commits fresh embeddings, because a push made with
+# GITHUB_TOKEN does not trigger workflows; a run started by the push itself may see the previous embeddings.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'macrofy/web/lib/**'
+      - 'macrofy/web/estimate/**'
+      - 'macrofy/web/app/estimate.mjs'
+      - 'macrofy/tools/**'
+      - '.github/workflows/macrofy-model-it.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macrofy-model-it
+  cancel-in-progress: true
+
+jobs:
+  real-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Real models, real pipeline (single tap, auto-mode grid, naming)
+        run: |
+          set -euo pipefail
+          node macrofy/tools/model-integration-test.mjs | tee model-it.log
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '### macrofy-model-it'
+            echo '```json'
+            grep -E '^\{.*\}$' model-it.log | tail -1 || echo 'no summary: the test did not get that far'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

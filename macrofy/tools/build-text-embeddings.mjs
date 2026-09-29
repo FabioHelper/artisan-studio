@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // CI tool (T-015), run by .github/workflows/macrofy-models.yml on a runner WITH internet access. Run from anywhere.
 //   node tools/build-text-embeddings.mjs [--probe-only] [--embeddings-only] [--root <macrofy dir>]
-// (a) PROBE: for every candidate of web/lib/models.mjs asks the Hugging Face API for the repo's commit sha and its ONNX files with sizes,
+// (a) PROBE: for every candidate of web/lib/models.mjs (and the depth candidates of the feasibility page) asks the Hugging Face API for the repo's commit sha and its ONNX files with sizes,
 //     and writes web/lib/model-probe.json (plus the copy web/app/data/model-probe.json that the app serves). The order of the naming and
 //     segmentation candidates in the browser comes from these real sizes (orderBySize in models.mjs).
 // (b) EMBEDDINGS: for each naming candidate loads the TEXT tower here in Node (transformers.js 4.3.0, installed into a temp dir), embeds
@@ -17,6 +17,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { SEGMENT_CANDIDATES, NAMING_CANDIDATES, safeModelId, labelsSha256, fillTemplate, checkEmbeddings } from '../web/lib/models.mjs';
 import { NAME_PROMPT } from '../web/estimate/core.mjs';
+import { STAGES } from '../web/feasibility/candidates.mjs';
 
 export const TRANSFORMERS_VERSION = '4.3.0';
 export const PROMPT_EN = 'a photo of {}';
@@ -116,7 +117,8 @@ async function main() {
   // (a) probe
   let probe = existsSync(probePath) ? JSON.parse(readFileSync(probePath, 'utf8')) : { models: [] };
   if (!embOnly) {
-    const all = [...SEGMENT_CANDIDATES.map((c) => [c, 'segmentation']), ...NAMING_CANDIDATES.map((c) => [c, 'naming'])];
+    const depth = STAGES.find((s) => s.stage === 'depth').candidates; // T-017: depth is probed too, so tools/probe-contracts.mjs can record its ONNX contract
+    const all = [...SEGMENT_CANDIDATES.map((c) => [c, 'segmentation']), ...NAMING_CANDIDATES.map((c) => [c, 'naming']), ...depth.map((c) => [c, 'depth'])];
     const models = [];
     for (const [c, kind] of all) models.push(await hfProbe(c.id, kind, probe.models.find((m) => m.id === c.id && m.revision)));
     probe = { schema: 'macrofy.model-probe/1', transformers_js: TRANSFORMERS_VERSION, models };

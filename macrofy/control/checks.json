@@ -88,6 +88,14 @@
         "capture/selftest.mjs"
       ],
       "description": "Capture PWA export format passes the benchmark validator"
+    },
+    {
+      "id": "web-selftest",
+      "cmd": [
+        "node",
+        "web/selftest.mjs"
+      ],
+      "description": "Feasibility page files, pinned CDN version, candidate lists and verdict logic"
     }
   ]
 }

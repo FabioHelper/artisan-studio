@@ -71,3 +71,22 @@ captured_at as written, the same notion of a day the split-by-date rule uses), s
 reproducible; items under 10 g are scored in grams only; ground-truth nutrients arrive through a
 callback (the nutrition module, T-005), and kcal or macro metrics are null rather than zero without
 it; the manifest is validated (and the test lock verified when given) before anything is scored.
+
+## Web (`web/`)
+
+Static site published to GitHub Pages by the workflow `macrofy-pages.yml`; no build step, plain ES
+modules. It becomes the Macrofy PWA (ADR 0004). Today it holds the on-phone feasibility test.
+Spec: [SPEC-T-012](specs/SPEC-T-012-browser-feasibility.md); owner procedure:
+[feasibility-test](runbooks/feasibility-test.md).
+
+| Module | Responsibility |
+|---|---|
+| `web/index.html` | Landing page linking to the tools |
+| `web/feasibility/index.html`, `web/feasibility/run.mjs` | pt-BR page and browser runner: per stage tries candidate models in order, WebGPU then WASM, times load, cached load and inference, saves progress to localStorage |
+| `web/feasibility/candidates.mjs` | The pinned transformers.js URL, stages, candidate model ids, labels |
+| `web/feasibility/verdict.mjs` | Pure verdict and result JSON, importable from Node |
+| `web/selftest.mjs` | The check `web-selftest`: files, syntax, pinned CDN version, candidates, verdict fixtures |
+
+Invariants: the transformers.js URL carries an exact version; model ids are tried in order and the
+result records which loaded and why others failed; verdict logic lives only in `verdict.mjs`;
+models are disposed before the next stage runs.

@@ -3,7 +3,7 @@
 
 **Mission** (approved): Point the phone camera at a food or meal and get the most likely real weight of each item plus protein, carbs, fat and kcal, with honest ranges and the lowest achievable error, starting with Brazilian meals and running on-device with no paid LLM on the critical path.
 
-**Next action:** start T-005 "Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities" with `mc start T-005`
+**Next action:** continue T-012 "Feasibility: load and run Depth Anything V2-Small, SAM 2.1-tiny and SigLIP 2 in Safari on the iPhone 16e (WebGPU/WASM)" → make its acceptance checks pass, then `mc verify T-012`, review, `mc done T-012`
 
 ## Goals
 
@@ -40,7 +40,7 @@
 | T-009 | Request a TBCA commercial license from USP/FoRC (draft by agent, sent by owner); fall back to free sources if refused | todo | G-2 | T-002 | required | — |
 | T-010 | Measure zero-training food naming (SigLIP 2 zero-shot + k-NN gallery from calibration photos) on Brazilian dishes | todo | G-2, G-3 | T-004 | required | — |
 | T-011 | Capture PWA: guided photo capture, plate registry, per-item weight entry, export in the benchmark manifest format | todo | G-2, G-5 | T-003 | required | — |
-| T-012 | Feasibility: load and run Depth Anything V2-Small, SAM 2.1-tiny and SigLIP 2 in Safari on the iPhone 16e (WebGPU/WASM) | todo | G-3, G-5 | T-002 | required | — |
+| T-012 | Feasibility: load and run Depth Anything V2-Small, SAM 2.1-tiny and SigLIP 2 in Safari on the iPhone 16e (WebGPU/WASM) | active | G-3, G-5 | T-002 | required | [spec](specs/SPEC-T-012-browser-feasibility.md) |
 
 ### M2 — Phase 1: on-device PWA MVP on the owner iPhone 16e passing the phase-1 accuracy gate (0/1 done)
 
@@ -58,8 +58,8 @@
 
 ## Recent handoffs
 
+- #42 2026-09-29 (implementer): done: T-012 feasibility page built (web/feasibility, pinned transformers.js 3.8.1), Pages workflow, owner runbook (pt-BR), web-selftest (A2). A1 is manual: needs owner's phone JSON, then mc verify. next: owner runs https://fabiohelper.github.io/artisan-studio/feasibility/ after merge to main + Pages deploy. gotchas: model ids and SAM2 support in transformers.js 3.8.1 unverified (fallbacks slimsam/Xenova ids; failed_attempts in JSON shows why); Pages must be enabled (workflow uses enablement: true)
 - #40 2026-09-29 (claude-code): done: T-004 eval engine (review accepted after classifier outage retry) / next: T-012 browser feasibility page on GitHub Pages (repo is public) via implementer sub-agent / gotchas: Safari exposes no JS memory API, so T-012 records download size + tab survival instead of peak memory
 - #37 2026-09-29 (claude-code): fix: Stop hook judged committed changes by mtime, so merges re-triggered the handoff rule (F-002, closed; regression test added) / next: T-004 under independent review in a worktree; its branch will diverge from this note -> reviewer re-records on main / gotchas: none
 - #36 2026-09-29 (implementer): done: T-004 evaluation engine built and verified (eval/metrics.mjs pure metrics + day-cluster bootstrapCI, eval/run.mjs CLI, eval/selftest.mjs with hand-computed fixtures, SPEC-T-004, architecture section); eval-selftest passes, check --fast green, 13 mutations of metrics.mjs all caught by the selftest / next: reviewer runs 'mc review T-004' then 'mc done T-004'; T-005 must pass truthNutrients(item, meal) to evaluate() to enable kcal/macro metrics (CLI reports n/a until wired); T-010 and phase gates read report.gates / gotchas: \|bias\| upper bound = 97.5th percentile of resampled \|bias\| (both meal-kcal and item-mass variants reported, owner/reviewer to pick which the gate uses); meals without a prediction entry count as all omissions; a meal is kcal-scored only if every true item has truth nutrients and every predicted item has kcal; verify #34 was run without MC_AGENT (attributed claude-code), #35 is the implementer verify; evaluate() validates the manifest, so synthetic manifests need valid photos/plates
 - #32 2026-09-28 (claude-code): done: T-003 benchmark tooling (review round 2 accepted #30) / next: T-004 evaluation engine via implementer sub-agent in worktree / gotchas: worktree journal rule added to CLAUDE.md
-- #29 2026-09-28 (claude-code): T-003 review fixes merged (lock covers referenced plates; completeness mode fails without a lock); verify re-run on merged main because the branch journal diverged from main / next: re-review T-003 / gotchas: while a worktree sub-agent holds a task, avoid appending to main's journal; if unavoidable, keep main's journal on merge and re-run verify

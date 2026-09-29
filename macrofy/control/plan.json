@@ -298,17 +298,22 @@
         "G-3",
         "G-5"
       ],
-      "status": "todo",
+      "status": "active",
       "review": "required",
       "depends_on": [
         "T-002"
       ],
-      "spec": null,
+      "spec": "docs/specs/SPEC-T-012-browser-feasibility.md",
       "acceptance": [
         {
           "id": "A1",
           "criterion": "Owner runs the hosted feasibility page (GitHub Pages) on the iPhone 16e; for each model it records which candidate loaded, backend (WebGPU/WASM), download size, first and cached load time, median inference latency, and whether the tab survived; go/no-go against <=2 s total inference",
           "manual": true
+        },
+        {
+          "id": "A2",
+          "criterion": "Feasibility page files, pinned CDN version and verdict logic pass the web selftest",
+          "check": "web-selftest"
         }
       ]
     }

@@ -57,6 +57,10 @@ and a reload landed on `#/estimate/resume`, which re-ran the same analysis and S
   so the resume shows what happened and offers a lighter retry (`crash_retry` in priors) instead of re-running. The resume URL is
   left before anything heavy runs. A "Diagnóstico" panel (copyable JSON: device, models, timings, plate candidates, last crash)
   is on the analysis, error and result screens.
+- Plate choice by consensus: the first real-model run with these variants (7465909) chose a 0.78-0.88 band of table (its hull passed the ring test)
+  over the 0.43 plate that ~30 grid prompts returned, because the largest passing mask won; every weight would have come out about half. The plate is
+  now the passing mask most others agree with (`plate_support_iou`), the largest only on a tie, judged on the raw grid (no dedupe: repeats are the evidence).
+  The integration test requires the chosen plate on the synthetic photo to be within 20% of the drawn plate's area.
 - CI: the integration test runs auto mode in the same low-res mask space, checks low-res vs full-size masks of one tap (IoU >= 0.9),
   and requires >= 1 food on the pinned Commons photo (`tools/it-photo.json`); a stand-in plate there is a warning.
 

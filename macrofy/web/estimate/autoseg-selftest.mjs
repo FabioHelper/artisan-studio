@@ -57,7 +57,7 @@ const S = {
 const mat = draw((x, y) => (x >= 10 && x <= 149 && y >= 40 && y <= 84) || (x >= 50 && x <= 109 && y >= 5 && y <= 114), 0.97);
 const plateArea = count(S.plate);
 const plateParams = { minAreaFrac: P.plate_min_area_frac, maxAreaFrac: P.plate_max_area_frac, centerFrac: P.plate_center_frac, centerCoverMin: P.plate_center_cover_min, maxResidual: P.plate_max_residual,
-  ringMinArc: P.plate_ring_min_arc, ringMinBand: P.plate_ring_min_band, ringBandLo: P.plate_ring_band_lo, ringSectors: P.plate_ring_sectors };
+  ringMinArc: P.plate_ring_min_arc, ringMinBand: P.plate_ring_min_band, ringBandLo: P.plate_ring_band_lo, ringSectors: P.plate_ring_sectors, supportIou: P.plate_support_iou };
 const foodParams = { minFrac: P.food_min_frac, maxFrac: P.food_max_frac, minPredIoU: P.food_min_pred_iou, minInsideFrac: P.food_min_inside_frac };
 const all = Object.values(S);
 
@@ -113,7 +113,7 @@ check('plate selection: with no plate-like mask there is no plate', A.selectPlat
 const offCentre = ell(40, 35, 38, 28, 0, 0.9); // ellipse-shaped and big enough (17% of the photo) but not at the centre
 check('plate selection: an ellipse away from the centre is not the plate', A.selectPlate([offCentre], plateParams) === null && A.selectPlate([offCentre], { ...plateParams, centerCoverMin: 0 })?.mask === offCentre);
 check('plate selection: the whole-image mask is refused by max area (a 4:3 rectangle is too close to an ellipse for the residual alone)', A.selectPlate([S.table], plateParams) === null && A.selectPlate([S.table], { ...plateParams, maxAreaFrac: 1 })?.mask === S.table);
-check('plate selection: a larger placemat over the centre is refused by the ellipse residual, and chosen without it', A.selectPlate([...all, mat], plateParams)?.mask === S.plate && A.selectPlate([...all, mat], { ...plateParams, maxResidual: 1 })?.mask === mat);
+check('plate selection: a larger placemat over the centre is refused by the ellipse residual, and chosen without it (one prompt each: the tie goes to the larger)', A.selectPlate([...all, mat], plateParams)?.mask === S.plate && A.selectPlate([S.plate, mat], plateParams)?.mask === S.plate && A.selectPlate([S.plate, mat], { ...plateParams, maxResidual: 1 })?.mask === mat);
 check('plate selection: a plate under the minimum area is refused', A.selectPlate([ell(80, 60, 20, 15, 0, 0.9)], plateParams) === null);
 check('plate selection: the largest of two plate-like masks wins', A.selectPlate([S.bigBlob, S.plate], plateParams)?.mask === S.plate);
 
@@ -193,7 +193,7 @@ bites('dedupe that keeps everything is caught', () => { const o = dd((m) => m); 
 bites('dedupe that keeps the lower score is caught', () => { const o = dd((ms, t) => A.dedupe(ms.map((m) => ({ ...m, score: -(m.score ?? 0) })), t)); return o.some((m) => m.data === S.rice.data) && !o.some((m) => m.data === S.riceDup.data); });
 bites('plate = highest score is caught', () => selectRule((ms) => ({ mask: ms.reduce((p, q) => ((q.score ?? 0) > (p.score ?? 0) ? q : p)) })));
 bites('plate = largest mask, ignoring the ellipse residual and the max area, is caught', () => selectRule((ms) => ({ mask: ms.reduce((p, q) => (count(q) > count(p) ? q : p)) })));
-bites('plate selection with the residual limit switched off is caught', () => selectRule((ms, o) => A.selectPlate(ms, { ...o, maxResidual: 1 })));
+bites('plate selection with the residual limit switched off is caught', () => A.selectPlate([S.plate, mat], { ...plateParams, maxResidual: 1 })?.mask === S.plate);
 bites('plate selection with the area limit switched off is caught', () => A.selectPlate([S.table, S.plate], { ...plateParams, maxAreaFrac: 1, maxResidual: 1 })?.mask === S.plate);
 bites('food filter that lets everything through is caught', () => foodRule((ms) => ms));
 bites('food filter without the area limits is caught', () => foodRule((ms, pl, o) => A.filterFoods(ms, pl, { ...o, minFrac: 0, maxFrac: 10, minInsideFrac: 0 })));
@@ -316,6 +316,19 @@ const rr = await detect(makeModels({ plateStage: [S.table, ringOpen, tableMinusP
 check('pipeline on a photo where SAM returns the plate as an open ring: plate found (ring), 3 foods, the rim is not one of them, plate_detected true', rr.status === 'ok' && rr.plate_detected === true && rr.plate.via === 'ring' && rr.items.length === 3 && !('note' in rr));
 const rtab = await detect(makeModels({ plateStage: [S.table, tableMinusPlate], foodStage: [S.rice, S.meat, S.salad] }));
 check('pipeline on a photo where SAM returns the table with the plate as its hole: plate found (hole), 3 foods', rtab.status === 'ok' && rtab.plate.via === 'hole' && rtab.items.length === 3);
+
+// The second real-model CI run (SAM 2.1 and SlimSAM, synthetic photo): ~30 prompts returned the plate (0.43 of the photo), one returned a band of table
+// around it whose hull passed the ring test at 0.88, and "largest wins" chose the band (every weight would come out ~half). The plate is the candidate
+// most passing masks agree with; the largest only breaks a tie.
+const band = draw((x, y) => { const c = Math.cos(ANG); const sn = Math.sin(ANG); const u = ((x - 80) * c + (y - 62) * sn) / 76; const v = (-(x - 80) * sn + (y - 62) * c) / 55; const rho = Math.hypot(u, v); return rho <= 1 && !at(S.plate, x, y); }, 0.8);
+const bandSel = A.selectPlate([band], plateParams);
+check('a band of table around the plate passes as a plate on its own (its hole filled, larger than the plate): the case consensus must handle', !!bandSel && bandSel.area_frac > 1.3 * plateArea / (W * H));
+const cons = A.selectPlate([band, S.plate, S.plateDup, tableMinusPlate, S.rice], plateParams);
+check('plate selection: the plate seen by several prompts (raw, near-duplicate, table hole) beats a larger band seen by one; support is reported', !!cons && near(cons.area_frac, plateArea / (W * H), 0.01) && cons.support === 3);
+check('plate selection: supportIou is a prior (plate_support_iou, an assumption with a rationale)', P.plate_support_iou === 0.85 && priors.autoseg.plate_support_iou.assumption === true);
+bites('plate selection by size alone (no consensus) is caught: it picks the band', () => A.selectPlate([band, S.plate, S.plateDup, tableMinusPlate], { ...plateParams, supportIou: 1.01 })?.mask === S.plate);
+const rband = await detect(makeModels({ plateStage: [band, S.plate, S.plateDup, tableMinusPlate], foodStage: [S.rice, S.meat, S.salad] }), { diagnostics: true });
+check('pipeline: the plate grid is judged without dedupe (repeats are the evidence), the band is not the plate, diagnostics list every raw mask', rband.status === 'ok' && near(rband.plate.area_frac, plateArea / (W * H), 0.01) && rband.plate_candidates.length === 4 && rband.items.length === 3);
 
 // ---------------------------------------------------------------- T-017: still no plate: zero setup means no tap. Foods from a centre grid, a circle standing in for the plate
 const fbScene = { plateStage: [S.table, S.fork, S.speckInside], foodStage: [S.table, S.rice, S.meat, S.salad, S.fork, S.lowScore, S.speckInside] }; // no S.bleed: "half off the plate" needs a plate to be judged

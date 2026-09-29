@@ -27,6 +27,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------- pure helpers (exercised by web/selftest.mjs against a fake library)
 /** The test photo: RGBA pixels of a light elliptical plate on a dark table with three coloured blobs. Deterministic. */
+export const PLATE_AREA_FRAC = Math.PI * 0.38 * 0.36; // the drawn plate's share of the test photo
 export function makePlateImage(width = 640, height = 480) {
   const cx = width / 2; const cy = height / 2; const plate = { cx, cy, a: width * 0.38, b: height * 0.36 };
   const blobs = [
@@ -112,20 +113,22 @@ export async function runIntegration({ T, root = join(here, '..'), log = () => {
    * Auto mode over one photo, as the app runs it: in the small mask space (priors mask_side, masks straight from the low-res logits), with per-stage
    * timings and the plate candidate table. `require` 'plate': it must DETECT the plate and find at least one food; 'food': at least one food, with the
    * plate detected or the no-plate stand-in (zero setup: a real photo must give a result; plate_detected false is reported as a warning).
+   * `plateFrac` (the synthetic photo): the chosen plate's area share must be within 20% of the drawn plate's (the scale comes from it).
    */
-  const autoRun = async (models, img, encoderMs, label, require) => {
+  const autoRun = async (models, img, encoderMs, label, require, plateFrac = null) => {
     const ms = maskSize(img.width, img.height, params.mask_side);
     const r = await detectAuto({ models, params, classes, width: ms.w, height: ms.h, photoWidth: img.width, photoHeight: img.height, crop: async (mask) => blobOf(cropRgba(img, resizeMask(mask, img.width, img.height))), diagnostics: true });
     const t = r.timings;
     const out = { status: r.status, plate_detected: r.plate_detected, via: r.plate?.via ?? null, mask_size: `${ms.w}x${ms.h}`, items: r.items.map((i) => i.cls.id), rejected: r.rejected.length, prompts: t.prompts, decode_ms: t.decode_ms, classify_ms: t.classify_ms,
       timings: { encoder_ms: encoderMs, plate_decode_ms: t.plate_decode_ms, food_decode_ms: t.food_decode_ms, naming_ms: t.classify_ms, total_ms: encoderMs + t.total_ms },
-      plate: r.plate ? { area_frac: Number(r.plate.area_frac.toFixed(3)), residual: Number(r.plate.residual.toFixed(3)), filled: r.plate.filled, via: r.plate.via } : null,
+      plate: r.plate ? { area_frac: Number(r.plate.area_frac.toFixed(3)), residual: Number(r.plate.residual.toFixed(3)), filled: r.plate.filled, via: r.plate.via, support: r.plate.support ?? null } : null,
       plate_cols: PLATE_COLS, plate_rows: (r.plate_candidates ?? []).map((c) => PLATE_COLS.map((k) => c[k])) };
     try {
       assert.ok(['ok', 'no_plate', 'empty_plate'].includes(r.status), `auto status ${r.status}`); assert.ok(t.prompts >= params.plate_grid_n ** 2, 'the plate grid was decoded');
       for (const it of r.items) { assert.ok(ids.has(it.cls.id), 'auto item is a vocab class'); assert.equal(it.mask.width, ms.w); assert.ok(finite(it.score)); }
       if (require === 'plate') assert.ok(r.plate_detected, `auto mode on ${label} found no plate (status ${r.status}, via ${out.via}): see plate_rows for the area, centre cover and ellipse residual of every candidate`);
       if (require) assert.ok(r.items.length >= 1, `auto mode on ${label} found no food item (status ${r.status}, plate_detected ${r.plate_detected})`);
+      if (plateFrac && r.plate_detected) assert.ok(Math.abs(r.plate.area_frac / plateFrac - 1) <= 0.2, `auto mode on ${label} chose a plate of ${r.plate.area_frac.toFixed(3)} of the photo, the drawn plate is ${plateFrac.toFixed(3)} (via ${out.via}): every weight scales with it`);
     } catch (e) { throw Object.assign(e, { details: out }); }
     if (require === 'food' && !r.plate_detected) summary.warnings.push(`auto mode on ${label}: plate not detected, the no-plate stand-in was used (see plate_rows)`);
     return out;
@@ -160,7 +163,7 @@ export async function runIntegration({ T, root = join(here, '..'), log = () => {
         assertMasks(r.masks, size, 'grid'); assert.equal(progress.at(-1), pts.length);
         return { points: pts.length, decodes: r.decodes, decode_ms: r.ms };
       });
-      await stage(entry, 'auto', () => autoRun(models, photo, encoderMs, 'the synthetic plate', proven ? 'plate' : null)); // the proven segmenter MUST find plate and food
+      await stage(entry, 'auto', () => autoRun(models, photo, encoderMs, 'the synthetic plate', proven ? 'plate' : null, PLATE_AREA_FRAC)); // the proven segmenter MUST find plate and food
     }
     await stage(entry, 'naming', async () => ({ model: clip.id, top3: await nameOf(models, blobOf(cropRgba(photo, blobMask(photo, photo.blobs[0])))) }));
     if (proven && photoJob) {

@@ -136,6 +136,12 @@
       "assumption": true,
       "calibrate_from": "iPhone crash reports (Diagnóstico)"
     },
+    "plate_support_iou": {
+      "value": 0.85,
+      "rationale": "Among the masks that pass as a plate, the plate is the one most others agree with (bounding-box IoU and area ratio at least this): SAM returns the real plate from many grid prompts, while a table band or placemat around it passes the ring test from one or two. Largest on a tie. The first real-model run chose a 0.88-of-photo band over a 0.43 plate seen by ~30 prompts when the largest candidate won.",
+      "assumption": true,
+      "calibrate_from": "plate recall on the benchmark"
+    },
     "plate_ring_min_arc": {
       "value": 0.75,
       "rationale": "SAM often returns a plate rim as a ring around the food that does not quite close. Its convex hull is taken as the plate when the ring reaches at least this share of the angular sectors around the hull's ellipse (a placemat cross or a heap of food reaches far fewer).",

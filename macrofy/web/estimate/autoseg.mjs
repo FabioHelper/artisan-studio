@@ -85,23 +85,32 @@ export function ellipseResidual(mask) {
 
 // ---------------------------------------------------------------- plate
 /**
- * The plate: among the candidate masks, the largest that covers enough of the photo (not nearly all of it), covers the central box of the photo and is
- * ellipse-shaped (residual <= maxResidual). Each mask is tried as it is, with its holes filled (SAM returns the plate without its food), and, when
+ * The plate: among the candidate masks that cover enough of the photo (not nearly all of it), cover the central box of the photo and are
+ * ellipse-shaped (residual <= maxResidual), the one most other passing masks agree with (same box and area within supportIou: SAM returns the real plate
+ * from many prompts, a table band or placemat hull from one or two), the largest on a tie. Each mask is tried as it is, with its holes filled (SAM returns the plate without its food), and, when
  * that fails, as the region a large mask encloses (SAM returns the table AS a mask, the plate is its hole: `via: 'hole'`) and as the convex hull of a
  * ring (SAM returns the plate rim as an almost closed ring around the food: `via: 'ring'`). Returns
- * { mask, source, index, residual, area_frac, filled, via, ellipse } or null (no plate found).
- * opts: minAreaFrac, maxAreaFrac, centerFrac (side of the central box), centerCoverMin (share of that box inside the mask), maxResidual,
+ * { mask, source, index, residual, area_frac, filled, via, support, ellipse } or null (no plate found); support = how many passing masks agree with it.
+ * opts: minAreaFrac, maxAreaFrac, centerFrac (side of the central box), centerCoverMin (share of that box inside the mask), maxResidual, supportIou (default 0.85),
  * and for the ring: ringMinArc (share of the angular sectors a ring must reach), ringMinBand (share of its pixels in the rim band), ringBandLo (inner radius of the boundary band), ringSectors.
+ * `evals` (optional) are the masks already judged by plateEvals, so the diagnostics and the choice share one pass.
  */
-export function selectPlate(masks, opts) {
-  let best = null;
-  masks.forEach((raw, index) => {
-    const e = bestPlateVariant(raw, opts, false);
-    if (e.verdict !== 'ok') return;
-    if (!best || e.n > best.n) best = { ...e, index };
-  });
-  return best ? { mask: best.mask, source: best.source, index: best.index, residual: best.residual, area_frac: best.area_frac, filled: best.mask !== best.source, via: best.via, ellipse: fitEllipse(best.mask) } : null;
+export function selectPlate(masks, opts, evals = plateEvals(masks, opts, false)) {
+  const ok = []; evals.forEach((e, index) => { if (e.verdict === 'ok') ok.push({ ...e, index, box: stats(e.mask).box }); });
+  if (!ok.length) return null;
+  const thr = opts.supportIou ?? 0.85;
+  const agree = (p, q) => Math.min(p.n, q.n) / Math.max(p.n, q.n) >= thr && boxIoU(p.box, q.box) >= thr;
+  for (const p of ok) p.support = ok.reduce((k, q) => k + (agree(p, q) ? 1 : 0), 0);
+  const best = ok.reduce((p, q) => (q.support > p.support || (q.support === p.support && q.n > p.n) ? q : p));
+  return { mask: best.mask, source: best.source, index: best.index, residual: best.residual, area_frac: best.area_frac, filled: best.mask !== best.source, via: best.via, support: best.support, ellipse: fitEllipse(best.mask) };
 }
+/** Every mask judged as a plate (bestPlateVariant); `full` computes every number for the diagnostics. */
+export const plateEvals = (masks, opts, full) => masks.map((raw) => bestPlateVariant(raw, opts, full));
+const boxIoU = (a, b) => {
+  const iw = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) + 1; const ih = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) + 1;
+  if (iw <= 0 || ih <= 0) return 0;
+  const area = (r) => (r.x1 - r.x0 + 1) * (r.y1 - r.y0 + 1); const i = iw * ih; return i / (area(a) + area(b) - i);
+};
 
 /** Background pixels that reach the photo border through background (4-connected): 1 = outside. Everything else that is 0 in the mask is enclosed. */
 function outsideOf(mask) {
@@ -234,12 +243,12 @@ function bestPlateVariant(raw, opts, full) {
 /**
  * Why each mask is or is not the plate, for the CI summary (T-017): [{ x, y, score, area_frac, area_raw, cover, residual, residual_raw, verdict, via }]
  * (x, y = the prompt point when the mask carries one). area_raw and residual_raw are before the holes are filled; via says how a passing mask
- * became a plate (raw, filled, hole, ring). Same options as selectPlate.
+ * became a plate (raw, filled, hole, ring). Same options as selectPlate; `evals` = plateEvals(masks, opts, true) when already computed.
  */
-export function plateDiagnostics(masks, opts) {
+export function plateDiagnostics(masks, opts, evals = plateEvals(masks, opts, true)) {
   const r = (v) => (v === null ? null : Math.round(v * 1000) / 1000);
-  return masks.map((raw) => {
-    const e = bestPlateVariant(raw, opts, true); const total = raw.width * raw.height;
+  return masks.map((raw, i) => {
+    const e = evals[i]; const total = raw.width * raw.height;
     return { x: raw.point ? Math.round(raw.point.x) : null, y: raw.point ? Math.round(raw.point.y) : null, score: r(raw.score ?? 0), area_frac: r(e.area_frac), area_raw: r(stats(raw).n / total),
       cover: r(e.cover), residual: r(e.residual), residual_raw: e.mask === raw ? r(e.residual) : (e.n && e.via === 'filled' ? r(ellipseResidual(raw)) : null), verdict: e.verdict, via: e.via };
   });
@@ -449,10 +458,11 @@ export async function detectAuto({ models, params, classes, width, height, photo
   // the plate stage keeps every multimask output of a point (the whole plate is often not the best-scoring one), the food stage the best one
   const plateRaw = await grid(gridPoints(width, height, p.plate_grid_n), 'plate', p.plate_masks_per_point ?? p.masks_per_point);
   const plateOpts = { minAreaFrac: p.plate_min_area_frac, maxAreaFrac: p.plate_max_area_frac, centerFrac: p.plate_center_frac, centerCoverMin: p.plate_center_cover_min, maxResidual: p.plate_max_residual,
-    ringMinArc: p.plate_ring_min_arc, ringMinBand: p.plate_ring_min_band, ringBandLo: p.plate_ring_band_lo, ringSectors: p.plate_ring_sectors };
-  const plateCandidates = dedupe(plateRaw, p.dedupe_iou);
-  const plate = selectPlate(plateCandidates, plateOpts);
-  const debug = diagnostics ? { plate_candidates: plateDiagnostics(plateRaw, plateOpts) } : {};
+    ringMinArc: p.plate_ring_min_arc, ringMinBand: p.plate_ring_min_band, ringBandLo: p.plate_ring_band_lo, ringSectors: p.plate_ring_sectors, supportIou: p.plate_support_iou };
+  // not deduplicated: the same plate from many prompts is the evidence that it is the plate
+  const plateJudged = plateEvals(plateRaw, plateOpts, diagnostics);
+  const plate = selectPlate(plateRaw, plateOpts, plateJudged);
+  const debug = diagnostics ? { plate_candidates: plateDiagnostics(plateRaw, plateOpts, plateJudged) } : {};
 
   if (!plate) {
     if (!fallback) return finish({ status: 'no_plate', plate: null, plate_detected: false, items: [], rejected: [], ...debug });

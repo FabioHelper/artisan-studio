@@ -3,7 +3,7 @@
 
 **Mission** (approved): Point the phone camera at a food or meal and get the most likely real weight of each item plus protein, carbs, fat and kcal, with honest ranges and the lowest achievable error, starting with Brazilian meals and running on-device with no paid LLM on the critical path.
 
-**Next action:** continue T-011 "Capture PWA: guided photo capture, plate registry, per-item weight entry, export in the benchmark manifest format" → make its acceptance checks pass, then `mc verify T-011`, review, `mc done T-011`
+**Next action:** start T-009 "Request a TBCA commercial license from USP/FoRC (draft by agent, sent by owner); fall back to free sources if refused" with `mc start T-009`
 
 ## Goals
 
@@ -39,7 +39,7 @@
 | T-007 | Experiment: metric scale error from a registered plate (known diameter, rim ellipse fit) on the iPhone 16e at 25-40 cm | todo | G-2, G-5 | T-011 | required | — |
 | T-009 | Request a TBCA commercial license from USP/FoRC (draft by agent, sent by owner); fall back to free sources if refused | todo | G-2 | T-002 | required | — |
 | T-010 | Measure zero-training food naming (SigLIP 2 zero-shot + k-NN gallery from calibration photos) on Brazilian dishes | todo | G-2, G-3 | T-004 | required | — |
-| T-011 | Capture PWA: guided photo capture, plate registry, per-item weight entry, export in the benchmark manifest format | active | G-2, G-5 | T-003 | required | [spec](specs/SPEC-T-011-capture-app.md) |
+| T-011 | Capture PWA: guided photo capture, plate registry, per-item weight entry, export in the benchmark manifest format | blocked | G-2, G-5 | T-003 | required | [spec](specs/SPEC-T-011-capture-app.md) |
 | T-012 | Feasibility: load and run Depth Anything V2-Small, SAM 2.1-tiny and SigLIP 2 in Safari on the iPhone 16e (WebGPU/WASM) | blocked | G-3, G-5 | T-002 | required | [spec](specs/SPEC-T-012-browser-feasibility.md) |
 
 ### M2 — Phase 1: on-device PWA MVP on the owner iPhone 16e passing the phase-1 accuracy gate (0/2 done)
@@ -47,10 +47,11 @@
 | Task | Title | Status | Goals | Depends on | Review | Spec |
 |---|---|---|---|---|---|---|
 | T-008 | On-device PWA MVP on the iPhone 16e (segment, name, depth, plate scale, volume, density, nutrients, one-tap confirm, conformal ranges) passes the phase-1 gate | todo | G-2, G-3, G-4, G-5 | T-004, T-005, T-006, T-007, T-010, T-011, T-012, T-013 | required | — |
-| T-013 | Estimation prototype in the PWA: tap-to-outline (SAM), top-3 naming (SigLIP) over the vocab, plate-rim ellipse scale from a registered plate, grams = area x class thickness prior x solid-aware density, oil question, macros via nutrition lookup, uncalibrated ranges, predictions export | todo | G-2, G-3, G-4, G-5 | T-005, T-011 | required | — |
+| T-013 | Estimation prototype in the PWA: tap-to-outline (SAM), top-3 naming (SigLIP) over the vocab, plate-rim ellipse scale from a registered plate, grams = area x class thickness prior x solid-aware density, oil question, macros via nutrition lookup, uncalibrated ranges, predictions export | todo | G-2, G-3, G-4, G-5 | T-005 | required | — |
 
 ## Waiting on the owner
 
+- **T-011** — Code done and independently reviewed (#56, A1 accepted); waiting for the owner to capture one real weighed meal on the iPhone 16e (A2)
 - **T-012** — Built and deployed; waiting for the owner to run the page on the iPhone 16e and paste the results JSON
 
 ## Open findings
@@ -60,8 +61,8 @@
 
 ## Recent handoffs
 
+- #58 2026-09-29 (claude-code): T-011 code reviewed/accepted, blocked on owner A2 (one real meal at /app/). T-013 now depends only on T-005 (needs the app code, not the owner's test meal) / next: T-013 estimation MVP via implementer / gotchas: T-012 and T-011 both await the owner's phone
 - #55 2026-09-29 (implementer): done: T-011 capture PWA built in web/app (plates, meal entry, IndexedDB, export, SW, icons); bench/schema-core.mjs extracted (browser-safe), web/sync-data.mjs copies it and the vocab; verify passed (A1), A2 manual, needs independent review then owner phone test / next: review T-011 (mc review), owner runs A2 on the iPhone, then T-013 reuses web/app shell / gotchas: after editing nutrition/vocab.json or bench/schema-core.mjs run node web/sync-data.mjs (web-selftest fails on drift); new app files must be added to SHELL in web/app/sw.js; photos are only hashed (sha256 of the file bytes as Safari delivers it), not exported
 - #52 2026-09-29 (claude-code): done: T-005 nutrition vocab (73 classes, TACO+FNDDS, review accepted #50) / next: T-011 capture PWA via implementer, then T-013 estimation prototype (MVP), then owner runs T-012 / gotchas: F-004 pieces densities must not be used for solid outlines; hooks copy filter now path-relative (worked around worktree paths)
 - #49 2026-09-29 (implementer): done: T-005 built and verified (nutrition/: vocab.json 73 classes, sources.json, data/ TACO+FNDDS extracts, lookup.mjs with nutrientsFor/massFromVolume/truthNutrients, validate.mjs, tools/ for regeneration, SPEC-T-005, architecture section); nutrition-map-validate passes, check --fast green / next: reviewer runs 'mc review T-005' then 'mc done T-005'; wire nutrition/lookup.mjs truthNutrients into eval/run.mjs so the CLI stops reporting n/a for kcal/macros; owner questions (in the spec): are 'pieces' densities (a cup of diced meat, fish, egg, fruit) usable for solid items, and default oil for beans is 0 because no cited value exists / gotchas: fdc.nal.usda.gov and nepa.unicamp.br are unreachable, data came from public mirrors (URLs and hashes in nutrition/data/*_extract.json); FNDDS food_nutrient was fetched by byte range; class_spec.mjs holds no numbers: edit it, run tools/extract_sources.mjs on raw downloads to add rows, then tools/build_vocab.mjs; 19 densities are analog FNDDS foods, 18 foods are missing for lack of a density row; journal was re-run on top of main after merge
 - #46 2026-09-29 (claude-code): ops: macrofy-pages workflow now publishes macrofy/web to gh-pages via git subtree (contents: write), since Pages is served from gh-pages / next: owner runs feasibility page; T-005 in worktree / gotchas: none
-- #45 2026-09-29 (claude-code): fix: CI red (F-003): hooks selftest now copies .claude/ and .github/ whole; full check after merges. Pages enabled via gh-pages branch (GITHUB_TOKEN cannot enable Pages); site builds from gh-pages / next: T-005 in worktree (its journal will diverge from this note: keep main's, re-verify on merge) / gotchas: republish web/ with git subtree split --prefix macrofy/web -b gh-pages + push

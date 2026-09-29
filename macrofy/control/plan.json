@@ -272,7 +272,7 @@
         "G-2",
         "G-5"
       ],
-      "status": "active",
+      "status": "blocked",
       "review": "required",
       "depends_on": [
         "T-003"
@@ -331,8 +331,7 @@
       "status": "todo",
       "review": "required",
       "depends_on": [
-        "T-005",
-        "T-011"
+        "T-005"
       ],
       "spec": null,
       "acceptance": [

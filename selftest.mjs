@@ -537,7 +537,7 @@ await t('the CI integration test, dry run against a fake library: image, cpu map
   for (const e of run.summary.sam) assert.ok(e.lowres.ious[0] >= 0.9 && e.lowres.mask_size === '384x288', JSON.stringify(e.lowres)); // the low-res logits path matches the full-size masks
   assert.deepEqual(run.summary.warnings.filter((w) => !/stick heap/.test(w)), []); // the fake decoder cannot find the stick heap; the real run reports it
   for (const e of run.summary.sam) assert.ok(e.auto.stick_heap && typeof e.auto.stick_heap.cover === 'number' && Array.isArray(e.auto.heap_groups), JSON.stringify(e.auto.stick_heap));
-  assert.ok(photoImg.sticks.segs.length === 9 && photoImg.sticks.mask(64, 48).data.some((v) => v === 1) && !photoImg.sticks.hit(320, 100), 'the stick heap is drawn clear of the plate top edge');
+  assert.ok(photoImg.sticks.segs.length === 20 && [[200, 150], [280, 150], [280, 210]].every(([x, y]) => photoImg.sticks.hit(x, y)) && photoImg.sticks.mask(64, 48).data.some((v) => v === 1) && !photoImg.sticks.hit(320, 100), 'the stick heap is drawn clear of the plate top edge');
   assert.equal(run.summary.naming.length, 2); assert.ok(run.summary.naming.every((n) => n.ok)); JSON.parse(JSON.stringify(run.summary));
   // failures are reported per stage: a decoder that answers with masks of the wrong size fails the run
   const bad = { ...fake, Sam2Model: { from_pretrained: async () => Object.assign(async () => ({ pred_masks: {}, iou_scores: { data: [0.3, NaN, 0.5] } }), { get_image_embeddings: model.get_image_embeddings, dispose: model.dispose }) } };

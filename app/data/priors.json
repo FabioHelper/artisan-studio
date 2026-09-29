@@ -286,6 +286,12 @@
       "assumption": true,
       "calibrate_from": "the owner's photos"
     },
+    "non_food_margin": {
+      "value": 3,
+      "rationale": "A kept mask is thrown out as non-food only when its best non-food label scores at least this many times its best food name. With English vectors (CI, 2026-09-29) plain argmax threw out a chicken crop as cutlery (0.11 vs 0.071) and every flat coloured disc of the synthetic plate as an empty plate (0.38-0.59 vs 0.09-0.20); a real fork scores far above any food.",
+      "assumption": true,
+      "calibrate_from": "naming accuracy benchmark (T-010)"
+    },
     "non_food_labels_en": {
       "value": ["an empty plate", "cutlery, a fork or a knife", "a paper napkin", "a drinking glass", "a table top"],
       "rationale": "English forms of non_food_labels, same order: the naming models were trained on English captions, so the non-food vectors come from these (the app still keys them by the Portuguese prompts).",

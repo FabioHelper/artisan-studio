@@ -58,6 +58,16 @@
       "evidence": "Owner run 2 (research/device-runs/2026-09-29-iphone16e-feasibility.json): only webgpu attempts listed for slimsam and sam2.1, then the stage ended; the T-014 review had judged the resume logic loop-safe but did not check that every backend is attempted",
       "expected_failing": [],
       "resolution": "T-015 per-attempt resume: run 3 tried the SAM WASM attempt (crashed, recorded) and continued to the next attempt of the same stage, which loaded"
+    },
+    {
+      "id": "F-007",
+      "title": "Hooks selftest broke the plan by hand-marking the LAST task done; once the last task was really done, the negative case stopped tripping J2 and R1 went red",
+      "severity": "medium",
+      "status": "closed",
+      "task": "T-001",
+      "evidence": "After T-015 done (#92), full mc check: R1 harness-hooks-selftest failing (stop-blocks and stop-releases cases). The orchestrator commit chain continued after the failing check and pushed cdf76ea",
+      "expected_failing": [],
+      "resolution": "The case now hand-marks the first not-done task; orchestrator runs the full check as a hard gate before committing (check && commit, not check ; commit)"
     }
   ]
 }

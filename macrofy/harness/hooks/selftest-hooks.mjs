@@ -52,7 +52,7 @@ expect('stop passes once the handoff is newer than the change', r.status === 0 &
 
 const planPath = path.join(M, 'control', 'plan.json');
 const planGood = fs.readFileSync(planPath, 'utf8');
-const plan = JSON.parse(planGood); plan.tasks.at(-1).status = 'done';
+const plan = JSON.parse(planGood); plan.tasks.find((t) => t.status !== 'done').status = 'done'; // any not-done task hand-edited to done must trip J2
 fs.writeFileSync(planPath, JSON.stringify(plan, null, 2) + '\n');
 r = hook('stop', { session_id: 's1' });
 expect('stop blocks on a failing gate and prints the fix', r.status === 2 && r.stderr.includes('J2-status-proven') && r.stderr.includes('fix:'), show(r));

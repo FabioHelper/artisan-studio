@@ -59,6 +59,12 @@
     "assumption": true,
     "calibrate_from": "the owner's plates and the benchmark"
   },
+  "no_plate_scale_uncertainty": {
+    "value": 0.25,
+    "rationale": "When no plate is found the food region is assumed to span a typical plate, which can be off by a third either way (a half-empty plate, a large platter); wider than the typical plate's own uncertainty, and replaces scale_uncertainty in the range (counted twice).",
+    "assumption": true,
+    "calibrate_from": "photos where the plate is not found, weighed on a scale"
+  },
   "calibration": {
     "note": "How the app learns from scale checks (web/estimate/calibration.mjs). All three are assumptions about how fast to trust a few weighings; they are tuned on the checks themselves.",
     "shrinkage_k": {
@@ -117,6 +123,72 @@
       "rationale": "The plate grid keeps all three masks SAM returns per point: the best-scoring one is often a part of the plate or the plate without its food, and the whole plate is only one of the outputs (T-017).",
       "assumption": true,
       "calibrate_from": "plate recall on the benchmark"
+    },
+    "mask_side": {
+      "value": 384,
+      "rationale": "Auto mode works on masks whose long side is this many pixels, read straight from SAM's 256x256 low-res logits (bilinear), instead of full-photo float masks: SAM has no finer detail than its logits, and full-size masks for ~90 decodes killed the Safari tab on the iPhone 16e (T-017). The chosen plate and foods are resized to the photo afterwards.",
+      "assumption": true,
+      "calibrate_from": "the model integration test (low-res vs full-size mask IoU) and iPhone memory"
+    },
+    "crash_retry": {
+      "value": { "plate_grid_n": 4, "food_grid_n": 6, "mask_side": 256 },
+      "rationale": "When the previous analysis closed the page (the browser ran out of memory), the retry uses fewer prompts and smaller masks.",
+      "assumption": true,
+      "calibrate_from": "iPhone crash reports (Diagnóstico)"
+    },
+    "plate_ring_min_arc": {
+      "value": 0.75,
+      "rationale": "SAM often returns a plate rim as a ring around the food that does not quite close. Its convex hull is taken as the plate when the ring reaches at least this share of the angular sectors around the hull's ellipse (a placemat cross or a heap of food reaches far fewer).",
+      "assumption": true,
+      "calibrate_from": "plate recall on the benchmark"
+    },
+    "plate_ring_min_band": {
+      "value": 0.7,
+      "rationale": "A plate rim is a band along the plate edge: at least this share of a ring's pixels must lie in the rim band (radius plate_ring_band_lo to 1.1 of the hull ellipse). A placemat cross or a heap of food can reach every sector but most of it is inside or outside that band.",
+      "assumption": true,
+      "calibrate_from": "plate recall on the benchmark"
+    },
+    "plate_ring_band_lo": {
+      "value": 0.6,
+      "rationale": "Inner radius, as a share of the hull ellipse, of the boundary band in which a ring must have pixels: a plate rim is a band along the edge, not a thin line.",
+      "assumption": true,
+      "calibrate_from": "plate recall on the benchmark"
+    },
+    "plate_ring_sectors": {
+      "value": 16,
+      "rationale": "Number of equal angular sectors used to measure how far around the plate a ring reaches.",
+      "assumption": true,
+      "calibrate_from": "plate recall on the benchmark"
+    },
+    "noplate_center_frac": {
+      "value": 0.8,
+      "rationale": "When no plate is found, foods are looked for on the grid points inside this central share of the photo (width and height), where the meal is when nobody taps.",
+      "assumption": true,
+      "calibrate_from": "photos where the plate is not found"
+    },
+    "noplate_span_factor": {
+      "value": 1.15,
+      "rationale": "With no plate, the food region is assumed to span a typical plate: the circle standing in for the plate has the radius of the food region's moment ellipse times this factor (a plate is a little larger than the food on it).",
+      "assumption": true,
+      "calibrate_from": "photos where the plate is not found, weighed on a scale"
+    },
+    "noplate_default_plate_frac": {
+      "value": 0.8,
+      "rationale": "With no plate and no food found, the stand-in plate is a circle of this share of the short side of the photo, at its centre.",
+      "assumption": true,
+      "calibrate_from": "photos where the plate is not found"
+    },
+    "noplate_food_min_image_frac": {
+      "value": 0.005,
+      "rationale": "With no plate there is no plate area to compare with: a food mask smaller than this share of the photo is noise or a crumb.",
+      "assumption": true,
+      "calibrate_from": "photos where the plate is not found"
+    },
+    "noplate_food_max_image_frac": {
+      "value": 0.35,
+      "rationale": "With no plate, a mask covering more than this share of the photo is the table or the background, not a food (a mask touching two photo edges is also refused).",
+      "assumption": true,
+      "calibrate_from": "photos where the plate is not found"
     },
     "dedupe_iou": {
       "value": 0.7,

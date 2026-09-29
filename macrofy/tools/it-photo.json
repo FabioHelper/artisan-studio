@@ -2,9 +2,9 @@
   "note": "Pin of the real test photo of macrofy-model-it (see tools/it-photo.mjs). While sha256 is null the run searches Commons, prints the first open-licensed candidate (title, url, license, author, sha256) as a warning and only warns about the photo assertions. To pin: look at the candidate, then paste title, license and sha256 here; from then on a changed file fails the run and the photo assertions are hard.",
   "search": "plate of food rice beans meat vegetables",
   "min_width": 800,
-  "title": null,
-  "url": null,
-  "license": null,
-  "author": null,
-  "sha256": null
+  "title": "File:2013 Khao man kai CM.jpg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/a/a2/2013_Khao_man_kai_CM.jpg",
+  "license": "CC BY-SA 3.0",
+  "author": "Takeaway",
+  "sha256": "8e98ba4bf6750ba7397d275185b94b88eb0bf62e779a9a29e73119c332c930f9"
 }

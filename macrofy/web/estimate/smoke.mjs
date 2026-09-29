@@ -6,7 +6,8 @@
 //     a plate-total check -> "Precisão" (evaluate over the checks, other-app table, "precisa de mais conferências" under 5) -> export -> conformal ranges after 10 checks.
 //   AUTO (T-014, corrections under "Ajustes / Corrigir"): photo -> progress ("Encontrando o prato…", "Encontrando os alimentos…") -> ONE confirmation screen with names, grams,
 //     ranges and macros and zero taps -> corrections (rename, add by tap, remove, merge, separate, split) -> oil -> unknown-plate prior widens the range
-//     -> save with timings -> export; then a reload mid-flow resumes from IndexedDB; then "no plate found" falls back to manual mode.
+//     -> save with timings -> export; then a reload mid-flow resumes from IndexedDB; then "no plate found" still gives a result (no tap, honest note);
+//     then a tab killed mid-analysis is not re-run by the resume (crash guard) and the lighter retry works.
 //   MANUAL (T-013, "Modo manual" under Ajustes / Corrigir): photo -> plate -> rim tap -> three food taps -> names (top-3 and "outro…") -> oil -> result -> link -> save -> export.
 // The numbers on screen are compared with the pure core fed the same masks; the exports are checked by the eval validator.
 // Not a registered check (it needs a browser); the registered ones are estimator-selftest, autoseg-selftest and web-selftest. Set SMOKE_SHOTS=<dir> for screenshots.
@@ -38,6 +39,14 @@ const sha = (x) => createHash('sha256').update(x).digest('hex');
 // ---- the scene the mock model layer returns (specs are drawn in the browser; the same specs are drawn here to predict the numbers)
 const draw = (fn) => { const d = new Uint8Array(W * H); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (fn(x, y)) d[y * W + x] = 1; return { width: W, height: H, data: d }; };
 const shape = (s) => draw(s.kind === 'disc' ? (x, y) => (x - s.cx) ** 2 + (y - s.cy) ** 2 <= s.r * s.r : s.kind === 'ell' ? (x, y) => ((x - s.cx) / s.a) ** 2 + ((y - s.cy) / s.b) ** 2 <= 1 : (x, y) => x >= s.x0 && x <= s.x1 && y >= s.y0 && y <= s.y1);
+// T-017: auto mode works on masks of the mask_side working size (the models return them from SAM's low-res logits) and resizes the result to the
+// photo. The mock draws its shapes at the size the app asks for (sampling pixel centres), and the expected masks here are drawn the same way.
+const inShape = (s) => (s.kind === 'disc' ? (x, y) => (x - s.cx) ** 2 + (y - s.cy) ** 2 <= s.r * s.r : s.kind === 'ell' ? (x, y) => ((x - s.cx) / s.a) ** 2 + ((y - s.cy) / s.b) ** 2 <= 1 : (x, y) => x >= s.x0 && x <= s.x1 && y >= s.y0 && y <= s.y1);
+const autoShape = (s) => {
+  const side = JSON.parse(fs.readFileSync(join(HERE, 'priors.json'), 'utf8')).autoseg.mask_side.value; const k = Math.min(1, side / Math.max(W, H)); const w = Math.round(W * k); const h = Math.round(H * k);
+  const d = new Uint8Array(w * h); const f = inShape(s); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (f((x + 0.5) * W / w - 0.5, (y + 0.5) * H / h - 0.5)) d[y * w + x] = 1;
+  return auto.resizeMask({ width: w, height: h, data: d }, W, H);
+};
 const SC = {
   table: { kind: 'rect', x0: 0, y0: 0, x1: W - 1, y1: H - 1, score: 0.99 }, // best score: the plate must not be picked by score
   plate: { kind: 'ell', cx: 400, cy: 300, a: 330, b: 250, score: 0.93 },
@@ -57,11 +66,11 @@ const PLAN_MANUAL = [['arroz branco cozido', 'feijão carioca cozido', 'macarrã
 
 // ---- mock model layer, installed before the app loads
 function installMock({ W, H, SC, plan }) {
-  const mk = (s) => {
-    const d = new Uint8Array(W * H);
+  const mk = (s, low = null) => { // low = { w, h }: drawn at that size, sampling the photo at pixel centres (as smoke's autoShape)
+    const w = low ? low.w : W; const hh = low ? low.h : H; const d = new Uint8Array(w * hh);
     const inside = s.kind === 'disc' ? (x, y) => (x - s.cx) ** 2 + (y - s.cy) ** 2 <= s.r * s.r : s.kind === 'ell' ? (x, y) => ((x - s.cx) / s.a) ** 2 + ((y - s.cy) / s.b) ** 2 <= 1 : (x, y) => x >= s.x0 && x <= s.x1 && y >= s.y0 && y <= s.y1;
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (inside(x, y)) d[y * W + x] = 1;
-    return { width: W, height: H, data: d, score: s.score };
+    for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) if (low ? inside((x + 0.5) * W / w - 0.5, (y + 0.5) * H / hh - 0.5) : inside(x, y)) d[y * w + x] = 1;
+    return { width: w, height: hh, data: d, score: s.score };
   };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let grid = 0;
@@ -73,10 +82,11 @@ function installMock({ W, H, SC, plan }) {
     },
     async setImage(blob) { if (!blob || !blob.size) throw new Error('mock: empty image'); grid = 0; return { encoder_ms: 42, cached: true }; },
     async segmentPoints(points, opts = {}) {
-      const call = ++grid; window.__grids = (window.__grids ?? []).concat([{ n: points.length, batch: opts.batch, budgetMs: opts.budgetMs }]);
+      const call = ++grid; window.__grids = (window.__grids ?? []).concat([{ n: points.length, batch: opts.batch, budgetMs: opts.budgetMs, lowRes: opts.lowRes ?? null }]);
+      if (window.__crashAt === call) { window.__crashAt = 0; return new Promise(() => {}); } // the tab "dies" here: the analysis never finishes
       for (let i = 0; i < points.length; i += opts.batch || 4) { await sleep(120); opts.onProgress?.({ done: Math.min(points.length, i + (opts.batch || 4)), total: points.length }); }
       const names = call === 1 ? (window.__noPlate ? ['table', 'rice', 'meat', 'fork', 'speck'] : ['table', 'plate', 'speck', 'rice']) : ['plate', 'rice', 'meat', 'salad', 'fork', 'unstable', 'table'];
-      return { masks: names.map((n) => mk(SC[n])), decodes: Math.ceil(points.length / (opts.batch || 4)), done: points.length, ms: 300, timed_out: false };
+      return { masks: names.map((n) => mk(SC[n], opts.lowRes)), decodes: Math.ceil(points.length / (opts.batch || 4)), done: points.length, ms: 300, timed_out: false };
     },
     async segment(x, y) {
       x = Math.round(x); y = Math.round(y); (window.__taps ??= []).push([x, y]); // the smoke rebuilds the expected masks from the taps it really made
@@ -153,7 +163,7 @@ const defaultPathText = (page) => page.evaluate(() => { const m = document.query
 // ================================================================ ZERO
 async function zeroScenario() {
   const { page, problems, shot } = await newPage(PLAN_AUTO);
-  const plateMask = shape(SC.plate); const foodMasks = [SC.rice, SC.meat, SC.salad].map(shape);
+  const plateMask = autoShape(SC.plate); const foodMasks = [SC.rice, SC.meat, SC.salad].map(autoShape);
   const typical = auto.plateSetup(priors, null); const scaleTyp = core.scaleFromPlateMask(plateMask, priors.typical_plate.diameter_mm);
   const counts = core.exclusiveCounts(foodMasks); const ids = ['arroz-branco-cozido', 'bife-grelhado', 'salada-mista-crua'];
   const estimateWith = (calibration) => ids.map((id, i) => core.estimateItem({ cls: cls(id), pixels: counts[i], scale: scaleTyp, oil: 'normal', priors: auto.priorsForPlate(priors, typical), calibration, lookup }));
@@ -287,7 +297,7 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
 async function autoScenario() {
   const { page, problems, shot } = await newPage(PLAN_AUTO);
   await seed(page);
-  const plateMask = shape(SC.plate); const foodMasks = [SC.rice, SC.meat, SC.salad].map(shape);
+  const plateMask = autoShape(SC.plate); const foodMasks = [SC.rice, SC.meat, SC.salad].map(autoShape);
   const scale260 = core.scaleFromPlateMask(plateMask, 260);
   const counts = core.exclusiveCounts(foodMasks);
   const expect = (ids, { oil = 'normal', setup = auto.plateSetup(priors, { diameter_mm: 260 }), scale = scale260 } = {}) => {
@@ -368,7 +378,7 @@ async function autoScenario() {
   step('auto: oil answer, totals, save with timings and corrections');
   await openAdjust(page); await page.getByText('Pouco', { exact: true }).click();
   // items were carved: recompute the expected pixel counts of the beans (rice disc minus the carved tap disc)
-  const carved = draw((x, y) => ((x - 300) ** 2 + (y - 300) ** 2 <= 4900) && !((x - taps[1][0]) ** 2 + (y - taps[1][1]) ** 2 <= 3600));
+  const riceAuto = autoShape(SC.rice); const carved = draw((x, y) => riceAuto.data[y * W + x] && !((x - taps[1][0]) ** 2 + (y - taps[1][1]) ** 2 <= 3600));
   const counts2 = core.exclusiveCounts([carved, ...foodMasks.slice(1)]);
   const est2 = ids1.map((id, i) => core.estimateItem({ cls: cls(id), pixels: counts2[i], scale: scale260, oil: 'little', priors, calibration, lookup }));
   const tot2 = core.totals(est2);
@@ -395,16 +405,38 @@ async function autoScenario() {
   assert.deepEqual(validatePredictions(preds), []);
   assert.deepEqual(preds.meals[0].items.map((i) => i.label), ids1.map((id) => cls(id).pt)); assert.deepEqual(preds.meals[0].items.map((i) => i.grams), est2.map((e) => e.grams));
 
-  step('auto: no plate found -> message and the manual flow (rim tap)');
+  step('auto: no plate found -> still no tap: a result with the honest note (typical-plate scale), foods found on the centre grid');
   await page.evaluate(() => { window.__noPlate = true; });
   await page.goto(`${base()}#/estimate/new`); await page.waitForSelector('text=Etapa 1 de 3: Foto');
-  await page.evaluate(() => { window.__noPlate = true; });
+  await page.evaluate(() => { window.__noPlate = true; window.__grids = []; });
   await upload(page, 3);
-  await page.waitForSelector('#notice');
-  assert.match(await page.locator('#notice').innerText(), /Não encontrei o prato automaticamente/);
-  await page.waitForSelector('text=Toque uma vez na borda do prato'); await page.waitForSelector('text=Etapa 3 de 7: Borda');
-  await page.waitForFunction(() => !document.getElementById('model-progress'), null, { timeout: 5000 });
-  await tapAt(page, 400 + 320, 300); await page.waitForSelector('text=Escala:'); await shot('a06-fallback-manual');
+  await page.waitForSelector('h2:text-is("Resultado")');
+  assert.match(await page.locator('#notice').innerText(), /Prato não detectado — escala aproximada/);
+  assert.equal(await page.locator('text=Toque uma vez na borda do prato').count(), 0, 'never the rim tap');
+  assert.equal(await page.locator('[data-item]').count(), 3, 'rice, meat and salad; not the table, the plate-sized mask, the fork or the unstable mask');
+  const npGrids = await page.evaluate(() => window.__grids);
+  assert.ok(npGrids.length === 2 && npGrids.every((g) => g.lowRes && g.lowRes.w === 384 && g.lowRes.h === 288), `masks asked at the mask_side size: ${JSON.stringify(npGrids)}`);
+  await page.locator('#diag summary').click(); assert.match(await page.locator('#diag-text').innerText(), /"detected": false[\s\S]*"via": "synthetic"/);
+  await shot('a06-no-plate-result');
+
+  step('auto: the tab dies during the analysis -> the resume does NOT run it again (no crash loop): it offers a lighter retry, which works');
+  await page.goto(`${base()}#/estimate/new`); await page.waitForSelector('text=Etapa 1 de 3: Foto');
+  await page.evaluate(() => { window.__noPlate = false; window.__crashAt = 1; });
+  await upload(page, 2);
+  await page.waitForFunction(() => /Encontrando o prato/.test(document.getElementById('auto-label')?.textContent ?? ''));
+  const mark = await page.evaluate(() => JSON.parse(localStorage.getItem('macrofy_run')));
+  assert.equal(mark.stage, 'plate', 'the stage is written down before the heavy work');
+  await page.goto('about:blank'); await page.goto(`${base()}#/estimate/resume`); // the tab dies; Safari reopens the page straight on the resume URL
+  await page.waitForSelector('#crash'); await shot('a07-crash-guard');
+  assert.equal(await page.evaluate(() => location.hash), '#/estimate', 'the resume URL is left before anything heavy runs');
+  assert.match(await page.locator('#crash').innerText(), /procurando o prato/);
+  assert.equal(await page.evaluate(() => (window.__grids ?? []).length), 0, 'nothing was decoded by the resume itself');
+  assert.match(await page.locator('#diag-text').textContent(), /"last_crash": \{[\s\S]*"stage": "plate"/);
+  await page.evaluate(() => { window.__grids = []; });
+  await page.locator('#retry-lite').click(); await page.waitForSelector('h2:text-is("Resultado")');
+  const lite = await page.evaluate(() => window.__grids);
+  assert.ok(lite[0].n === 16 && lite.every((g) => g.lowRes.w === 256 && g.lowRes.h === 192), `lighter retry: 4x4 plate grid, 256 px masks: ${JSON.stringify(lite)}`);
+  assert.equal(await page.evaluate(() => localStorage.getItem('macrofy_run')), null, 'a finished analysis leaves no crash mark');
 
   assert.deepEqual(problems, [], `page problems:\n${problems.join('\n')}`);
   await page.context().close();

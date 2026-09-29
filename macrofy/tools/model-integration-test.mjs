@@ -18,9 +18,9 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createModels, SEGMENT_CANDIDATES, NAMING_CANDIDATES, PROVEN_ATTEMPTS, safeModelId } from '../web/lib/models.mjs';
+import { createModels, SEGMENT_CANDIDATES, NAMING_CANDIDATES, PROVEN_ATTEMPTS, safeModelId, maskSize } from '../web/lib/models.mjs';
 import { resolvePhoto } from './it-photo.mjs';
-import { autosegParams, detectAuto, gridPoints } from '../web/estimate/autoseg.mjs';
+import { autosegParams, detectAuto, gridPoints, maskIoU, resizeMask } from '../web/estimate/autoseg.mjs';
 import { namePrompts, topNames, NAME_PROMPT } from '../web/estimate/core.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -107,20 +107,27 @@ export async function runIntegration({ T, root = join(here, '..'), log = () => {
     return top.map((n) => ({ id: n.cls.id, score: Number(n.score.toFixed(3)) }));
   };
 
-  const PLATE_COLS = ['x', 'y', 'score', 'area_frac', 'area_raw', 'cover', 'residual', 'residual_raw', 'verdict'];
-  /** Auto mode over one photo with per-stage timings and the plate candidate table. `require`: it must find a plate and at least one food. */
+  const PLATE_COLS = ['x', 'y', 'score', 'area_frac', 'area_raw', 'cover', 'residual', 'residual_raw', 'verdict', 'via'];
+  /**
+   * Auto mode over one photo, as the app runs it: in the small mask space (priors mask_side, masks straight from the low-res logits), with per-stage
+   * timings and the plate candidate table. `require` 'plate': it must DETECT the plate and find at least one food; 'food': at least one food, with the
+   * plate detected or the no-plate stand-in (zero setup: a real photo must give a result; plate_detected false is reported as a warning).
+   */
   const autoRun = async (models, img, encoderMs, label, require) => {
-    const r = await detectAuto({ models, params, classes, width: img.width, height: img.height, crop: async (mask) => blobOf(cropRgba(img, mask)), diagnostics: true });
+    const ms = maskSize(img.width, img.height, params.mask_side);
+    const r = await detectAuto({ models, params, classes, width: ms.w, height: ms.h, photoWidth: img.width, photoHeight: img.height, crop: async (mask) => blobOf(cropRgba(img, resizeMask(mask, img.width, img.height))), diagnostics: true });
     const t = r.timings;
-    const out = { status: r.status, items: r.items.map((i) => i.cls.id), rejected: r.rejected.length, prompts: t.prompts, decode_ms: t.decode_ms, classify_ms: t.classify_ms,
+    const out = { status: r.status, plate_detected: r.plate_detected, via: r.plate?.via ?? null, mask_size: `${ms.w}x${ms.h}`, items: r.items.map((i) => i.cls.id), rejected: r.rejected.length, prompts: t.prompts, decode_ms: t.decode_ms, classify_ms: t.classify_ms,
       timings: { encoder_ms: encoderMs, plate_decode_ms: t.plate_decode_ms, food_decode_ms: t.food_decode_ms, naming_ms: t.classify_ms, total_ms: encoderMs + t.total_ms },
-      plate: r.plate ? { area_frac: Number(r.plate.area_frac.toFixed(3)), residual: Number(r.plate.residual.toFixed(3)), filled: r.plate.filled } : null,
+      plate: r.plate ? { area_frac: Number(r.plate.area_frac.toFixed(3)), residual: Number(r.plate.residual.toFixed(3)), filled: r.plate.filled, via: r.plate.via } : null,
       plate_cols: PLATE_COLS, plate_rows: (r.plate_candidates ?? []).map((c) => PLATE_COLS.map((k) => c[k])) };
     try {
       assert.ok(['ok', 'no_plate', 'empty_plate'].includes(r.status), `auto status ${r.status}`); assert.ok(t.prompts >= params.plate_grid_n ** 2, 'the plate grid was decoded');
-      for (const it of r.items) { assert.ok(ids.has(it.cls.id), 'auto item is a vocab class'); assert.equal(it.mask.width, img.width); assert.ok(finite(it.score)); }
-      if (require) { assert.ok(r.plate, `auto mode on ${label} found no plate (status ${r.status}): see plate_rows for the area, centre cover and ellipse residual of every candidate`); assert.ok(r.items.length >= 1, `auto mode on ${label} found a plate but no food item (status ${r.status})`); }
+      for (const it of r.items) { assert.ok(ids.has(it.cls.id), 'auto item is a vocab class'); assert.equal(it.mask.width, ms.w); assert.ok(finite(it.score)); }
+      if (require === 'plate') assert.ok(r.plate_detected, `auto mode on ${label} found no plate (status ${r.status}, via ${out.via}): see plate_rows for the area, centre cover and ellipse residual of every candidate`);
+      if (require) assert.ok(r.items.length >= 1, `auto mode on ${label} found no food item (status ${r.status}, plate_detected ${r.plate_detected})`);
     } catch (e) { throw Object.assign(e, { details: out }); }
+    if (require === 'food' && !r.plate_detected) summary.warnings.push(`auto mode on ${label}: plate not detected, the no-plate stand-in was used (see plate_rows)`);
     return out;
   };
   let photoJob = null; // the real photo is fetched once, before the first model loads
@@ -138,6 +145,14 @@ export async function runIntegration({ T, root = join(here, '..'), log = () => {
     if (ready) {
       const tap = photo.blobs[0];
       await stage(entry, 'single_tap', async () => { const m = await models.segment(tap.cx, tap.cy); assertMasks(m, size, 'single tap'); assert.ok(m.some((x) => x.data.some((v) => v)), 'single tap: every mask is empty'); return { masks: m.length, best_iou: Number(m[0].score.toFixed(3)) }; });
+      // the auto mode reads masks straight from the low-res logits (models.lowResMask): same tap, same masks as the library's full-size post-processing
+      await stage(entry, 'lowres', async () => {
+        const full = await models.segment(tap.cx, tap.cy); const ms = maskSize(size.width, size.height, params.mask_side); const low = await models.segment(tap.cx, tap.cy, ms);
+        assertMasks(low, { width: ms.w, height: ms.h }, 'low-res tap'); assert.equal(low.length, full.length, 'as many low-res masks as full-size ones');
+        const ious = full.map((f, i) => Number(maskIoU(resizeMask(f, ms.w, ms.h), low[i]).toFixed(3)));
+        assert.ok(ious[0] >= 0.9, `low-res best mask vs the full-size one: IoU ${ious[0]} (< 0.9): the logits geometry (padding, resize) is wrong`);
+        return { mask_size: `${ms.w}x${ms.h}`, ious };
+      });
       await stage(entry, 'grid', async () => {
         const pts = gridPoints(photo.width, photo.height, gridN ?? params.plate_grid_n); const progress = [];
         const r = await models.segmentPoints(pts, { batch: params.decode_batch, budgetMs: Infinity, perPoint: 1, onProgress: (e) => progress.push(e.done) });
@@ -145,7 +160,7 @@ export async function runIntegration({ T, root = join(here, '..'), log = () => {
         assertMasks(r.masks, size, 'grid'); assert.equal(progress.at(-1), pts.length);
         return { points: pts.length, decodes: r.decodes, decode_ms: r.ms };
       });
-      await stage(entry, 'auto', () => autoRun(models, photo, encoderMs, 'the synthetic plate', proven)); // the proven segmenter MUST find plate and food
+      await stage(entry, 'auto', () => autoRun(models, photo, encoderMs, 'the synthetic plate', proven ? 'plate' : null)); // the proven segmenter MUST find plate and food
     }
     await stage(entry, 'naming', async () => ({ model: clip.id, top3: await nameOf(models, blobOf(cropRgba(photo, blobMask(photo, photo.blobs[0])))) }));
     if (proven && photoJob) {
@@ -157,7 +172,7 @@ export async function runIntegration({ T, root = join(here, '..'), log = () => {
         const { img, meta } = pj.v; entry.photo = { title: meta.title, url: meta.url, license: meta.license, author: meta.author, sha256: meta.sha256, pinned: meta.pinned, size: `${img.width}x${img.height}` };
         if (!meta.pinned) summary.warnings.push(`unpinned test photo: paste this into tools/it-photo.json after looking at it: ${JSON.stringify(meta.pin)}`);
         const bucket = {};
-        const ok = await stage(bucket, 'photo_auto', async () => { const e = await models.setImage(blobOf(img)); return autoRun(models, img, e.encoder_ms, meta.title, true); });
+        const ok = await stage(bucket, 'photo_auto', async () => { const e = await models.setImage(blobOf(img)); return autoRun(models, img, e.encoder_ms, meta.title, 'food'); });
         Object.assign(entry.photo, { auto: bucket.photo_auto });
         if (!ok && !meta.pinned) { summary.failures.pop(); summary.warnings.push(`unpinned photo: ${bucket.photo_auto.error}`); }
       }

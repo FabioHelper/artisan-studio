@@ -56,7 +56,8 @@ const S = {
 // A placemat: a cross bigger than the plate, over the centre of the photo, with a high score. Not an ellipse.
 const mat = draw((x, y) => (x >= 10 && x <= 149 && y >= 40 && y <= 84) || (x >= 50 && x <= 109 && y >= 5 && y <= 114), 0.97);
 const plateArea = count(S.plate);
-const plateParams = { minAreaFrac: P.plate_min_area_frac, maxAreaFrac: P.plate_max_area_frac, centerFrac: P.plate_center_frac, centerCoverMin: P.plate_center_cover_min, maxResidual: P.plate_max_residual };
+const plateParams = { minAreaFrac: P.plate_min_area_frac, maxAreaFrac: P.plate_max_area_frac, centerFrac: P.plate_center_frac, centerCoverMin: P.plate_center_cover_min, maxResidual: P.plate_max_residual,
+  ringMinArc: P.plate_ring_min_arc, ringMinBand: P.plate_ring_min_band, ringBandLo: P.plate_ring_band_lo, ringSectors: P.plate_ring_sectors };
 const foodParams = { minFrac: P.food_min_frac, maxFrac: P.food_max_frac, minPredIoU: P.food_min_pred_iou, minInsideFrac: P.food_min_inside_frac };
 const all = Object.values(S);
 
@@ -243,9 +244,9 @@ check('pipeline: two foods only -> two items', ok2.status === 'ok' && ok2.items.
 
 // no plate found: only foods, the table and noise -> falls back to manual, no foods are decoded
 const np = makeModels({ plateStage: [S.table, S.rice, S.meat, S.fork, S.salad, S.speckInside], foodStage: [S.rice] });
-const noPlate = await detect(np);
-check('no plate found: status no_plate, no plate, no items, and the foods grid is never decoded (manual fallback)', noPlate.status === 'no_plate' && noPlate.plate === null && noPlate.items.length === 0 && np.calls.seg.length === 1 && np.calls.classify === 0);
-const to = await detect(makeModels({ plateStage: [], foodStage: [], timedOut: true }));
+const noPlate = await detect(np, { fallback: false });
+check('no plate found, fallback switched off: status no_plate, no plate, no items, and the foods grid is never decoded (manual fallback)', noPlate.status === 'no_plate' && noPlate.plate === null && noPlate.items.length === 0 && np.calls.seg.length === 1 && np.calls.classify === 0);
+const to = await detect(makeModels({ plateStage: [], foodStage: [], timedOut: true }), { fallback: false });
 check('no plate found because the time budget ran out: no_plate and timed_out is recorded', to.status === 'no_plate' && to.timings.timed_out === true);
 // empty plate: the plate is found but nothing on it survives (only noise), or everything on it is cutlery
 const empty1 = await detect(makeModels({ plateStage: scene.plateStage, foodStage: [S.plate, S.speckInside, S.lowScore, S.bleed, S.bigBlob] }));
@@ -279,8 +280,67 @@ const mh = makeModels(holedScene); const rh = await detect(mh, { diagnostics: tr
 check('pipeline with a plate that has holes for its food: plate found (filled), 3 foods kept, the plate-without-food mask is not one of them', rh.status === 'ok' && rh.plate.filled === true && rh.items.map((i) => i.cls.id).sort().join() === 'arroz-branco-cozido,bife-grelhado,salada-mista-crua');
 check('pipeline: the plate grid keeps all multimask outputs (plate_masks_per_point), the food grid the best one', mh.calls.seg[0].opts.perPoint === P.plate_masks_per_point && P.plate_masks_per_point === 3 && mh.calls.seg[1].opts.perPoint === P.masks_per_point);
 check('pipeline: per-stage decode timings and (on request) the plate diagnostics; without the flag no diagnostics', rh.timings.plate_decode_ms === 7 && rh.timings.food_decode_ms === 7 && Array.isArray(rh.plate_candidates) && rh.plate_candidates.length === 3 && rh.plate_candidates.some((r) => r.verdict === 'ok') && !('plate_candidates' in ok1));
-const nop = await detect(makeModels({ plateStage: [S.table, S.rice], foodStage: [] }), { diagnostics: true });
+const nop = await detect(makeModels({ plateStage: [S.table, S.rice], foodStage: [] }), { diagnostics: true, fallback: false });
 check('no plate with diagnostics: the rows explain it', nop.status === 'no_plate' && nop.plate_candidates.map((r) => r.verdict).join() === 'too_large,too_small');
+// ---------------------------------------------------------------- T-017: real photos. In the CI run on a Commons photo (a plate of Thai chicken rice) SAM 2.1 returned
+// (a) the TABLE as a big mask with the plate as its hole (raw area 0.38, filled 0.99, so too_large) and (b) the plate rim as a ring around the food that
+// does not close (centre cover 0.05, residual 0.6). Both are plates in disguise: the region a table mask encloses, and the hull of an almost closed ring.
+const annulus = (gapDeg = 0, inner = 0.55, score = 0.96) => draw((x, y) => {
+  const c = Math.cos(ANG); const sn = Math.sin(ANG); const u = ((x - 80) * c + (y - 62) * sn) / 64; const v = (-(x - 80) * sn + (y - 62) * c) / 46; const rho = Math.hypot(u, v);
+  if (rho > 1 || rho < inner) return false; const deg = (Math.atan2(v, u) * 180) / Math.PI; return !(gapDeg && Math.abs(deg + 90) <= gapDeg / 2);
+}, score);
+const ringOpen = annulus(60); const ringClosed = annulus(0); const ringHalf = draw((x, y) => at(annulus(0), x, y) && y > 62, 0.9);
+const tableMinusPlate = draw((x, y) => !at(S.plate, x, y), 0.95); // the table as a mask, the plate is its hole
+const arcP = { sectors: P.plate_ring_sectors, bandLo: P.plate_ring_band_lo }; const plateE = A.selectPlate([S.plate], plateParams).ellipse;
+closeTo('arcCoverage: a closed annulus reaches all the way around', A.arcCoverage(ringClosed, plateE, arcP), 1, 0.001);
+check('arcCoverage: an annulus with a 60 degree gap reaches about 90% (above the 0.75 limit), a half ring 50%', near(A.arcCoverage(ringOpen, plateE, arcP), 0.875, 0.07) && A.arcCoverage(ringOpen, plateE, arcP) >= P.plate_ring_min_arc && near(A.arcCoverage(ringHalf, plateE, arcP), 0.5, 0.07));
+check('ring test: a placemat cross reaches every sector but most of it is off the rim band, so it is not a ring; heaps of food reach no sector; the open ring is one', !A.isRing(mat, plateE, plateParams) && A.ringFit(mat, plateE, arcP).band < P.plate_ring_min_band && A.isRing(ringOpen, plateE, plateParams) && A.arcCoverage(S.rice, plateE, arcP) === 0 && A.arcCoverage(S.salad, plateE, arcP) === 0);
+const hull = A.convexHull(ringOpen);
+check('convexHull: an open ring becomes the disc minus the chord over its 60 degree gap (a 2.9% segment, so within 5% of the plate ellipse), a convex mask keeps its area', near(count(hull) / plateArea, 1, 0.05) && count(hull) / plateArea < 1 && near(count(A.convexHull(S.rice)) / count(S.rice), 1, 0.04) && A.convexHull(S.speckOutside).data.length === W * H && count(A.convexHull(rect(5, 5, 5, 5))) === 1);
+const regs = A.enclosedRegions(tableMinusPlate, 100);
+check('enclosedRegions: the table mask encloses exactly the plate (one region, its pixels are the plate ellipse\'s); a mask with no hole encloses none', regs.length === 1 && near(count(regs[0]) / plateArea, 1, 0.001) && regs[0].score === 0.95 && A.enclosedRegions(S.plate).length === 0 && A.enclosedRegions(S.plate, 100).length === 0);
+const selHole = A.selectPlate([S.table, tableMinusPlate, S.rice], plateParams);
+check('plate selection: the region a table-sized mask encloses is the plate (via hole); the table mask itself is refused (too large)', !!selHole && selHole.via === 'hole' && selHole.source === tableMinusPlate && near(selHole.ellipse.a, 64, 2) && A.plateDiagnostics([tableMinusPlate], plateParams)[0].via === 'hole');
+const selRing = A.selectPlate([S.table, ringOpen, S.rice], plateParams);
+check('plate selection: an almost closed ring around the food is the plate through its hull (via ring), with the plate ellipse', !!selRing && selRing.via === 'ring' && near(selRing.ellipse.a, 64, 3) && near(selRing.ellipse.b, 46, 3) && near(selRing.area_frac, plateArea / (W * H), 0.02));
+check('plate selection: a closed ring is the plate by filling its hole (via filled), no hull needed', A.selectPlate([ringClosed], plateParams)?.via === 'filled');
+check('plate selection: a half ring, a placemat cross and food heaps are NOT plates (no ring: too few sectors reached, or not an ellipse)', A.selectPlate([ringHalf], plateParams) === null && A.selectPlate([mat], plateParams) === null && A.selectPlate([S.rice, S.meat, S.salad, S.fork], plateParams) === null);
+check('plate selection: with the variants off (variants: false) the ring and the table mask are refused, as before', A.selectPlate([ringOpen, tableMinusPlate], { ...plateParams, variants: false }) === null);
+const drow = A.plateDiagnostics([ringOpen, ringHalf], plateParams);
+check('diagnostics: the open ring passes as ring, the half ring says why not (verdict and via reported)', drow[0].verdict === 'ok' && drow[0].via === 'ring' && drow[1].verdict !== 'ok' && drow[1].via === 'raw');
+check('food filter: the plate rim (a ring around the plate) is not a food, foods inside are kept', (() => {
+  const fs = A.filterFoods([ringOpen, S.rice, S.meat], selRing, { ...foodParams, plateDupIou: P.dedupe_iou, ringMinArc: P.plate_ring_min_arc, ringMinBand: P.plate_ring_min_band, ringBandLo: P.plate_ring_band_lo, ringSectors: P.plate_ring_sectors });
+  return fs.length === 2 && fs.every((m) => m !== ringOpen);
+})());
+const rr = await detect(makeModels({ plateStage: [S.table, ringOpen, tableMinusPlate.score ? S.speckOutside : null], foodStage: [ringOpen, S.rice, S.meat, S.salad] }), { diagnostics: true });
+check('pipeline on a photo where SAM returns the plate as an open ring: plate found (ring), 3 foods, the rim is not one of them, plate_detected true', rr.status === 'ok' && rr.plate_detected === true && rr.plate.via === 'ring' && rr.items.length === 3 && !('note' in rr));
+const rtab = await detect(makeModels({ plateStage: [S.table, tableMinusPlate], foodStage: [S.rice, S.meat, S.salad] }));
+check('pipeline on a photo where SAM returns the table with the plate as its hole: plate found (hole), 3 foods', rtab.status === 'ok' && rtab.plate.via === 'hole' && rtab.items.length === 3);
+
+// ---------------------------------------------------------------- T-017: still no plate: zero setup means no tap. Foods from a centre grid, a circle standing in for the plate
+const fbScene = { plateStage: [S.table, S.fork, S.speckInside], foodStage: [S.table, S.rice, S.meat, S.salad, S.fork, S.lowScore, S.speckInside] }; // no S.bleed: "half off the plate" needs a plate to be judged
+const fbModels = makeModels(fbScene); const fb = await detect(fbModels);
+check('no plate found: no failure and no tap: status ok, plate_detected false, the honest note, the foods found on a centre grid over the whole photo', fb.status === 'ok' && fb.plate_detected === false && fb.note === A.NO_PLATE_NOTE && A.NO_PLATE_NOTE === 'prato não detectado — escala aproximada' && fb.items.map((i) => i.cls.id).sort().join() === 'arroz-branco-cozido,bife-grelhado,salada-mista-crua');
+check('no plate: the table, the crumb, the unstable mask and the cutlery are not foods; two grids are decoded (plate grid, then the centre food grid) with the plate decode time kept apart', fbModels.calls.seg.length === 2 && fbModels.calls.seg[1].n < P.food_grid_n ** 2 && fbModels.calls.seg[1].n >= 16 && fb.timings.food_decode_ms === 7 && fb.timings.plate_decode_ms === 7);
+const ue = fitUnion([S.rice, S.meat, S.salad]);
+function fitUnion(ms) { const d = new Uint8Array(W * H); for (const m of ms) for (let i = 0; i < d.length; i++) if (m.data[i]) d[i] = 1; return core.fitEllipse({ width: W, height: H, data: d }); }
+check('no plate: the stand-in plate is a circle (no tilt) centred on the food with the food ellipse\'s radius times noplate_span_factor, marked synthetic, the scale is the typical plate\'s', fb.plate.synthetic === true && fb.plate.via === 'synthetic' && near(fb.plate.ellipse.a, Math.sqrt(ue.a * ue.b) * P.noplate_span_factor, 1.5) && near(fb.plate.ellipse.b, fb.plate.ellipse.a, 0.6) && near(fb.plate.ellipse.cx, ue.cx, 1.5) && core.scaleFromPlateMask(fb.plate.mask, 260).cos_tilt > 0.98);
+const sp = A.plateSetup(priors, null, { noPlate: true }); const tp = A.plateSetup(priors, null);
+check('no plate: the setup is the typical plate with the wider no-plate scale uncertainty (an assumption in priors) and says so; known plates and the typical plate are unchanged', sp.typical === true && sp.no_plate === true && sp.diameter_mm === 260 && sp.scale_uncertainty === priors.no_plate_scale_uncertainty.value && sp.scale_uncertainty > tp.scale_uncertainty && tp.no_plate === false && A.plateSetup(priors, { id: 'p', name: 'x', diameter_mm: 270 }).no_plate === false && priors.no_plate_scale_uncertainty.assumption === true && A.priorsForPlate(priors, sp).scale_uncertainty.value === sp.scale_uncertainty);
+const fbEmpty = await detect(makeModels({ plateStage: [], foodStage: [S.table, S.fork] }));
+check('no plate and no food: still no tap and no failure: empty_plate with a default circle at the photo centre (noplate_default_plate_frac of the short side), plate_detected false', fbEmpty.status === 'empty_plate' && fbEmpty.plate_detected === false && fbEmpty.plate.synthetic === true && near(fbEmpty.plate.ellipse.cx, W / 2, 1) && near(fbEmpty.plate.ellipse.a, P.noplate_default_plate_frac * H / 2, 1) && fbEmpty.items.length === 0);
+const fbTo = await detect(makeModels({ plateStage: [], foodStage: [], timedOut: true }));
+check('no plate because the time budget ran out: the fallback still answers (empty_plate), timed_out is recorded', fbTo.status === 'empty_plate' && fbTo.timings.timed_out === true && fbTo.plate_detected === false);
+check('priors: the ring and no-plate thresholds are assumptions in priors.json (autosegParams checks value, assumption and rationale)', ['plate_ring_min_arc', 'plate_ring_band_lo', 'plate_ring_sectors', 'noplate_center_frac', 'noplate_span_factor', 'noplate_default_plate_frac', 'noplate_food_min_image_frac', 'noplate_food_max_image_frac'].every((k) => k in P));
+// ---------------------------------------------------------------- T-017: auto mode in a small mask space (memory on the iPhone: masks from the low-res logits)
+const big = A.resizeMask(S.plate, W * 4, H * 4);
+check('resizeMask: x4 keeps the plate area (x16 pixels, within 1%) and the score; back down to the original size is the same mask; same size returns the same object', near(count(big) / (16 * count(S.plate)), 1, 0.01) && big.score === S.plate.score && count(A.resizeMask(big, W, H)) === count(S.plate) && A.resizeMask(S.plate, W, H) === S.plate);
+const lowCalls = []; const lowModels = { ...makeModels(scene), async segmentPoints(points, opts) { lowCalls.push({ points, opts }); return { masks: lowCalls.length === 1 ? scene.plateStage : scene.foodStage, decodes: points.length, ms: 7 }; } };
+const lowRes = await A.detectAuto({ models: lowModels, params: P, classes, width: W, height: H, photoWidth: W * 4, photoHeight: H * 4, crop: async (m) => m });
+check('mask space smaller than the photo: points go to the model in photo pixels (x4), masks are asked at the mask size (lowRes), the result is the same as at full size', lowRes.status === 'ok' && lowCalls[0].opts.lowRes.w === W && lowCalls[0].opts.lowRes.h === H && near(lowCalls[0].points[0].x, 4 * (0.5 * W / P.plate_grid_n), 1e-9) && lowRes.items.length === ok1.items.length);
+let sizeErr = null; try { await A.detectAuto({ models: { ...lowModels, segmentPoints: async () => ({ masks: [big], decodes: 1, ms: 1 }) }, params: P, classes, width: W, height: H, photoWidth: W * 4, photoHeight: H * 4, crop: async (m) => m }); } catch (e) { sizeErr = e; }
+check('mask space: a model that returns masks of another size is an error (not a silent wrong scale)', sizeErr instanceof Error && /esperado 160x120/.test(sizeErr.message));
+check('priors: mask_side and the crash-retry settings are assumptions', P.mask_side === 384 && P.crash_retry.plate_grid_n < P.plate_grid_n && P.crash_retry.mask_side < P.mask_side);
 let missing = null; try { await detect({ classify: async () => [] }); } catch (e) { missing = e; }
 check('pipeline: a model layer without segmentPoints rejects', missing instanceof Error);
 

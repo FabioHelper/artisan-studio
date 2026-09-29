@@ -40,6 +40,26 @@ mocked models (the sandbox cannot reach Hugging Face), so the real tensor contra
 - Workflows: only macrofy-models commits (probe, contracts, embeddings). macrofy-model-it is read-only. A red selftest there still
   commits the probe and contracts (the evidence) but not the embeddings, then fails the job.
 
+## Follow-up: real photos and the iPhone (2026-09-29)
+
+Owner's iPhone, real meal (blue plate on a patterned cloth): auto mode found no plate and fell back to the rim tap (not zero setup),
+and a reload landed on `#/estimate/resume`, which re-ran the same analysis and Safari killed the tab repeatedly (crash loop).
+
+- Plate variants (`web/estimate/autoseg.mjs`): a mask is also judged with its holes filled (the plate without its food), as the
+  region a table-sized mask encloses (`via: 'hole'`) and as the convex hull of a rim ring (`via: 'ring'`: the ring must reach
+  `plate_ring_min_arc` of the way around and keep `plate_ring_min_band` of its pixels in the rim band, so a placemat cross is not a ring).
+- No plate is not a failure and never asks for a tap: foods come from a grid over the photo centre, the plate is a circle around
+  them (`syntheticPlate`), the scale is the typical plate with the wider `no_plate_scale_uncertainty`, and the result says
+  "prato não detectado — escala aproximada".
+- Memory: auto mode reads masks straight from SAM's low-res logits at `mask_side` (`lowResMask` in `web/lib/models.mjs`) instead of
+  the library's full-photo float upsampling per decode; the chosen plate and foods are resized to the photo.
+- Crash guard (`web/app/estimate.mjs`): the analysis writes its stage to localStorage; a mark found at page load means the tab died,
+  so the resume shows what happened and offers a lighter retry (`crash_retry` in priors) instead of re-running. The resume URL is
+  left before anything heavy runs. A "Diagnóstico" panel (copyable JSON: device, models, timings, plate candidates, last crash)
+  is on the analysis, error and result screens.
+- CI: the integration test runs auto mode in the same low-res mask space, checks low-res vs full-size masks of one tap (IoU >= 0.9),
+  and requires >= 1 food on the pinned Commons photo (`tools/it-photo.json`); a stand-in plate there is a warning.
+
 ## Acceptance
 
 - A1, `web-selftest`: tensors for a single tap and for a grid of N points (N runs) match the recorded names, ranks and fixed

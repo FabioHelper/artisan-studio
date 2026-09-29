@@ -27,7 +27,7 @@ missed item by tap (the existing tap flow). "Modo manual" keeps the whole tap fl
   moment-fitted ellipse), `selectPlate`, `filterFoods`, `resolveOverlaps`, `mergeSameLabel`,
   `rejectNonFood`, `plateSetup` and `detectAuto`, which composes them over an injected model object.
 - Plate: the largest mask that covers the image centre, has a low ellipse residual and is not
-  near-whole-image. None found means status `no_plate`: the app says so and switches to manual mode.
+  near-whole-image. None found: since T-017 the foods are still found and the typical-plate scale is used, said on screen (SPEC-T-017 follow-up); `no_plate` remains only with `fallback: false`.
   A plate with no food left after the filters is `empty_plate`: the app offers add-by-tap.
 - Foods: a denser grid inside the plate ellipse, then dedupe, area and predicted-IoU filters,
   overlap resolution, SigLIP naming over the food names plus non-food labels, non-food rejection,

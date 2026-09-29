@@ -21,14 +21,21 @@ const n2 = (x) => (Math.round(x * 100) / 100).toFixed(2).replace('.', ',');
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const TYPICAL = '__typical__'; // plate id of the "prato típico" prior (a plate that is not registered)
 const DRAFT = 'estimate_draft'; // IndexedDB kv key: the estimate in progress, so a reloaded tab can resume
+// T-017 crash guard: the automatic analysis writes where it is to localStorage (synchronous, survives Safari killing the tab). A mark found when the
+// page loads means the previous page died during the analysis (memory): the resume must NOT run the same analysis again (that was a crash loop on
+// #/estimate/resume); it offers a lighter retry instead and keeps the mark for the Diagnóstico panel.
+const RUN = 'macrofy_run'; const LAST_CRASH = 'macrofy_last_crash';
+const ls = { get: (k) => { try { return JSON.parse(localStorage.getItem(k) ?? 'null'); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage off */ } }, del: (k) => { try { localStorage.removeItem(k); } catch { /* storage off */ } } };
 
 export function createEstimate(ctx) {
   const { h, show, back, errorBox, toast, db, objUrl, fmtDate, bitmapOf, searchVocab, isoWithOffset, getVocab } = ctx;
   let st = fresh();
   let staticData = null; let modelsP = null; let lookup = null;
+  let crashed = ls.get(RUN); // set: the previous page was killed during an analysis
+  if (crashed) { ls.set(LAST_CRASH, { ...crashed, detected: isoWithOffset() }); ls.del(RUN); }
 
   function fresh() {
-    return { mode: 'auto', notice: '', auto: null, tapMode: null, timings: null, encoder_ms: null, corrections: {}, step: 'photo', work: null, workBlob: null, imageSetFor: null, plateId: '', rim: null, items: [], oil: 'normal', mealId: '', saved: null, busy: '', error: '', model: { status: 'idle' }, query: {}, naming: false, namingRun: 0, snap: null, adjustOpen: false, checkOpen: false, checkForm: { items: {}, total: '', other: '' }, checkErrors: [], checkSaved: null };
+    return { mode: 'auto', notice: '', auto: null, autoError: '', crash: null, diag: null, noPlate: false, tapMode: null, timings: null, encoder_ms: null, corrections: {}, step: 'photo', work: null, workBlob: null, imageSetFor: null, plateId: '', rim: null, items: [], oil: 'normal', mealId: '', saved: null, busy: '', error: '', model: { status: 'idle' }, query: {}, naming: false, namingRun: 0, snap: null, adjustOpen: false, checkOpen: false, checkForm: { items: {}, total: '', other: '' }, checkErrors: [], checkSaved: null };
   }
   const getModels = () => globalThis.__macrofyModels ?? (modelsP ??= import('./vendor/models.mjs').then((m) => m.createModels({ labels: () => getVocab().classes.map((c) => c.pt) })));
   async function loadStatic() {
@@ -152,7 +159,7 @@ export function createEstimate(ctx) {
   }
   async function plateSetupNow() {
     const [plates, data] = await Promise.all([db.getAll('plates'), loadStatic()]);
-    return auto.plateSetup(data.priors, plates.find((p) => p.id === st.plateId) ?? null);
+    return auto.plateSetup(data.priors, plates.find((p) => p.id === st.plateId) ?? null, { noPlate: !!st.noPlate });
   }
   const plateOptions = (plates, data) => [...plates.map((p) => ({ id: p.id, label: `${p.name} (${p.diameter_mm} mm)` })), { id: TYPICAL, label: `Prato típico (${n0(data.priors.typical_plate.diameter_mm / 10)} cm, faixa mais larga)` }];
 
@@ -174,49 +181,98 @@ export function createEstimate(ctx) {
     if (a.total) bar.value = Math.round(100 * a.done / a.total); else bar.removeAttribute('value');
   }
   const toItem = (it) => ({ masks: [it.mask], idx: 0, tap: null, cls: it.cls, top: it.top ?? null, cropBlob: it.blob ?? null, parts: it.parts?.map(toItem), auto: true });
-  const fallbackManual = (me, message) => { me.mode = 'manual'; me.auto = null; me.step = 'rim'; me.error = ''; me.busy = ''; me.notice = message; render(true); };
-
-  /** Photo -> plate + foods with no taps. No plate found (or a failure) switches to manual mode with a message. */
-  async function startAuto() {
-    const me = st; const t0 = performance.now(); const cold = me.model.status !== 'ready';
-    Object.assign(me, { step: 'auto', error: '', notice: '', busy: '', items: [], rim: null, tapMode: null, auto: { phase: 'models', done: 0, total: 0 } });
+  /**
+   * Photo -> plate + foods with no taps (zero setup). No plate found is not a failure: the foods are found anyway and the scale comes from the
+   * typical plate, said on screen ("prato não detectado — escala aproximada"). The pipeline works on small masks read straight from SAM's low-res
+   * logits (priors mask_side; full-size float masks for every decode killed the iPhone tab) and the result is resized to the photo. A failure shows
+   * the error, "Tentar de novo", the manual mode and the Diagnóstico panel: it never drops the user into the tap flow by itself.
+   */
+  async function startAuto({ lite = false } = {}) {
+    const me = st; const t0 = performance.now(); const cold = me.model.status !== 'ready'; const prev = ls.get(LAST_CRASH);
+    Object.assign(me, { step: 'auto', error: '', notice: '', busy: '', autoError: '', crash: null, items: [], rim: null, tapMode: null, noPlate: false, auto: { phase: 'models', done: 0, total: 0 } });
+    const mark = { started: isoWithOffset(), lite, attempt: lite && prev ? (prev.attempt ?? 1) + 1 : 1, stage: 'models', done: 0, total: 0 };
+    ls.set(RUN, mark);
     render(true);
     const live = () => st === me && me.step === 'auto';
     try {
       if (me.model.status === 'error') me.model = { status: 'idle' };
       ensureModels(); await me.model.done;
       if (me.model.status !== 'ready') throw new Error(me.model.error ?? 'modelos indisponíveis');
-      await syncImage(); if (!live()) return;
+      ls.set(RUN, { ...mark, stage: 'encoder' });
+      await syncImage(); if (!live()) { ls.del(RUN); return; }
       const data = await loadStatic(); const m = await getModels();
       if (typeof m.segmentPoints !== 'function') throw new Error('este conjunto de modelos não faz o modo automático');
       if (!me.plateId) me.plateId = await defaultPlateId();
+      let params = auto.autosegParams(data.priors); if (lite) params = { ...params, ...params.crash_retry };
+      const W = me.work.width; const H = me.work.height; const k = Math.min(1, params.mask_side / Math.max(W, H)); const mw = Math.max(1, Math.round(W * k)); const mh = Math.max(1, Math.round(H * k));
+      const up = (mask) => auto.resizeMask(mask, W, H);
       const res = await auto.detectAuto({
-        models: m, params: auto.autosegParams(data.priors), classes: getVocab().classes, width: me.work.width, height: me.work.height, crop: cropBlob,
-        onStage: (e) => { const changed = me.auto.phase !== e.stage; me.auto = { phase: e.stage, done: e.done ?? 0, total: e.total ?? 0 }; if (!live()) return; if (changed) render(); else paintAuto(); },
+        models: m, params, classes: getVocab().classes, width: mw, height: mh, photoWidth: W, photoHeight: H, crop: (mask) => cropBlob(up(mask)), diagnostics: true,
+        onStage: (e) => { ls.set(RUN, { ...mark, stage: e.stage, done: e.done ?? 0, total: e.total ?? 0 }); const changed = me.auto.phase !== e.stage; me.auto = { phase: e.stage, done: e.done ?? 0, total: e.total ?? 0 }; if (!live()) return; if (changed) render(); else paintAuto(); },
       });
+      ls.del(RUN);
       if (!live()) return;
-      me.timings = { mode: 'auto', status: res.status, encoder_ms: me.encoder_ms, ...res.timings, detect_ms: res.timings.total_ms, total_ms: Math.round(performance.now() - t0), models_cold: cold };
-      if (res.status === 'no_plate') return fallbackManual(me, 'Não encontrei o prato automaticamente. Vamos no modo manual: toque uma vez na borda do prato.');
-      me.rim = { masks: [res.plate.mask], idx: 0, tap: null, scale: null, auto: true };
+      me.timings = { mode: 'auto', status: res.status, encoder_ms: me.encoder_ms, ...res.timings, detect_ms: res.timings.total_ms, total_ms: Math.round(performance.now() - t0), models_cold: cold, plate_detected: res.plate_detected, lite };
+      me.diag = { mask: `${mw}x${mh}`, lite, plate: { detected: res.plate_detected, via: res.plate.via, area_frac: round3(res.plate.area_frac), residual: round3(res.plate.residual) },
+        items: res.items.map((it) => it.cls.id), rejected: res.rejected.length, plate_cols: ['x', 'y', 'score', 'area', 'area_raw', 'cover', 'residual', 'verdict', 'via'],
+        plate_rows: (res.plate_candidates ?? []).slice(0, 40).map((c) => [c.x, c.y, c.score, c.area_frac, c.area_raw, c.cover, c.residual, c.verdict, c.via]) };
+      me.noPlate = !res.plate_detected;
+      me.rim = { masks: [up(res.plate.mask)], idx: 0, tap: null, scale: null, auto: true };
       await setRimScale();
-      me.items = res.items.map(toItem);
+      me.items = res.items.map((it) => toItem({ ...it, mask: up(it.mask), parts: it.parts?.map((q) => ({ ...q, mask: up(q.mask) })) }));
       await saveDraft();
-      go('confirm', res.status === 'empty_plate' ? 'Achei o prato, mas nenhum alimento. Toque em "Adicionar alimento" ou use o modo manual.' : '');
-    } catch (e) { console.error(e); if (live()) fallbackManual(me, `O modo automático não funcionou (${e.message}). Vamos no modo manual: toque uma vez na borda do prato.`); }
+      const notice = res.plate_detected ? (res.status === 'empty_plate' ? 'Achei o prato, mas nenhum alimento. Toque em "Adicionar alimento" em Ajustes.' : '')
+        : `${cap(auto.NO_PLATE_NOTE)}: não achei a borda do prato, então considerei que a comida ocupa um prato típico. A faixa fica mais larga.${res.status === 'empty_plate' ? ' Também não achei alimentos: toque em "Adicionar alimento" em Ajustes.' : ''}`;
+      go('confirm', notice);
+    } catch (e) {
+      console.error(e); ls.del(RUN);
+      me.diag = { ...(me.diag ?? {}), error: String(e?.message ?? e), stack: String(e?.stack ?? '').split('\n').slice(0, 6).join(' | ') };
+      if (live()) { me.autoError = e.message; render(); }
+    }
   }
+  const round3 = (v) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v);
+  const STAGE_PT = { models: 'carregando os modelos', encoder: 'lendo a foto', plate: 'procurando o prato', foods: 'procurando os alimentos', naming: 'dando nome aos alimentos' };
+  /** Everything needed to debug a run from the phone, as text the owner can copy and send. */
+  function diagText() {
+    return JSON.stringify({ when: isoWithOffset(), ua: globalThis.navigator?.userAgent ?? null, memory_gb: globalThis.navigator?.deviceMemory ?? null, step: st.step, mode: st.mode,
+      models: { status: st.model.status, error: st.model.error ?? null, info: st.model.info ?? null }, photo: st.work ? `${st.work.width}x${st.work.height}` : null,
+      timings: st.timings, auto: st.diag, last_crash: ls.get(LAST_CRASH) }, null, 1);
+  }
+  const diagBox = () => h('details', { class: 'fix', id: 'diag' }, h('summary', {}, 'Diagnóstico'),
+    h('p', { class: 'muted' }, 'Se algo der errado, copie este texto e envie.'),
+    h('button', { class: 'secondary small', id: 'diag-copy', onclick: async () => { try { await navigator.clipboard.writeText(diagText()); toast('Diagnóstico copiado.'); } catch { toast('Não consegui copiar: selecione o texto abaixo.'); } } }, 'Copiar diagnóstico'),
+    h('pre', { id: 'diag-text', style: 'white-space:pre-wrap;word-break:break-all;font-size:11px;max-height:260px;overflow:auto;user-select:text;-webkit-user-select:text' }, diagText()));
   async function viewAuto() {
     const a = st.auto ?? { phase: 'models', done: 0, total: 0 };
+    const manual = h('button', { id: 'go-manual', class: 'secondary', onclick: () => { st.mode = 'manual'; go('plate'); } }, 'Modo manual (marcar com toques)');
+    if (st.crash) {
+      const c = st.crash; const again = c.lite;
+      return [h('h2', {}, 'A análise anterior fechou a página'), stage({}),
+        h('div', { class: 'banner', role: 'alert', id: 'crash' }, `O navegador fechou a página enquanto eu estava ${STAGE_PT[c.stage] ?? c.stage}${c.total ? ` (${c.done}/${c.total})` : ''}. Isso costuma ser falta de memória no iPhone.`,
+          again ? ' Aconteceu também no modo leve.' : ''),
+        h('div', { class: 'stack', style: 'margin-top:14px' },
+          h('button', { id: 'retry-lite', onclick: () => startAuto({ lite: true }) }, again ? 'Tentar de novo no modo leve' : 'Tentar de novo (modo leve, usa menos memória)'),
+          again ? manual : null,
+          h('button', { class: 'secondary', onclick: async () => { await db.setSetting(DRAFT, null); st = { ...fresh(), model: st.model }; render(true); } }, 'Descartar esta foto')),
+        diagBox()];
+    }
+    if (st.autoError) {
+      return [h('h2', {}, 'Analisando a foto'), stage({}),
+        h('div', { class: 'errors', role: 'alert', id: 'auto-error' }, h('strong', {}, 'O modo automático falhou.'), h('p', {}, st.autoError)),
+        h('div', { class: 'stack', style: 'margin-top:14px' }, h('button', { id: 'retry', onclick: () => startAuto() }, 'Tentar de novo'), h('button', { class: 'secondary', onclick: () => startAuto({ lite: true }) }, 'Tentar no modo leve'), manual),
+        diagBox()];
+    }
     return [h('h2', {}, 'Analisando a foto'), stage({}),
       h('div', { class: 'card', role: 'status' }, h('p', { id: 'auto-label' }, `${AUTO_LABELS[a.phase] ?? ''}${a.total ? ` ${a.done}/${a.total}` : ''}`), h('progress', { id: 'auto-progress', max: 100, ...(a.total ? { value: Math.round(100 * a.done / a.total) } : {}) })),
       a.phase === 'models' ? modelBox() : null,
-      h('details', { class: 'fix' }, h('summary', {}, 'Ajustes / Corrigir'), h('button', { id: 'go-manual', class: 'secondary', onclick: () => { st.mode = 'manual'; go('plate'); } }, 'Modo manual (marcar com toques)'))];
+      h('details', { class: 'fix' }, h('summary', {}, 'Ajustes / Corrigir'), manual), diagBox()];
   }
 
   // draft: the estimate in progress lives in IndexedDB, so a tab that Safari killed (or a reload) resumes instead of starting over
   async function saveDraft() {
     try {
       const m = (mask) => (mask ? { width: mask.width, height: mask.height, data: mask.data } : null);
-      await db.setSetting(DRAFT, { savedAt: isoWithOffset(), mode: st.mode, plateId: st.plateId, oil: st.oil, photo: st.workBlob, timings: st.timings, encoder_ms: st.encoder_ms, corrections: st.corrections,
+      await db.setSetting(DRAFT, { savedAt: isoWithOffset(), mode: st.mode, plateId: st.plateId, oil: st.oil, photo: st.workBlob, timings: st.timings, encoder_ms: st.encoder_ms, corrections: st.corrections, noPlate: !!st.noPlate, diag: st.diag ?? null,
         plate: st.rim ? m(st.rim.masks[st.rim.idx]) : null,
         items: st.items.map((it) => ({ mask: m(it.masks[it.idx]), cls: it.cls?.id ?? null, top: it.top?.map((t) => ({ id: t.cls.id, score: t.score })) ?? null })) });
     } catch (e) { console.warn('draft not saved', e); }
@@ -226,9 +282,13 @@ export function createEstimate(ctx) {
     try {
       const bmp = await bitmapOf(d.photo); const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height; c.getContext('2d').drawImage(bmp, 0, 0); bmp.close?.();
       const byId = new Map(getVocab().classes.map((x) => [x.id, x]));
-      st = { ...fresh(), model: st.model, mode: d.mode ?? 'auto', plateId: d.plateId ?? '', oil: d.oil ?? 'normal', work: c, workBlob: d.photo, encoder_ms: d.encoder_ms ?? null, timings: d.timings ?? null, corrections: d.corrections ?? {} };
+      st = { ...fresh(), model: st.model, mode: d.mode ?? 'auto', plateId: d.plateId ?? '', oil: d.oil ?? 'normal', work: c, workBlob: d.photo, encoder_ms: d.encoder_ms ?? null, timings: d.timings ?? null, corrections: d.corrections ?? {}, noPlate: !!d.noPlate, diag: d.diag ?? null };
+      if (!d.plate) {
+        // no result yet: if the previous page was killed during the analysis, do NOT run it again by itself (that was the crash loop): offer a lighter retry
+        if (crashed) { st.step = 'auto'; st.crash = crashed; crashed = null; render(true); return; }
+        ensureModels(); return startAuto();
+      }
       ensureModels();
-      if (!d.plate) return startAuto(); // the tab died during the analysis: run it again on the same photo
       st.rim = { masks: [d.plate], idx: 0, tap: null, scale: null, auto: true }; await setRimScale();
       st.items = d.items.filter((it) => it.mask).map((it) => ({ masks: [it.mask], idx: 0, tap: null, cls: byId.get(it.cls) ?? null, top: it.top?.map((t) => ({ cls: byId.get(t.id), score: t.score })).filter((t) => t.cls) ?? null, auto: true }));
       go('confirm', 'Retomei a estimativa que estava em andamento.');
@@ -495,11 +555,11 @@ export function createEstimate(ctx) {
       h('h3', {}, 'Quanto óleo foi usado no preparo?'), oilPicker(data.priors.oil_levels, (id) => { st.oil = id; saveDraft(); render(); }),
       h('button', { id: 'add-item', class: 'secondary', style: 'margin-top:10px', onclick: () => { st.tapMode = { kind: 'add' }; st.adjustOpen = true; render(); } }, 'Adicionar alimento (toque)'),
       st.saved ? null : await mealLink(),
-      st.saved ? null : h('button', { id: 'go-manual', class: 'secondary', style: 'margin-top:14px', onclick: () => { st.mode = 'manual'; go('rim'); } }, 'Modo manual (refazer com toques)'));
-    return [h('h2', {}, 'Resultado'), h('p', { class: 'muted' }, 'O Macrofy achou o prato e os alimentos sozinho. Se algo estiver errado, use "Corrigir" no item.'),
+      st.saved ? null : h('button', { id: 'go-manual', class: 'secondary', style: 'margin-top:14px', onclick: () => { st.mode = 'manual'; st.noPlate = false; go('rim'); } }, 'Modo manual (refazer com toques)'));
+    return [h('h2', {}, 'Resultado'), h('p', { class: 'muted' }, st.noPlate ? 'O Macrofy achou os alimentos sozinho; sem a borda do prato, a escala é aproximada (prato típico). Se algo estiver errado, use "Corrigir" no item.' : 'O Macrofy achou o prato e os alimentos sozinho. Se algo estiver errado, use "Corrigir" no item.'),
       stage({ plate: true, items: true, onTap: st.tapMode ? tapCorrect : null }), tapText ? h('div', { class: 'banner', role: 'status', id: 'tap-hint' }, tapText, h('button', { class: 'secondary small', style: 'margin-left:8px', onclick: () => { st.tapMode = null; render(); } }, 'Cancelar')) : null, busyBox(), modelBox(),
       calBanner(), cards,
-      r.items.length ? totalsCard(r) : null, saveBlock(r, null), checkSection(r), adjust];
+      r.items.length ? totalsCard(r) : null, saveBlock(r, null), checkSection(r), adjust, diagBox()];
   }
 
   /** Stores the estimate (idempotent per screen: st.saved holds its id) so a scale check can point to it. */
@@ -568,7 +628,8 @@ export function createEstimate(ctx) {
     screenEstimateNew: async () => { st = { ...fresh(), model: st.model }; location.hash = '#/estimate'; },
     /** "Modo manual" under Ajustes / Corrigir: the T-013 tap flow. */
     screenEstimateManual: async () => { st = { ...fresh(), mode: 'manual', model: st.model }; location.hash = '#/estimate'; },
-    screenEstimateResume: async () => { await resumeDraft(); location.hash = '#/estimate'; },
+    // the URL leaves #/estimate/resume BEFORE anything heavy runs: a tab killed now must not reopen straight into the resume again
+    screenEstimateResume: async () => { history.replaceState(null, '', `${location.pathname}${location.search}#/estimate`); await resumeDraft(); },
     screenEstimates,
     beginWithFile,
     /** The home screen starts loading the models in the background, so the analysis is faster after the photo. */

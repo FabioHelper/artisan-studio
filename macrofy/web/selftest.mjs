@@ -489,11 +489,15 @@ await t('the CI integration test, dry run against a fake library: image, cpu map
   // a fake library that answers with image-sized masks: the whole script runs and reports
   const W = 640; const H = 480; const { T } = fakeLib();
   class Img { constructor(data, width, height, channels) { Object.assign(this, { data, width, height, channels }); } static async fromBlob() { throw new Error('unwrapped by nodeLib'); } }
-  const proc = async () => ({ pixel_values: {}, original_sizes: [[H, W]], reshaped_input_sizes: [[768, 1024]] });
+  const PV = { dims: [1, 3, 1024, 1024] }; // the padded model input; the 640x480 photo is resized into its top-left 1024x768
+  const proc = async () => ({ pixel_values: PV, original_sizes: [[H, W]], reshaped_input_sizes: [[768, 1024]] });
+  // SAM's low-res logits (3 x 256 x 256 over the padded input): low-res pixel (x, y) is photo pixel (2.5 x, 2.5 y) (x4 to the input, /1.6 to the photo)
+  const LR = 256; const logits = (shapes) => { const d = new Float32Array(3 * LR * LR).fill(-5); shapes.forEach((inside, k) => { if (inside) for (let y = 0; y < LR; y++) for (let x = 0; x < LR; x++) if (inside((x + 0.5) * 2.5, (y + 0.5) * 2.5)) d[k * LR * LR + y * LR + x] = 5; }); return { dims: [1, 1, 3, LR, LR], data: d }; };
+  const inPlate = (x, y) => ((x - 320) / 240) ** 2 + ((y - 240) / 170) ** 2 <= 1;
   let last = [0, 0]; // the point of the latest decode, in photo pixels: mask 0 is a food-sized disc there, mask 1 the plate, mask 2 empty (three multimask outputs)
   const plateMask = Uint8Array.from({ length: H * W }, (_, q) => (((q % W - 320) / 240) ** 2 + ((Math.floor(q / W) - 240) / 170) ** 2 <= 1 ? 1 : 0));
   proc.post_process_masks = async () => { const data = new Uint8Array(3 * H * W); data.set(plateMask, H * W); for (let y = Math.max(0, Math.round(last[1]) - 30); y <= Math.min(H - 1, Math.round(last[1]) + 30); y++) for (let x = Math.max(0, Math.round(last[0]) - 30); x <= Math.min(W - 1, Math.round(last[0]) + 30); x++) if ((x - last[0]) ** 2 + (y - last[1]) ** 2 <= 900) data[y * W + x] = 1; return [{ dims: [1, 3, H, W], data }]; };
-  const model = async (inputs) => { last = [inputs.input_points.data[0] / 1.6, inputs.input_points.data[1] / 1.6]; return { pred_masks: {}, iou_scores: { data: [0.95, 0.9, 0.5] } }; }; model.get_image_embeddings = async () => ({ 'image_embeddings.0': 'e' }); model.dispose = async () => {};
+  const model = async (inputs) => { const p = [inputs.input_points.data[0] / 1.6, inputs.input_points.data[1] / 1.6]; last = p; return { pred_masks: logits([(x, y) => (x - p[0]) ** 2 + (y - p[1]) ** 2 <= 900, inPlate, null]), iou_scores: { data: [0.95, 0.9, 0.5] } }; }; model.get_image_embeddings = async () => ({ 'image_embeddings.0': 'e' }); model.dispose = async () => {};
   const vocab = JSON.parse(text('../nutrition/vocab.json')); const labels = vocab.classes.map((c) => c.pt); const dim = 4;
   const vision = async () => ({ image_embeds: { data: Float32Array.from([1, 0, 0, 0]), dims: [1, dim] } }); vision.dispose = async () => {};
   const emb = async (id) => ({ ...(await fakeEmb(id, labels)), dim, embeddings: labels.map((_, i) => { const v = [0, 0, 0, 0]; v[i % dim] = 1; return v; }), extra_labels: JSON.parse(text('estimate/priors.json')).autoseg.non_food_labels.value, extra_embeddings: JSON.parse(text('estimate/priors.json')).autoseg.non_food_labels.value.map(() => [0, 0, 0, 1]) });
@@ -504,19 +508,20 @@ await t('the CI integration test, dry run against a fake library: image, cpu map
   assert.deepEqual(run.summary.sam.map((e) => e.id), models.SEGMENT_CANDIDATES.map((c) => c.id));
   for (const e of run.summary.sam) { assert.equal(e.single_tap.masks, 3); assert.equal(e.single_tap.best_iou, 0.95); assert.equal(e.grid.points, 9); assert.equal(e.grid.decodes, 9); assert.equal(e.auto.status, 'ok'); assert.ok(e.auto.items.length >= 1); assert.ok(e.auto.plate_rows.length >= 25 * 3 && e.auto.plate_rows.some((r) => r[8] === 'ok') && e.auto.plate_cols.length === e.auto.plate_rows[0].length); for (const k of ['encoder_ms', 'plate_decode_ms', 'food_decode_ms', 'naming_ms', 'total_ms']) assert.equal(typeof e.auto.timings[k], 'number', k); assert.equal(e.naming.top3.length, 3); assert.equal(e.load.backend, 'wasm/q8'); }
   const proven = run.summary.sam.find((e) => e.id === models.PROVEN_ATTEMPTS[0][0]); assert.equal(proven.photo.title, photoMeta.title); assert.equal(proven.photo.auto.ok, true); assert.equal(proven.photo.auto.status, 'ok'); assert.ok(!run.summary.sam.find((e) => e !== proven).photo); // the real photo runs on the proven segmenter only
+  for (const e of run.summary.sam) assert.ok(e.lowres.ious[0] >= 0.9 && e.lowres.mask_size === '384x288', JSON.stringify(e.lowres)); // the low-res logits path matches the full-size masks
   assert.equal(run.summary.warnings.length, 0);
   assert.equal(run.summary.naming.length, 2); assert.ok(run.summary.naming.every((n) => n.ok)); JSON.parse(JSON.stringify(run.summary));
   // failures are reported per stage: a decoder that answers with masks of the wrong size fails the run
   const bad = { ...fake, Sam2Model: { from_pretrained: async () => Object.assign(async () => ({ pred_masks: {}, iou_scores: { data: [0.3, NaN, 0.5] } }), { get_image_embeddings: model.get_image_embeddings, dispose: model.dispose }) } };
   const worse = await itTool.runIntegration({ T: bad, root: join(web, '..'), loadEmbeddings: emb, gridN: 2 });
-  const flat = { ...fake, Sam2Model: { from_pretrained: async () => Object.assign(async () => ({ pred_masks: {}, iou_scores: { data: [0.95, 0.9, 0.5] } }), { get_image_embeddings: model.get_image_embeddings, dispose: model.dispose }) }, AutoProcessor: { from_pretrained: async () => Object.assign(async () => ({ pixel_values: {}, original_sizes: [[H, W]], reshaped_input_sizes: [[768, 1024]] }), { post_process_masks: async () => [{ dims: [1, 3, H, W], data: Uint8Array.from({ length: 3 * H * W }, (_, i) => (i < H * W ? ((i % W) < 40 ? 1 : 0) : 0)) }] }) } }; // only a strip on the left: never a plate
+  const flat = { ...fake, Sam2Model: { from_pretrained: async () => Object.assign(async () => ({ pred_masks: logits([(x) => x < 40, null, null]), iou_scores: { data: [0.95, 0.9, 0.5] } }), { get_image_embeddings: model.get_image_embeddings, dispose: model.dispose }) }, AutoProcessor: { from_pretrained: async () => Object.assign(async () => ({ pixel_values: PV, original_sizes: [[H, W]], reshaped_input_sizes: [[768, 1024]] }), { post_process_masks: async () => [{ dims: [1, 3, H, W], data: Uint8Array.from({ length: 3 * H * W }, (_, i) => (i < H * W ? ((i % W) < 40 ? 1 : 0) : 0)) }] }) } }; // only a strip on the left: never a plate
   const noPlate = await itTool.runIntegration({ T: flat, root: join(web, '..'), loadEmbeddings: emb, gridN: 2, loadPhoto: async () => ({ img: photoImg, meta: photoMeta }) });
   assert.equal(noPlate.ok, false); const np = noPlate.summary.sam.find((e) => e.id === models.PROVEN_ATTEMPTS[0][0]);
-  assert.equal(np.auto.ok, false); assert.match(np.auto.error, /found no plate.*plate_rows/); assert.equal(np.auto.status, 'no_plate'); assert.ok(np.auto.plate_rows.length > 0 && np.auto.plate_rows.every((r) => r[8] === 'too_small' || r[8] === 'off_center' || r[8] === 'empty'), JSON.stringify(np.auto.plate_rows.slice(0, 2)));
-  assert.match(noPlate.summary.failures.join('|'), /photo_auto: auto mode on File:Test plate.jpg found no plate/); // SlimSAM is not required to find one, the proven segmenter is
+  assert.equal(np.auto.ok, false); assert.match(np.auto.error, /found no plate.*plate_rows/); assert.equal(np.auto.status, 'empty_plate'); assert.equal(np.auto.plate_detected, false); // zero setup: the fallback ran, found nothing assert.ok(np.auto.plate_rows.length > 0 && np.auto.plate_rows.every((r) => r[8] === 'too_small' || r[8] === 'off_center' || r[8] === 'empty'), JSON.stringify(np.auto.plate_rows.slice(0, 2)));
+  assert.match(noPlate.summary.failures.join('|'), /photo_auto: auto mode on File:Test plate.jpg found no food item/); // a real photo must give at least one food (plate detected or the stand-in); SlimSAM is not required
   // an unpinned photo only warns; a photo that cannot be loaded or whose hash changed: failure when pinned, warning when not
   const unpinned = await itTool.runIntegration({ T: flat, root: join(web, '..'), loadEmbeddings: emb, gridN: 2, loadPhoto: async () => ({ img: photoImg, meta: { ...photoMeta, pinned: false, pin: { title: photoMeta.title } } }) });
-  assert.ok(unpinned.summary.warnings.some((x) => /unpinned test photo: paste this into tools\/it-photo.json/.test(x)) && unpinned.summary.warnings.some((x) => /unpinned photo: .*found no plate/.test(x)) && !unpinned.summary.failures.some((x) => /photo_auto/.test(x)));
+  assert.ok(unpinned.summary.warnings.some((x) => /unpinned test photo: paste this into tools\/it-photo.json/.test(x)) && unpinned.summary.warnings.some((x) => /unpinned photo: .*found no food item/.test(x)) && !unpinned.summary.failures.some((x) => /photo_auto/.test(x)));
   const changed = await itTool.runIntegration({ T: fake, root: join(web, '..'), loadEmbeddings: emb, gridN: 2, loadPhoto: async () => { throw Object.assign(new Error('the photo changed: sha256 is x'), { hashChanged: true }); } });
   assert.equal(changed.ok, false); assert.match(changed.summary.failures.join('|'), /photo: the photo changed/);
   const offline = await itTool.runIntegration({ T: fake, root: join(web, '..'), loadEmbeddings: emb, gridN: 2, loadPhoto: async () => { throw new Error('HTTP 503'); } });
@@ -724,6 +729,26 @@ t('sync-data: the probe copy is optional (skipped while the workflow has not run
 t('tool and workflow files exist and parse', () => {
   for (const p of [join(web, '..', 'tools', 'build-text-embeddings.mjs')]) { assert.ok(existsSync(p)); execFileSync(process.execPath, ['--check', p], { stdio: 'pipe' }); }
   assert.ok(existsSync(join(web, '..', '..', '.github', 'workflows', 'macrofy-models.yml')));
+});
+
+t('T-017 lowResMask: low-res logits over a padded input give the photo-shaped mask (valid region only, bilinear, threshold 0); float16 bits decode', () => {
+  // model input 32x32 (padded), photo resized into its top-left 32x24; logits 16x16 -> valid region 16x12. Positive logits on columns 4..11, rows 2..9.
+  const Lh = 16; const Lw = 16; const lg = new Float32Array(Lh * Lw).fill(-5);
+  for (let y = 2; y <= 9; y++) for (let x = 4; x <= 11; x++) lg[y * Lw + x] = 5;
+  lg.fill(9, 13 * Lw, 16 * Lw); // positive in the padding (rows 13-15): must never show
+  const geo = { Lh, Lw, Hp: 32, Wp: 32, validH: 24, validW: 32, outW: 64, outH: 48 };
+  const m = models.lowResMask(lg, geo); const at = (x, y) => m[y * 64 + x];
+  assert.equal(m.length, 64 * 48);
+  assert.equal(at(32, 24), 1); assert.equal(at(2, 2), 0); assert.equal(at(63, 47), 0, 'the padding rows are outside the photo');
+  let n = 0; for (const v of m) n += v; assert.ok(Math.abs(n / (64 * 48) - (8 * 8) / (16 * 12)) < 0.03, `area share ${n / 3072}`);
+  assert.equal(models.halfToFloat(0x3c00), 1); assert.equal(models.halfToFloat(0xc000), -2); assert.equal(models.halfToFloat(0), 0);
+  const half = Uint16Array.from(lg, (v) => (v > 0 ? 0x4500 : 0xc500)); // +-5 in float16
+  assert.deepEqual(models.lowResMask(half, geo), m);
+  assert.deepEqual(models.maskSize(1024, 768, 384), { w: 384, h: 288 }); assert.deepEqual(models.maskSize(300, 200, 384), { w: 300, h: 200 });
+});
+t('T-017 segmentPoints passes lowRes to every decode (masks straight from the logits in auto mode)', () => {
+  const src = text('lib/models.mjs');
+  assert.match(src, /api\.segment\(pt\.x, pt\.y, lowRes\)/); assert.match(src, /if \(lowRes\) \{/);
 });
 
 console.log(`web selftest: ${n} checks passed`);

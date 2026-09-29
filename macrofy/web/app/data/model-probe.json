@@ -478,6 +478,84 @@
    ],
    "has_vision_model": true,
    "has_text_model": true
+  },
+  {
+   "id": "onnx-community/depth-anything-v2-small",
+   "kind": "depth",
+   "revision": "4472b7362082ad9968fee890ca0f1e5aca36b93d",
+   "onnx": [
+    {
+     "path": "onnx/model_bnb4.onnx",
+     "size": 26077648
+    },
+    {
+     "path": "onnx/model_fp16.onnx",
+     "size": 49642442
+    },
+    {
+     "path": "onnx/model_int8.onnx",
+     "size": 27258801
+    },
+    {
+     "path": "onnx/model_q4.onnx",
+     "size": 27404416
+    },
+    {
+     "path": "onnx/model_q4f16.onnx",
+     "size": 19126267
+    },
+    {
+     "path": "onnx/model_quantized.onnx",
+     "size": 27258801
+    },
+    {
+     "path": "onnx/model_uint8.onnx",
+     "size": 27258801
+    },
+    {
+     "path": "onnx/model.onnx",
+     "size": 99060839
+    }
+   ],
+   "has_vision_model": false,
+   "has_text_model": false
+  },
+  {
+   "id": "Xenova/depth-anything-small-hf",
+   "kind": "depth",
+   "revision": "2e942621ab9f2371c1df9eb223291b5ac31475e6",
+   "onnx": [
+    {
+     "path": "onnx/model_bnb4.onnx",
+     "size": 26236495
+    },
+    {
+     "path": "onnx/model_fp16.onnx",
+     "size": 49861035
+    },
+    {
+     "path": "onnx/model_q4.onnx",
+     "size": 27563143
+    },
+    {
+     "path": "onnx/model_q4f16.onnx",
+     "size": 20336189
+    },
+    {
+     "path": "onnx/model_quantized.onnx",
+     "size": 27524771
+    },
+    {
+     "path": "onnx/model_uint8.onnx",
+     "size": 27256285
+    },
+    {
+     "path": "onnx/model.onnx",
+     "size": 99170955
+    }
+   ],
+   "has_vision_model": false,
+   "has_text_model": false
   }
  ]
 }

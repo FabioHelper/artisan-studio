@@ -99,20 +99,40 @@ check('salad: density basis is pieces', salad.density_basis === 'pieces' && sala
 closeTo('salad: kcal', salad.kcal, 11.36, 0.02); closeTo('salad: protein', salad.protein_g, 0.7, 0.02);
 closeTo('salad: carbs', salad.carbs_g, 2.4, 0.02); closeTo('salad: fat', salad.fat_g, 0.09, 0.02);
 
-// Plate totals are sums of the rounded item values: grams 141.1 + 99.8 + 61.1 = 302.0; kcal 216.63 + 193.64 + 11.36 = 421.63;
-// range bounds add up too (fully correlated items: one shared scale).
+// Plate totals: grams and macros are sums of the rounded item values: grams 141.1 + 99.8 + 61.1 = 302.0; kcal 216.63 + 193.64 + 11.36 = 421.63.
+// The total's 80% range is combined in log space (see totals() in core.mjs): independent thickness errors by the Fenton-Wilkinson match,
+// the shared scale error once. Thickness sigmas: rice sqrt(ln 1.09) = 0.29356, steak sqrt(ln 1.0625) = 0.24622, salad sqrt(ln 1.16) = 0.38525.
+//   m_i = g_i exp(s_i^2 / 2): rice 141.1 x 1.04403 = 147.31, steak 99.8 x 1.03078 = 102.87, salad 61.1 x 1.07703 = 65.81;  M = 315.99
+//   var_i = m_i^2 (exp(s_i^2) - 1): rice 0.09 x 147.31^2 = 1953.0, steak 0.0625 x 102.87^2 = 661.4, salad 0.16 x 65.81^2 = 693.0;  V = 3307.4
+//   sigma_th^2 = ln(1 + V / M^2) = ln(1 + 3307.4 / 99849) = 0.032585;  scale term (2 ln 1.05)^2 = 0.0975803^2 = 0.009522
+//   sigma_total = sqrt(0.032585 + 0.009522) = 0.20520;  z sigma = 0.26298;  exp(-0.26298) = 0.76875, exp(+0.26298) = 1.30081
+//   lo80 = 302.0 x 0.76875 = 232.2,  hi80 = 302.0 x 1.30081 = 392.8 (392.9 with the unrounded factor).
+// Summing the item bounds would give 202.7 to 451.6: a hidden assumption that every error is fully correlated.
 const items3 = [rice, steak, salad];
 const tot = core.totals(items3);
 closeTo('totals: grams 302.0', tot.grams, 302.0, 0.06); closeTo('totals: kcal 421.63', tot.kcal, 421.6, 0.06);
-closeTo('totals: protein 40.1', tot.protein_g, 40.1, 0.06); closeTo('totals: lo80 is the sum of item lo80', tot.lo80, Math.round((rice.lo80 + steak.lo80 + salad.lo80) * 10) / 10, 0.06);
+closeTo('totals: protein 40.1', tot.protein_g, 40.1, 0.06);
+closeTo('totals: sigma 0.2052 (independent thickness, shared scale)', tot.sigma, 0.2052, 1e-4);
+closeTo('totals: lo80 = 302.0 x 0.76875 = 232.2', tot.lo80, 232.2, 0.15); closeTo('totals: hi80 = 302.0 x 1.30081 = 392.9', tot.hi80, 392.9, 0.15);
+check('totals: narrower than the sum of the item bounds (202.7 to 451.6) but wider than the shared-scale term alone',
+  tot.lo80 > rice.lo80 + steak.lo80 + salad.lo80 && tot.hi80 < rice.hi80 + steak.hi80 + salad.hi80 && tot.sigma > core.scaleSigma(0.05));
+const one = core.totals([rice]);
+closeTo('totals: one item gives exactly that item\'s sigma', one.sigma, rice.sigma, 1e-4);
+closeTo('totals: one item gives that item\'s lo80', one.lo80, rice.lo80, 0.15); closeTo('totals: one item gives that item\'s hi80', one.hi80, rice.hi80, 0.15);
 
 // ---------------------------------------------------------------- the range formula
-// sigma = sqrt(ln(1 + cv^2) + ln(1 + s^2)).  Rice: cv 0.30, s 0.05: ln(1.09) = 0.0861777, ln(1.0025) = 0.0024969,
-// sum 0.0886746, sigma = 0.297783.  z sigma = 1.2816 x 0.297783 = 0.381638;  exp(-0.381638) = 0.68264, exp(+0.381638) = 1.46490.
-closeTo('sigma: cv 0.30, s 0.05', core.rangeSigma(0.3, 0.05), 0.297783, 1e-5);
+// Scale enters the area twice (area goes with mm_per_px^2), so its grams sigma is 2 ln(1 + s), not ln(1 + s):
+// sigma = sqrt(ln(1 + cv^2) + (2 ln(1 + s))^2).  Rice: cv 0.30, s 0.05: ln(1.09) = 0.0861777, 2 ln(1.05) = 0.0975803,
+// squared 0.0095220, sum 0.0956997, sigma = 0.309354.  z sigma = 1.2816 x 0.309354 = 0.396468;  exp(-0.396468) = 0.67269, exp(+0.396468) = 1.48656.
+// Rice 141.07275 g: lo80 = 94.90, hi80 = 209.72.  Steak (cv 0.25): 0.0606246 + 0.009522 = 0.0701466, sigma 0.264852, factors 0.71217 / 1.40415,
+// 99.8156 g -> 71.09 to 140.16.  Salad (cv 0.40): 0.148420 + 0.009522 = 0.157942, sigma 0.397420, factors 0.60089 / 1.66416, 61.0975 g -> 36.71 to 101.72.
+closeTo('sigma: scale term is 2 ln(1.05) = 0.0975803', core.scaleSigma(0.05), 0.0975803, 1e-7);
+closeTo('sigma: cv 0.30, s 0.05 (scale counted twice)', core.rangeSigma(0.3, 0.05), 0.309354, 1e-5);
 closeTo('sigma: no scale error reduces to sqrt(ln(1 + cv^2))', core.rangeSigma(0.3, 0), Math.sqrt(Math.log(1.09)), 1e-12);
-closeTo('range: rice lo80 = 141.07275 x 0.68264 = 96.30', rice.lo80, 96.3, 0.06);
-closeTo('range: rice hi80 = 141.07275 x 1.46490 = 206.65', rice.hi80, 206.6, 0.1);
+closeTo('range: rice lo80 = 141.07275 x 0.67269 = 94.90', rice.lo80, 94.9, 0.06);
+closeTo('range: rice hi80 = 141.07275 x 1.48656 = 209.72', rice.hi80, 209.7, 0.06);
+closeTo('range: steak 71.09 to 140.16', steak.lo80, 71.1, 0.06); closeTo('range: steak hi80', steak.hi80, 140.2, 0.06);
+closeTo('range: salad 36.71 to 101.72', salad.lo80, 36.7, 0.06); closeTo('range: salad hi80', salad.hi80, 101.7, 0.06);
 closeTo('range: symmetric on the log scale (lo x hi = grams^2)', core.range80(100, 0.2).lo80 * core.range80(100, 0.2).hi80, 100 * 100, 1e-9);
 closeTo('range: sigma 0.2 gives lo 100 exp(-0.25632) = 0.773894 -> 77.389', core.range80(100, 0.2).lo80, 77.3894, 1e-3);
 check('range: zero sigma collapses to the point estimate', core.range80(100, 0).lo80 === 100 && core.range80(100, 0).hi80 === 100);
@@ -195,7 +215,7 @@ const tinyManifest = {
   }],
 };
 // Hand-computed score: APE rice |141.1 - 150| / 150 = 0.059333, steak |99.8 - 100| / 100 = 0.002, salad |61.1 - 55| / 55 = 0.110909;
-// MAPE = 0.172242 / 3 = 0.057414. The truth ranges cover 150, 100 and 55 (96.3-206.6, 72.3-137.8, 37.1-100.5), so coverage is 1.
+// MAPE = 0.172242 / 3 = 0.057414. The ranges cover 150, 100 and 55 (94.9-209.7, 71.1-140.2, 36.7-101.7), so coverage is 1.
 let report = null;
 try { report = evaluate(tinyManifest, preds, { truthNutrients }); ok('eval: evaluate scores the export against a matching manifest without errors'); } catch (e) { bad('eval: evaluate scores the export', e.message); }
 if (report) {
@@ -215,7 +235,20 @@ bites('treating the steak as loose (pieces density) misses the solid fixture by 
 });
 bites('ignoring the tilt (cos_tilt = 1) misses the area fixture', () => !near(core.areaMm2(20000, { ...scale, cos_tilt: 1 }), 10562.5, 0.05));
 bites('a wrong ellipse (a shrunk by 5%) fails the 1% recovery', () => !near(fit.a * 0.95, 300, 3));
-bites('a range with sigma 0 fails the rice fixture', () => !near(core.range80(rice.grams, 0).lo80, 96.3, 0.06));
+bites('a range with sigma 0 fails the rice fixture', () => !near(core.range80(rice.grams, 0).lo80, 94.9, 0.06));
+bites('the old single-count scale term ln(1 + s^2) would fail the sigma and rice range fixtures', () => {
+  const old = Math.sqrt(Math.log(1 + 0.3 * 0.3) + Math.log(1 + 0.05 * 0.05)); // 0.297783
+  const oldLo = core.range80(141.07275, old).lo80; // 96.30
+  return !near(old, 0.309354, 1e-5) && !near(oldLo, 94.9, 0.06) && near(oldLo, 96.3, 0.06);
+});
+bites('summing the item bounds would fail the totals fixture (202.7 / 451.6 instead of 232.2 / 392.9)', () => {
+  const lo = rice.lo80 + steak.lo80 + salad.lo80; const hi = rice.hi80 + steak.hi80 + salad.hi80;
+  return !near(lo, 232.2, 0.15) && !near(hi, 392.9, 0.15);
+});
+bites('treating the scale error as independent per item (no shared term) would fail the totals fixture', () => {
+  const noShared = core.totals(items3.map((i) => ({ ...i, sigma_scale: 0 })));
+  return !near(noShared.sigma, 0.2052, 1e-4) && !near(noShared.lo80, 232.2, 0.15);
+});
 bites('the eval validator rejects a broken export (negative grams, lo80 > hi80, bad schema)', () => {
   const broken = JSON.parse(JSON.stringify(preds)); broken.meals[0].items[0].grams = -1;
   const inverted = JSON.parse(JSON.stringify(preds)); inverted.meals[0].items[1].lo80 = 500;

@@ -3,7 +3,7 @@
   "note": "The only invented numbers in the estimator. Every entry is an assumption to be replaced by a factor fitted on weighed meals (see calibration.json); none of them is a measurement.",
   "scale_uncertainty": {
     "value": 0.05,
-    "rationale": "Relative error of the plate-rim scale (ellipse fit on a SAM mask, a plate diameter typed by hand); enters the 80% range only.",
+    "rationale": "Relative error of the plate-rim scale (ellipse fit on a SAM mask, a plate diameter typed by hand); enters the 80% range only, counted twice because area goes with scale squared.",
     "assumption": true,
     "calibrate_from": "weighed meals"
   },

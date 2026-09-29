@@ -34,6 +34,9 @@ mocked models (the sandbox cannot reach Hugging Face), so the real tensor contra
   until the real file exists, and always for the negative fixture.
 - `tools/model-integration-test.mjs` (run by macrofy-model-it): transformers.js 4.3.0 in a temp dir, our `createModels` through the
   injectable importer, CPU q8, a test plate photo built in code; single tap, grid, auto mode and naming for SlimSAM, SAM 2.1 tiny, CLIP B/32.
+- Auto mode on SAM 2.1 tiny found no plate in the first CI run (SlimSAM did). Hypothesis, to be confirmed by the plate table the CI summary now
+  prints: the best-scoring mask is the plate without its food, whose ellipse residual fails. The plate is now judged with its holes filled, the plate
+  grid keeps all three masks per point, and the food filter drops the plate itself. The CI test asserts plate and food on a synthetic and a real photo.
 - Workflows: only macrofy-models commits (probe, contracts, embeddings). macrofy-model-it is read-only. A red selftest there still
   commits the probe and contracts (the evidence) but not the embeddings, then fails the job.
 

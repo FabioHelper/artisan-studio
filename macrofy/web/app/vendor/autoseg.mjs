@@ -89,39 +89,89 @@ export function ellipseResidual(mask) {
  * ellipse-shaped (residual <= maxResidual), the largest. Returns { mask, index, residual, area_frac, ellipse } or null (no plate found).
  * opts: minAreaFrac, maxAreaFrac, centerFrac (side of the central box), centerCoverMin (share of that box inside the mask), maxResidual.
  */
-export function selectPlate(masks, { minAreaFrac, maxAreaFrac = 1, centerFrac, centerCoverMin, maxResidual }) {
+export function selectPlate(masks, opts) {
   let best = null;
-  masks.forEach((mask, index) => {
-    const { n } = stats(mask); const frac = n / (mask.width * mask.height);
-    if (frac < minAreaFrac || frac > maxAreaFrac) return;
-    const bx0 = Math.floor(mask.width * (1 - centerFrac) / 2); const bx1 = Math.ceil(mask.width * (1 + centerFrac) / 2) - 1;
-    const by0 = Math.floor(mask.height * (1 - centerFrac) / 2); const by1 = Math.ceil(mask.height * (1 + centerFrac) / 2) - 1;
-    let inBox = 0; let total = 0;
-    for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) { total++; if (mask.data[y * mask.width + x]) inBox++; }
-    if (total === 0 || inBox / total < centerCoverMin) return;
-    const residual = ellipseResidual(mask);
-    if (residual > maxResidual) return;
-    if (!best || n > best.n) best = { mask, index, residual, area_frac: frac, n };
+  masks.forEach((raw, index) => {
+    const e = evalPlate(raw, opts, false);
+    if (e.verdict !== 'ok') return;
+    if (!best || e.n > best.n) best = { ...e, index };
   });
-  return best ? { mask: best.mask, index: best.index, residual: best.residual, area_frac: best.area_frac, ellipse: fitEllipse(best.mask) } : null;
+  return best ? { mask: best.mask, source: best.source, index: best.index, residual: best.residual, area_frac: best.area_frac, filled: best.mask !== best.source, ellipse: fitEllipse(best.mask) } : null;
+}
+
+/**
+ * Fills the holes of a mask: background pixels that cannot reach the photo border through background (4-connected). SAM often returns a plate
+ * WITHOUT its food (the food is a hole in the mask), and the plate is what carries the scale, so it is judged and used with its food in it.
+ * Returns the same mask object when there is no hole; otherwise a copy (score and other fields kept).
+ */
+export function fillHoles(mask) {
+  const { width: w, height: h, data } = mask; const outside = new Uint8Array(w * h); const stack = [];
+  const push = (i) => { if (!data[i] && !outside[i]) { outside[i] = 1; stack.push(i); } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  while (stack.length) {
+    const i = stack.pop(); const x = i % w;
+    if (x > 0) push(i - 1); if (x < w - 1) push(i + 1); if (i >= w) push(i - w); if (i < w * (h - 1)) push(i + w);
+  }
+  let holes = 0; for (let i = 0; i < data.length; i++) if (!data[i] && !outside[i]) holes++;
+  if (!holes) return mask;
+  const out = new Uint8Array(data); for (let i = 0; i < out.length; i++) if (!out[i] && !outside[i]) out[i] = 1;
+  return withData(mask, out);
+}
+
+/**
+ * One mask judged as a plate: after filling its holes, its area share of the photo, the share of the central box it covers, its ellipse residual.
+ * verdict: 'ok' or the first rule it fails ('empty', 'too_small', 'too_large', 'off_center', 'not_ellipse'). Without `full` the checks stop at
+ * the first failing rule (residual is left null); with it every number is computed (diagnostics).
+ */
+function evalPlate(raw, { minAreaFrac, maxAreaFrac = 1, centerFrac, centerCoverMin, maxResidual }, full) {
+  const total = raw.width * raw.height; const n0 = stats(raw).n;
+  const row = { source: raw, mask: raw, n: n0, area_frac: n0 / total, cover: null, residual: null, verdict: 'ok' };
+  if (n0 === 0) return { ...row, verdict: 'empty' };
+  if (row.area_frac < minAreaFrac / 2) return { ...row, verdict: 'too_small' }; // cheap exit: filling holes cannot make a tiny mask a plate
+  const mask = fillHoles(raw); const n = mask === raw ? n0 : stats(mask).n; Object.assign(row, { mask, n, area_frac: n / total });
+  const fail = (v) => { if (row.verdict === 'ok') row.verdict = v; };
+  if (row.area_frac < minAreaFrac) fail('too_small'); else if (row.area_frac > maxAreaFrac) fail('too_large');
+  const bx0 = Math.floor(mask.width * (1 - centerFrac) / 2); const bx1 = Math.ceil(mask.width * (1 + centerFrac) / 2) - 1;
+  const by0 = Math.floor(mask.height * (1 - centerFrac) / 2); const by1 = Math.ceil(mask.height * (1 + centerFrac) / 2) - 1;
+  let inBox = 0; let cells = 0;
+  for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++) { cells++; if (mask.data[y * mask.width + x]) inBox++; }
+  row.cover = cells ? inBox / cells : 0;
+  if (cells === 0 || row.cover < centerCoverMin) fail('off_center');
+  if (row.verdict === 'ok' || full) { row.residual = ellipseResidual(mask); if (row.residual > maxResidual) fail('not_ellipse'); }
+  return row;
+}
+/**
+ * Why each mask is or is not the plate, for the CI summary (T-017): [{ x, y, score, area_frac, area_raw, cover, residual, residual_raw, verdict }]
+ * (x, y = the prompt point when the mask carries one). area_raw and residual_raw are before the holes are filled. Same options as selectPlate.
+ */
+export function plateDiagnostics(masks, opts) {
+  const r = (v) => (v === null ? null : Math.round(v * 1000) / 1000);
+  return masks.map((raw) => {
+    const e = evalPlate(raw, opts, true); const total = raw.width * raw.height;
+    return { x: raw.point ? Math.round(raw.point.x) : null, y: raw.point ? Math.round(raw.point.y) : null, score: r(raw.score ?? 0), area_frac: r(e.area_frac), area_raw: r(stats(raw).n / total),
+      cover: r(e.cover), residual: r(e.residual), residual_raw: e.mask === raw ? r(e.residual) : (e.n ? r(ellipseResidual(raw)) : null), verdict: e.verdict };
+  });
 }
 
 // ---------------------------------------------------------------- foods
 /**
  * Food candidates: predicted IoU >= minPredIoU, mask area between minFrac and maxFrac of the plate area (the part on the plate),
  * at least minInsideFrac of the mask on the plate (so a table or hand mask is out), and never the plate mask itself.
- * `plate` is a selectPlate result or a mask. Returns copies with plate_frac and inside_frac attached.
+ * `plate` is a selectPlate result or a mask. With plateDupIou (< 1) a mask whose IoU with the plate is above it is the plate itself and is dropped
+ * (SAM returns the plate with and without its food). Returns copies with plate_frac and inside_frac attached.
  */
-export function filterFoods(masks, plate, { minFrac, maxFrac, minPredIoU, minInsideFrac = 0 }) {
-  const pm = plate.mask ?? plate; const ps = stats(pm);
+export function filterFoods(masks, plate, { minFrac, maxFrac, minPredIoU, minInsideFrac = 0, plateDupIou = 1 }) {
+  const pm = plate.mask ?? plate; const ps = stats(pm); const src = plate.source ?? null;
   if (ps.n === 0) return [];
   const out = [];
   for (const m of masks) {
-    if (m === pm || m.data === pm.data) continue;
+    if (m === pm || m === src || m.data === pm.data) continue;
     if ((m.score ?? 0) < minPredIoU) continue;
     const sm = stats(m); if (sm.n === 0) continue;
     const inter = intersection(m, sm, pm, ps);
     const plateFrac = inter / ps.n; const inside = inter / sm.n;
+    if (plateDupIou < 1 && inter / (ps.n + sm.n - inter) > plateDupIou) continue; // the plate again (with or without its food), not a food
     if (plateFrac < minFrac || plateFrac > maxFrac || inside < minInsideFrac) continue;
     out.push({ ...m, plate_frac: plateFrac, inside_frac: inside });
   }
@@ -234,27 +284,31 @@ export function autosegParams(priors) {
  *   { status: 'ok' | 'no_plate' | 'empty_plate', plate, items, rejected, timings }
  * items: { mask, label (class id), cls, top (top-3), score, parts? }. The plate is null on 'no_plate'; the caller falls back to manual mode.
  */
-export async function detectAuto({ models, params, classes, width, height, crop, onStage = () => {}, now = () => Date.now() }) {
+export async function detectAuto({ models, params, classes, width, height, crop, onStage = () => {}, now = () => Date.now(), diagnostics = false }) {
   const t0 = now(); const p = params;
-  const timings = { prompts: 0, decodes: 0, decode_ms: 0, classify_ms: 0, total_ms: 0, timed_out: false, plate_grid_n: p.plate_grid_n, food_grid_n: p.food_grid_n };
+  const timings = { prompts: 0, decodes: 0, decode_ms: 0, classify_ms: 0, plate_decode_ms: 0, food_decode_ms: 0, total_ms: 0, timed_out: false, plate_grid_n: p.plate_grid_n, food_grid_n: p.food_grid_n };
   const finish = (r) => { timings.total_ms = Math.round(now() - t0); return { ...r, timings }; };
-  const grid = async (points, stage) => {
+  const grid = async (points, stage, perPoint) => {
     const left = Math.max(0, p.time_budget_ms - (now() - t0));
-    const r = await models.segmentPoints(points, { batch: p.decode_batch, budgetMs: left, perPoint: p.masks_per_point, onProgress: (e) => onStage({ stage, ...e }) });
-    timings.prompts += r.done ?? points.length; timings.decodes += r.decodes ?? points.length; timings.decode_ms += r.ms ?? 0; timings.timed_out ||= !!r.timed_out;
+    const r = await models.segmentPoints(points, { batch: p.decode_batch, budgetMs: left, perPoint, onProgress: (e) => onStage({ stage, ...e }) });
+    timings.prompts += r.done ?? points.length; timings.decodes += r.decodes ?? points.length; timings.decode_ms += r.ms ?? 0; timings[`${stage === 'plate' ? 'plate' : 'food'}_decode_ms`] += r.ms ?? 0; timings.timed_out ||= !!r.timed_out;
     return r.masks;
   };
 
   onStage({ stage: 'plate', done: 0, total: p.plate_grid_n ** 2 });
-  const plateCandidates = dedupe(await grid(gridPoints(width, height, p.plate_grid_n), 'plate'), p.dedupe_iou);
-  const plate = selectPlate(plateCandidates, { minAreaFrac: p.plate_min_area_frac, maxAreaFrac: p.plate_max_area_frac, centerFrac: p.plate_center_frac, centerCoverMin: p.plate_center_cover_min, maxResidual: p.plate_max_residual });
-  if (!plate) return finish({ status: 'no_plate', plate: null, items: [], rejected: [] });
+  // the plate stage keeps every multimask output of a point (the whole plate is often not the best-scoring one), the food stage the best one
+  const plateRaw = await grid(gridPoints(width, height, p.plate_grid_n), 'plate', p.plate_masks_per_point ?? p.masks_per_point);
+  const plateOpts = { minAreaFrac: p.plate_min_area_frac, maxAreaFrac: p.plate_max_area_frac, centerFrac: p.plate_center_frac, centerCoverMin: p.plate_center_cover_min, maxResidual: p.plate_max_residual };
+  const plateCandidates = dedupe(plateRaw, p.dedupe_iou);
+  const plate = selectPlate(plateCandidates, plateOpts);
+  const debug = diagnostics ? { plate_candidates: plateDiagnostics(plateRaw, plateOpts) } : {};
+  if (!plate) return finish({ status: 'no_plate', plate: null, items: [], rejected: [], ...debug });
 
   const e = plate.ellipse; const inner = { ...e, a: e.a * p.food_grid_inset, b: e.b * p.food_grid_inset };
   const foodPoints = gridPoints(width, height, p.food_grid_n, { insideEllipse: inner });
   onStage({ stage: 'foods', done: 0, total: foodPoints.length });
-  const raw = await grid(foodPoints, 'foods');
-  const filtered = filterFoods(dedupe(raw, p.dedupe_iou), plate, { minFrac: p.food_min_frac, maxFrac: p.food_max_frac, minPredIoU: p.food_min_pred_iou, minInsideFrac: p.food_min_inside_frac });
+  const raw = await grid(foodPoints, 'foods', p.masks_per_point);
+  const filtered = filterFoods(dedupe(raw, p.dedupe_iou), plate, { minFrac: p.food_min_frac, maxFrac: p.food_max_frac, minPredIoU: p.food_min_pred_iou, minInsideFrac: p.food_min_inside_frac, plateDupIou: p.dedupe_iou });
   const plateArea = stats(plate.mask).n;
   const resolved = resolveOverlaps(filtered).filter((m) => m.pixels / plateArea >= p.food_min_frac);
   const kept = resolved.sort((a, b) => b.pixels - a.pixels).slice(0, p.max_food_items);
@@ -275,6 +329,6 @@ export async function detectAuto({ models, params, classes, width, height, crop,
   }).filter((it) => it.cls);
   timings.classify_ms = Math.round(now() - tc);
   const merged = mergeSameLabel(named, p.merge_adjacency_px);
-  const out = { plate, items: merged, rejected };
+  const out = { plate, items: merged, rejected, ...debug };
   return finish({ status: merged.length ? 'ok' : 'empty_plate', ...out });
 }

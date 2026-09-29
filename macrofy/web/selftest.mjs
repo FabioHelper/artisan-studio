@@ -490,21 +490,58 @@ await t('the CI integration test, dry run against a fake library: image, cpu map
   const W = 640; const H = 480; const { T } = fakeLib();
   class Img { constructor(data, width, height, channels) { Object.assign(this, { data, width, height, channels }); } static async fromBlob() { throw new Error('unwrapped by nodeLib'); } }
   const proc = async () => ({ pixel_values: {}, original_sizes: [[H, W]], reshaped_input_sizes: [[768, 1024]] });
-  proc.post_process_masks = async () => [{ dims: [1, 3, H, W], data: Uint8Array.from({ length: 3 * H * W }, (_, i) => { const k = Math.floor(i / (H * W)); const p = i % (H * W); const x = p % W; const y = Math.floor(p / W); return k === 1 && ((x - 320) / 240) ** 2 + ((y - 240) / 170) ** 2 <= 1 ? 1 : 0; }) }];
-  const model = async () => ({ pred_masks: {}, iou_scores: { data: [0.3, 0.9, 0.5] } }); model.get_image_embeddings = async () => ({ 'image_embeddings.0': 'e' }); model.dispose = async () => {};
+  let last = [0, 0]; // the point of the latest decode, in photo pixels: mask 0 is a food-sized disc there, mask 1 the plate, mask 2 empty (three multimask outputs)
+  const plateMask = Uint8Array.from({ length: H * W }, (_, q) => (((q % W - 320) / 240) ** 2 + ((Math.floor(q / W) - 240) / 170) ** 2 <= 1 ? 1 : 0));
+  proc.post_process_masks = async () => { const data = new Uint8Array(3 * H * W); data.set(plateMask, H * W); for (let y = Math.max(0, Math.round(last[1]) - 30); y <= Math.min(H - 1, Math.round(last[1]) + 30); y++) for (let x = Math.max(0, Math.round(last[0]) - 30); x <= Math.min(W - 1, Math.round(last[0]) + 30); x++) if ((x - last[0]) ** 2 + (y - last[1]) ** 2 <= 900) data[y * W + x] = 1; return [{ dims: [1, 3, H, W], data }]; };
+  const model = async (inputs) => { last = [inputs.input_points.data[0] / 1.6, inputs.input_points.data[1] / 1.6]; return { pred_masks: {}, iou_scores: { data: [0.95, 0.9, 0.5] } }; }; model.get_image_embeddings = async () => ({ 'image_embeddings.0': 'e' }); model.dispose = async () => {};
   const vocab = JSON.parse(text('../nutrition/vocab.json')); const labels = vocab.classes.map((c) => c.pt); const dim = 4;
   const vision = async () => ({ image_embeds: { data: Float32Array.from([1, 0, 0, 0]), dims: [1, dim] } }); vision.dispose = async () => {};
   const emb = async (id) => ({ ...(await fakeEmb(id, labels)), dim, embeddings: labels.map((_, i) => { const v = [0, 0, 0, 0]; v[i % dim] = 1; return v; }), extra_labels: JSON.parse(text('estimate/priors.json')).autoseg.non_food_labels.value, extra_embeddings: JSON.parse(text('estimate/priors.json')).autoseg.non_food_labels.value.map(() => [0, 0, 0, 1]) });
   const fake = { ...T, RawImage: Img, Sam2Model: { from_pretrained: async () => model }, SamModel: { from_pretrained: async () => model }, AutoProcessor: { from_pretrained: async () => proc }, CLIPVisionModelWithProjection: { from_pretrained: async () => vision }, SiglipVisionModel: { from_pretrained: async () => vision } };
-  const run = await itTool.runIntegration({ T: fake, root: join(web, '..'), loadEmbeddings: emb, gridN: 3 });
+  const photoImg = itTool.makePlateImage(); const photoMeta = { title: 'File:Test plate.jpg', url: 'https://upload.example/x.jpg', license: 'CC BY-SA 4.0', author: 'A', sha256: 'a'.repeat(64), pinned: true, pin: {} };
+  const run = await itTool.runIntegration({ T: fake, root: join(web, '..'), loadEmbeddings: emb, gridN: 3, loadPhoto: async () => ({ img: photoImg, meta: photoMeta }) });
   assert.equal(run.ok, true, JSON.stringify(run.summary.failures));
   assert.deepEqual(run.summary.sam.map((e) => e.id), models.SEGMENT_CANDIDATES.map((c) => c.id));
-  for (const e of run.summary.sam) { assert.equal(e.single_tap.masks, 3); assert.equal(e.single_tap.best_iou, 0.9); assert.equal(e.grid.points, 9); assert.equal(e.grid.decodes, 9); assert.ok(['ok', 'no_plate', 'empty_plate'].includes(e.auto.status)); assert.equal(e.naming.top3.length, 3); assert.equal(e.load.backend, 'wasm/q8'); }
+  for (const e of run.summary.sam) { assert.equal(e.single_tap.masks, 3); assert.equal(e.single_tap.best_iou, 0.95); assert.equal(e.grid.points, 9); assert.equal(e.grid.decodes, 9); assert.equal(e.auto.status, 'ok'); assert.ok(e.auto.items.length >= 1); assert.ok(e.auto.plate_rows.length >= 25 * 3 && e.auto.plate_rows.some((r) => r[8] === 'ok') && e.auto.plate_cols.length === e.auto.plate_rows[0].length); for (const k of ['encoder_ms', 'plate_decode_ms', 'food_decode_ms', 'naming_ms', 'total_ms']) assert.equal(typeof e.auto.timings[k], 'number', k); assert.equal(e.naming.top3.length, 3); assert.equal(e.load.backend, 'wasm/q8'); }
+  const proven = run.summary.sam.find((e) => e.id === models.PROVEN_ATTEMPTS[0][0]); assert.equal(proven.photo.title, photoMeta.title); assert.equal(proven.photo.auto.ok, true); assert.equal(proven.photo.auto.status, 'ok'); assert.ok(!run.summary.sam.find((e) => e !== proven).photo); // the real photo runs on the proven segmenter only
+  assert.equal(run.summary.warnings.length, 0);
   assert.equal(run.summary.naming.length, 2); assert.ok(run.summary.naming.every((n) => n.ok)); JSON.parse(JSON.stringify(run.summary));
   // failures are reported per stage: a decoder that answers with masks of the wrong size fails the run
   const bad = { ...fake, Sam2Model: { from_pretrained: async () => Object.assign(async () => ({ pred_masks: {}, iou_scores: { data: [0.3, NaN, 0.5] } }), { get_image_embeddings: model.get_image_embeddings, dispose: model.dispose }) } };
   const worse = await itTool.runIntegration({ T: bad, root: join(web, '..'), loadEmbeddings: emb, gridN: 2 });
+  const flat = { ...fake, Sam2Model: { from_pretrained: async () => Object.assign(async () => ({ pred_masks: {}, iou_scores: { data: [0.95, 0.9, 0.5] } }), { get_image_embeddings: model.get_image_embeddings, dispose: model.dispose }) }, AutoProcessor: { from_pretrained: async () => Object.assign(async () => ({ pixel_values: {}, original_sizes: [[H, W]], reshaped_input_sizes: [[768, 1024]] }), { post_process_masks: async () => [{ dims: [1, 3, H, W], data: Uint8Array.from({ length: 3 * H * W }, (_, i) => (i < H * W ? ((i % W) < 40 ? 1 : 0) : 0)) }] }) } }; // only a strip on the left: never a plate
+  const noPlate = await itTool.runIntegration({ T: flat, root: join(web, '..'), loadEmbeddings: emb, gridN: 2, loadPhoto: async () => ({ img: photoImg, meta: photoMeta }) });
+  assert.equal(noPlate.ok, false); const np = noPlate.summary.sam.find((e) => e.id === models.PROVEN_ATTEMPTS[0][0]);
+  assert.equal(np.auto.ok, false); assert.match(np.auto.error, /found no plate.*plate_rows/); assert.equal(np.auto.status, 'no_plate'); assert.ok(np.auto.plate_rows.length > 0 && np.auto.plate_rows.every((r) => r[8] === 'too_small' || r[8] === 'off_center' || r[8] === 'empty'), JSON.stringify(np.auto.plate_rows.slice(0, 2)));
+  assert.match(noPlate.summary.failures.join('|'), /photo_auto: auto mode on File:Test plate.jpg found no plate/); // SlimSAM is not required to find one, the proven segmenter is
+  // an unpinned photo only warns; a photo that cannot be loaded or whose hash changed: failure when pinned, warning when not
+  const unpinned = await itTool.runIntegration({ T: flat, root: join(web, '..'), loadEmbeddings: emb, gridN: 2, loadPhoto: async () => ({ img: photoImg, meta: { ...photoMeta, pinned: false, pin: { title: photoMeta.title } } }) });
+  assert.ok(unpinned.summary.warnings.some((x) => /unpinned test photo: paste this into tools\/it-photo.json/.test(x)) && unpinned.summary.warnings.some((x) => /unpinned photo: .*found no plate/.test(x)) && !unpinned.summary.failures.some((x) => /photo_auto/.test(x)));
+  const changed = await itTool.runIntegration({ T: fake, root: join(web, '..'), loadEmbeddings: emb, gridN: 2, loadPhoto: async () => { throw Object.assign(new Error('the photo changed: sha256 is x'), { hashChanged: true }); } });
+  assert.equal(changed.ok, false); assert.match(changed.summary.failures.join('|'), /photo: the photo changed/);
+  const offline = await itTool.runIntegration({ T: fake, root: join(web, '..'), loadEmbeddings: emb, gridN: 2, loadPhoto: async () => { throw new Error('HTTP 503'); } });
+  assert.equal(offline.ok, true); assert.match(offline.summary.warnings.join('|'), /photo not available \(unpinned\): HTTP 503/);
   assert.equal(worse.ok, false); assert.ok(worse.summary.failures.some((x) => /single_tap: .*predicted IoU NaN is not finite/.test(x)), worse.summary.failures.join('|'));
+});
+await t('the real test photo: open licences only, pinned by sha256, a changed file is a failure, an unpinned one is reported for pinning', async () => {
+  const ph = await import(pathToFileURL(join(web, '..', 'tools', 'it-photo.mjs'))); const { createHash } = await import('node:crypto');
+  for (const ok of ['CC0', 'Public domain', 'CC BY 2.0', 'CC BY-SA 4.0', 'PD-old']) assert.equal(ph.licenseAllowed(ok), true, ok);
+  for (const no of ['CC BY-NC 2.0', 'CC BY-ND 4.0', 'CC BY-NC-SA 3.0', 'Fair use', '', undefined, 'All rights reserved']) assert.equal(ph.licenseAllowed(no), false, String(no));
+  const info = (title, over = {}) => ({ title, imageinfo: [{ url: `https://upload.example/${title}`, mime: 'image/jpeg', width: 1200, height: 900, extmetadata: { LicenseShortName: { value: 'CC BY-SA 4.0' }, Artist: { value: '<a href="x">Ann</a>  Lee' } }, ...over }] });
+  const json = { query: { pages: { 3: info('File:C.jpg'), 1: info('File:A.png', { mime: 'image/png' }), 2: info('File:B.jpg', { extmetadata: { LicenseShortName: { value: 'CC BY-NC 2.0' } } }), 4: info('File:A small.jpg', { width: 500 }), 5: info('File:D.jpg') } } };
+  assert.deepEqual(ph.pickCommonsPhoto(json), { title: 'File:C.jpg', url: 'https://upload.example/File:C.jpg', license: 'CC BY-SA 4.0', author: 'Ann Lee', width: 1200, height: 900 }); // png, non-open licence and too small are skipped; the first by title wins
+  assert.equal(ph.pickCommonsPhoto({ query: { pages: { 1: info('File:x.jpg', { mime: 'image/gif' }) } } }), null); assert.equal(ph.pickCommonsPhoto({}), null);
+  assert.match(ph.commonsQuery({ search: 'plate of food' }), /generator=search.*gsrsearch=plate\+of\+food\+filetype%3Abitmap.*gsrnamespace=6/); assert.match(ph.commonsQuery({ title: 'File:A b.jpg' }), /titles=File%3AA\+b\.jpg/);
+  const bytes = Buffer.from('jpeg bytes'); const sha = createHash('sha256').update(bytes).digest('hex'); const seen = [];
+  const fetchImpl = async (url, o) => { seen.push([url, o.headers['User-Agent']]); return url.startsWith(ph.API) ? { ok: true, json: async () => json } : url.endsWith('C.jpg') ? { ok: true, arrayBuffer: async () => bytes } : { ok: false, status: 404 }; };
+  const un = await ph.resolvePhoto({ search: 'plate' }, { fetchImpl }); assert.equal(un.pinned, false); assert.equal(un.sha256, sha); assert.deepEqual(un.pin, { title: 'File:C.jpg', url: 'https://upload.example/File:C.jpg', license: 'CC BY-SA 4.0', author: 'Ann Lee', sha256: sha });
+  assert.ok(seen.length === 2 && seen.every(([, ua]) => /^macrofy-model-it\//.test(ua)));
+  const pinned = await ph.resolvePhoto({ title: 'File:C.jpg', sha256: sha }, { fetchImpl }); assert.equal(pinned.pinned, true);
+  await assert.rejects(ph.resolvePhoto({ title: 'File:C.jpg', sha256: 'f'.repeat(64) }, { fetchImpl }), (e) => e.hashChanged === true && /changed: sha256 is/.test(e.message));
+  await assert.rejects(ph.resolvePhoto({ search: 'x' }, { fetchImpl: async () => ({ ok: true, json: async () => ({}) }) }), /no open-licensed JPEG/);
+  await assert.rejects(ph.resolvePhoto({ search: 'x' }, { fetchImpl: async () => ({ ok: false, status: 503 }) }), /HTTP 503/);
+  const cfg = JSON.parse(readFileSync(join(web, '..', 'tools', 'it-photo.json'), 'utf8')); assert.ok(cfg.sha256 === null || /^[0-9a-f]{64}$/.test(cfg.sha256)); assert.ok(cfg.title === null || /^File:/.test(cfg.title)); assert.ok(cfg.search);
+  if (cfg.sha256) { assert.ok(cfg.title && ph.licenseAllowed(cfg.license), 'a pinned photo records its title and an open licence'); }
 });
 await t('the 4.3.0 to 3.8.1 fallback and the injectable model layer are unchanged by the per-point decode', async () => {
   const { T } = fakeLib(); const seen = [];
@@ -671,7 +708,7 @@ t('T-017 workflows: models records the contracts and is the ONLY committer; mode
   assert.match(it, /workflow_dispatch:/); assert.match(it, /branches: \[main\]/); assert.match(it, /permissions:\n  contents: read/);
   for (const p of ['macrofy/web/lib/**', 'macrofy/web/estimate/**', 'macrofy/web/app/estimate.mjs', 'macrofy/tools/**']) assert.ok(it.includes(`- '${p}'`), `push path ${p}`);
   assert.match(it, /node macrofy\/tools\/model-integration-test\.mjs/); assert.doesNotMatch(it, /git (add|commit|push)|contents: write/); // never commits: no race with macrofy-models
-  for (const p of ['tools/probe-contracts.mjs', 'tools/model-integration-test.mjs', 'tools/tjs-node.mjs']) { assert.ok(existsSync(join(web, '..', p))); execFileSync(process.execPath, ['--check', join(web, '..', p)], { stdio: 'pipe' }); }
+  for (const p of ['tools/probe-contracts.mjs', 'tools/model-integration-test.mjs', 'tools/it-photo.mjs', 'tools/tjs-node.mjs']) { assert.ok(existsSync(join(web, '..', p))); execFileSync(process.execPath, ['--check', join(web, '..', p)], { stdio: 'pipe' }); }
   assert.match(readFileSync(join(web, '..', 'tools', 'tjs-node.mjs'), 'utf8'), /TRANSFORMERS_VERSION = '4\.3\.0'/); assert.match(readFileSync(join(web, '..', 'tools', 'tjs-node.mjs'), 'utf8'), /'install'/);
 });
 t('sync-data: the probe copy is optional (skipped while the workflow has not run) and checked for drift once it exists', () => {

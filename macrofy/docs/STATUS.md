@@ -3,7 +3,7 @@
 
 **Mission** (approved): Point the phone camera at a food or meal and get the most likely real weight of each item plus protein, carbs, fat and kcal, with honest ranges and the lowest achievable error, starting with Brazilian meals and running on-device with no paid LLM on the critical path.
 
-**Next action:** continue T-012 "Feasibility: load and run Depth Anything V2-Small, SAM 2.1-tiny and SigLIP 2 in Safari on the iPhone 16e (WebGPU/WASM)" → make its acceptance checks pass, then `mc verify T-012`, review, `mc done T-012`
+**Next action:** start T-009 "Request a TBCA commercial license from USP/FoRC (draft by agent, sent by owner); fall back to free sources if refused" with `mc start T-009`
 
 ## Goals
 
@@ -11,9 +11,9 @@
 |---|---|---|---|
 | G-1 | Trustworthy delivery | mc check passes on every commit to main, and every done task carries verify evidence (plus an accepting review when required) in the journal | 2/2 |
 | G-2 | Low portion and macro error | On the locked weighed Brazilian benchmark, the upper 95% CI of per-meal kcal MAPE is <=30% (phase 1), <=20% (phase 2), <=15% (phase 3), with signed bias within +-10% | 3/11 |
-| G-3 | Zero marginal inference cost | The capture-to-result pipeline runs on-device with no network call; any optional cloud fallback is confidence-gated and costs <= US$0.001 per photo | 1/7 |
+| G-3 | Zero marginal inference cost | The capture-to-result pipeline runs on-device with no network call; any optional cloud fallback is confidence-gated and costs <= US$0.001 per photo | 2/7 |
 | G-4 | Honest uncertainty | Shown 80% ranges contain the weighed truth for 75-85% of benchmark items | 2/4 |
-| G-5 | Effortless capture | Result in <= 2 s on a recent iPhone, with at most one confirmation tap for a typical plate | 0/7 |
+| G-5 | Effortless capture | Result in <= 2 s on a recent iPhone, with at most one confirmation tap for a typical plate | 1/7 |
 
 **Non-goals:** Estimating grams with an LLM/VLM; A native iOS app in phases 0-1 (no Mac or developer account; PWA first, see ADR 0004); Meal plans, coaching or social features in v1; Packaged-food barcode lookup in v1; Android in v1 (iPhone first; Android after the iPhone MVP passes its gate)
 
@@ -28,7 +28,7 @@
 | T-001 | Mission-control harness and documentation system | done | G-1 | — | optional | [spec](decisions/0001-agent-harness-architecture.md) |
 | T-002 | Define Macrofy's mission, goals, non-goals and first product milestone with the owner | done | G-1 | T-001 | required | — |
 
-### M1 — Phase 0: weighed Brazilian benchmark, evaluation engine and baselines (3/10 done)
+### M1 — Phase 0: weighed Brazilian benchmark, evaluation engine and baselines (4/10 done)
 
 | Task | Title | Status | Goals | Depends on | Review | Spec |
 |---|---|---|---|---|---|---|
@@ -40,7 +40,7 @@
 | T-009 | Request a TBCA commercial license from USP/FoRC (draft by agent, sent by owner); fall back to free sources if refused | todo | G-2 | T-002 | required | — |
 | T-010 | Measure zero-training food naming (SigLIP 2 zero-shot + k-NN gallery from calibration photos) on Brazilian dishes | todo | G-2, G-3 | T-004 | required | — |
 | T-011 | Capture PWA: guided photo capture, plate registry, per-item weight entry, export in the benchmark manifest format | blocked | G-2, G-5 | T-003 | required | [spec](specs/SPEC-T-011-capture-app.md) |
-| T-012 | Feasibility: load and run Depth Anything V2-Small, SAM 2.1-tiny and SigLIP 2 in Safari on the iPhone 16e (WebGPU/WASM) | active | G-3, G-5 | T-002 | required | [spec](specs/SPEC-T-012-browser-feasibility.md) |
+| T-012 | Feasibility: load and run Depth Anything V2-Small, SAM 2.1-tiny and SigLIP 2 in Safari on the iPhone 16e (WebGPU/WASM) | done | G-3, G-5 | T-002 | required | [spec](specs/SPEC-T-012-browser-feasibility.md) |
 | T-015 | Fit segmentation and naming in Safari on the iPhone 16e: per-backend crash resume, vision-only naming with text embeddings precomputed in CI, storage/quota diagnostics, lighter candidates | todo | G-3, G-5 | T-012 | required | — |
 
 ### M2 — Phase 1: on-device PWA MVP on the owner iPhone 16e passing the phase-1 accuracy gate (0/3 done)
@@ -66,8 +66,8 @@
 
 ## Recent handoffs
 
+- #82 2026-09-29 (claude-code): done: T-012 feasibility measured and recorded (no-go; review #78) / next: T-015 make segmentation+naming fit Safari on the 16e / gotchas: F-005 and F-006 open
 - #78 2026-09-29 (claude-code): T-012 owner results recorded (no-go: SAM crashes Safari on webgpu, SigLIP 'Load failed' on all backends, depth ok 0.92 s); T-015 planned (per-backend resume F-006, vision-only naming with CI-precomputed text embeddings, quota diagnostics, lighter candidates, no-SAM fallback) / next: review T-012 then T-015 / gotchas: Safari on 16e handles ~50 MB models, not hundreds of MB
 - #74 2026-09-29 (claude-code): T-014 reviewed/accepted (#72); review's minor gap fixed (food-grid inset 0.95 moved to priors.json as an assumption; all web selftests + smoke pass); T-014 blocked on owner A2 / next: owner re-runs feasibility (clear saved results first) -> if segmentation+naming go: owner tests Estimar auto mode + 1 weighed meal; if no-go: switch segmentation to a lighter approach / gotchas: F-005 open until the re-run
 - #71 2026-09-29 (implementer): done: T-014 automatic mode built and verified (A1 autoseg-selftest passes; A2 owner-manual). web/estimate/autoseg.mjs pure post-processing + detectAuto; segmentPoints batched SAM decode in web/lib/models.mjs; auto flow + one confirmation screen (rename/remove/merge/split/add by tap, plate select, typical-plate prior, oil, draft resume, timings saved) in web/app/estimate.mjs; thresholds are assumptions in priors.json autoseg; oil multipliers moved to priors.oil_levels. Mocked Playwright smoke (node web/estimate/smoke.mjs) walks auto and manual. next: independent review (review required, A2 manual), then owner runs 10 plates on the iPhone 16e and re-runs the feasibility page for F-005 / gotchas: real batched SAM prompt shape [image][point][1 point][x,y] is unverified in transformers.js (per-prompt fallback exists); SlimSAM needs SamModel; thresholds untuned; iOS loads one model at a time so a correction tap reloads SAM and re-encodes
 - #70 2026-09-29 (implementer): owner device result T-012 (iPhone 16e, Safari 26.6.2, WebGPU true): depth onnx-community/depth-anything-v2-small webgpu fp16 ok, 49.6 MB, load 12.5 s, cached 0.3 s, infer median 926 ms; segmentation: Safari tab KILLED while loading the first candidate (SAM 2.1 tiny, largest, depth still resident; tab_survived false); naming never reached. Likely memory. Registered as F-005 (high, open). Changes (with T-014): SlimSAM q8 first then SAM2.1 tiny q8/fp16 never fp32; feasibility page runs one stage per page load and resumes with the next candidate of the same stage after a crash; depth informational, go = segmentation + naming loaded and summed median <=2000 ms; app loads one model at a time on iOS and resumes from an IndexedDB draft. Owner must re-run the feasibility page: gotcha, F-005 stays open until segmentation and naming load on the phone.
-- #67 2026-09-29 (claude-code): T-013 reviewed/accepted (#65), blocked on owner A2 at /app/ Estimar. T-014 depends only on T-005 (needs the code, not the owner test) / next: T-014 auto mode via implementer; move OIL_LEVELS multipliers into priors.json as assumptions / gotchas: owner has 3 phone checks pending: T-012 feasibility, T-011 one weighed meal, T-013 one estimate

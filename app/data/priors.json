@@ -137,8 +137,8 @@
       "calibrate_from": "iPhone crash reports (Diagnóstico)"
     },
     "naming_page_plans": {
-      "value": [[["wasm", "q4"], ["wasm", "q8"]], [["webgpu", "q4f16"]]],
-      "rationale": "Backends for the naming model in auto mode's naming page on the iPhone, one plan per attempt (a death in that page moves the retry to the next plan). The owner's third run died loading the naming model on WebGPU in the fresh naming page right after the SAM page (GPU memory likely not yet given back), so the CPU (CLIP image tower 64 MB q4, 89 MB q8; 224 px input, small activations) is tried first; WebGPU q4f16 ran on the 16e when alone (feasibility run 3).",
+      "value": [[["webgpu", "q4f16"]], [["wasm", "q8"]]],
+      "rationale": "Backends for the naming model in auto mode's naming page on the iPhone, one plan per attempt; a death in that page moves the next attempt (Safari's own reload, or the retry button) to the next plan. Owner runs: WebGPU q4f16 died right after the SAM page once and then worked in a fresh tab; the CPU plan with q4 first died (q4 on the CPU likely unpacks the weights to float), so the CPU plan is q8 only and comes second. The SAM page now also destroys its WebGPU device before the reload.",
       "assumption": true,
       "calibrate_from": "owner device runs (Diagnóstico last_crash)"
     },
@@ -285,6 +285,12 @@
       "rationale": "From ADR 0005: what a mask that is not food is called; a mask whose best SigLIP label is one of these is dropped.",
       "assumption": true,
       "calibrate_from": "the owner's photos"
+    },
+    "non_food_labels_en": {
+      "value": ["an empty plate", "cutlery, a fork or a knife", "a paper napkin", "a drinking glass", "a table top"],
+      "rationale": "English forms of non_food_labels, same order: the naming models were trained on English captions, so the non-food vectors come from these (the app still keys them by the Portuguese prompts).",
+      "assumption": true,
+      "calibrate_from": "naming accuracy benchmark (T-010)"
     },
     "food_grid_inset": {
       "value": 0.95,

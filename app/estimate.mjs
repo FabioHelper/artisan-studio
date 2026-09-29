@@ -220,25 +220,29 @@ export function createEstimate(ctx) {
     } catch (e) { autoFailed(me, e, live); }
   }
   function autoFailed(me, e, live) {
-    console.error(e); ls.del(RUN);
+    console.error(e); ls.del(RUN); leaveNamingUrl();
     me.diag = { ...(me.diag ?? {}), error: String(e?.message ?? e), stack: String(e?.stack ?? '').split('\n').slice(0, 6).join(' | ') };
     if (live()) { me.autoError = e.message; render(); }
   }
   const diagOf = (res, { mw, mh, lite }) => ({ mask: `${mw}x${mh}`, lite,
     plate: res.plate ? { detected: res.plate_detected, via: res.plate.via, area_frac: round3(res.plate.area_frac), residual: round3(res.plate.residual), support: res.plate.support ?? null } : { detected: false },
     kept: res.kept?.length ?? null, plate_cols: ['x', 'y', 'score', 'area', 'area_raw', 'cover', 'residual', 'verdict', 'via'],
-    plate_rows: (res.plate_candidates ?? []).slice(0, 40).map((c) => [c.x, c.y, c.score, c.area_frac, c.area_raw, c.cover, c.residual, c.verdict, c.via]) });
+    plate_rows: (res.plate_candidates ?? []).slice(0, 40).map((c) => [c.x, c.y, c.score, c.area_frac, c.area_raw, c.cover, c.residual, c.verdict, c.via]),
+    // every food-grid mask and why it is or is not an item; then what the naming model said about each kept one
+    food_cols: ['x', 'y', 'score', 'frac', 'verdict'], food_rows: (res.food_candidates ?? []).slice(0, 64).map((c) => [c.x, c.y, c.score, c.frac, c.verdict]),
+    ...(res.naming_rows ? { naming_rows: res.naming_rows.map((r) => [r.item, r.pixels, ...r.top.flat(), ...r.nonfood]) } : {}) });
   /** The SAM half is done: the plate and the kept food masks (small, mask_side) go into the draft, then a fresh page names them. */
   async function handoffToNaming(me, res, { mw, mh, lite, cold, t0, attempt }) {
     const pack = (m) => ({ width: m.width, height: m.height, data: m.data, score: m.score ?? 0 });
     me.diag = diagOf(res, { mw, mh, lite });
-    const pending = { width: res.width, height: res.height, lite, cold, attempt, elapsed_ms: Math.round(performance.now() - t0), plate_detected: res.plate_detected, timings: res.timings, plate_candidates: res.plate_candidates ?? null,
+    const pending = { width: res.width, height: res.height, lite, cold, attempt, elapsed_ms: Math.round(performance.now() - t0), plate_detected: res.plate_detected, timings: res.timings, plate_candidates: res.plate_candidates ?? null, food_candidates: res.food_candidates ?? null,
       plate: res.plate ? { mask: pack(res.plate.mask), ellipse: res.plate.ellipse, via: res.plate.via, area_frac: res.plate.area_frac, residual: res.plate.residual, support: res.plate.support ?? null, filled: res.plate.filled } : null,
       kept: res.kept.map(pack) };
     const saved = await saveDraft({ pending }) && (await db.getSetting(DRAFT).catch(() => null))?.pending?.kept?.length === pending.kept.length;
     ls.del(RUN);
     if (!saved) { me.diag = { ...me.diag, handoff: 'not saved: named in the same page' }; return nameAfterReload(pending); } // never reload into a second SAM run
     me.auto = { phase: 'reload', done: 0, total: 0 }; render();
+    try { const m = await getModels(); me.diag = { ...me.diag, gpu_destroyed: await m.releaseAll?.() ?? null }; await saveDraft({ pending }); } catch { /* the reload frees it anyway */ }
     history.replaceState(null, '', `${location.pathname}${location.search}#/estimate/name`);
     location.reload();
   }
@@ -274,11 +278,14 @@ export function createEstimate(ctx) {
     history.replaceState(null, '', `${location.pathname}${location.search}#/estimate/name`);
     location.reload();
   }
+  const leaveNamingUrl = () => { if (/^#\/estimate\/name/.test(location.hash)) history.replaceState(null, '', `${location.pathname}${location.search}#/estimate`); };
   /** A finished auto result (one page, or the naming page) -> the confirm screen. */
   async function finishAutoResult(me, res, { mw, mh, lite, cold, t0, split = false }) {
+    leaveNamingUrl();
     const up = (mask) => auto.resizeMask(mask, me.work.width, me.work.height);
     me.timings = { mode: 'auto', status: res.status, encoder_ms: me.encoder_ms, ...res.timings, detect_ms: res.timings.total_ms, total_ms: Math.round(performance.now() - t0), models_cold: cold, plate_detected: res.plate_detected, lite, split };
-    me.diag = { ...diagOf(res, { mw, mh, lite }), ...(me.diag?.plate_rows?.length && !res.plate_candidates ? { plate_rows: me.diag.plate_rows } : {}), items: res.items.map((it) => it.cls.id), rejected: res.rejected.length, split };
+    me.diag = { ...diagOf(res, { mw, mh, lite }), ...(me.diag?.plate_rows?.length && !res.plate_candidates ? { plate_rows: me.diag.plate_rows } : {}), items: res.items.map((it) => it.cls.id), rejected: res.rejected.length, split,
+      ...(me.diag?.gpu_destroyed !== undefined ? { gpu_destroyed: me.diag.gpu_destroyed } : {}) };
     me.noPlate = !res.plate_detected;
     me.rim = { masks: [up(res.plate.mask)], idx: 0, tap: null, scale: null, auto: true };
     await setRimScale();
@@ -339,22 +346,30 @@ export function createEstimate(ctx) {
     } catch (e) { console.warn('draft not saved', e); return false; }
   }
   async function resumeDraft() {
-    const d = await db.getSetting(DRAFT); if (!d?.photo) return;
+    const d = await db.getSetting(DRAFT); if (!d?.photo) { leaveNamingUrl(); render(); return; }
     try {
       const bmp = await bitmapOf(d.photo); const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height; c.getContext('2d').drawImage(bmp, 0, 0); bmp.close?.();
       const byId = new Map(getVocab().classes.map((x) => [x.id, x]));
       st = { ...fresh(), model: st.model, mode: d.mode ?? 'auto', plateId: d.plateId ?? '', oil: d.oil ?? 'normal', work: c, workBlob: d.photo, encoder_ms: d.encoder_ms ?? null, timings: d.timings ?? null, corrections: d.corrections ?? {}, noPlate: !!d.noPlate, diag: d.diag ?? null };
       if (!d.plate) {
         // no result yet: if the previous page was killed during the analysis, do NOT run it again by itself (that was the crash loop): offer a lighter retry
+        if (crashed?.page === 'naming' && d.pending?.kept) {
+          // the naming page died and Safari (or the owner) reopened it: this is a fresh tab process, so go straight on with the next backend plan;
+          // only when every plan has died is the crash card shown (bounded: no crash loop)
+          const plans = auto.autosegParams((await loadStatic()).priors).naming_page_plans ?? [null]; const next = (crashed.naming_plan ?? 0) + 1;
+          if (next < plans.length) { const p = { ...d.pending, naming_plan: next }; await db.setSetting(DRAFT, { ...d, pending: p }); crashed = null; return nameAfterReload(p); }
+        }
+        if (!crashed && d.pending?.kept) return nameAfterReload(d.pending); // the SAM half is done: name the foods (only the naming model in this page)
+        leaveNamingUrl();
         if (crashed) { st.step = 'auto'; st.crash = crashed; st.pending = d.pending ?? null; crashed = null; render(true); return; }
-        if (d.pending?.kept) return nameAfterReload(d.pending); // the SAM half is done: name the foods (only the naming model in this page)
         ensureModels(); return startAuto();
       }
+      leaveNamingUrl();
       ensureModels();
       st.rim = { masks: [d.plate], idx: 0, tap: null, scale: null, auto: true }; await setRimScale();
       st.items = d.items.filter((it) => it.mask).map((it) => ({ masks: [it.mask], idx: 0, tap: null, cls: byId.get(it.cls) ?? null, top: it.top?.map((t) => ({ cls: byId.get(t.id), score: t.score })).filter((t) => t.cls) ?? null, auto: true }));
       go('confirm', 'Retomei a estimativa que estava em andamento.');
-    } catch (e) { st.error = `Não consegui retomar: ${e.message}`; render(); }
+    } catch (e) { leaveNamingUrl(); st.error = `Não consegui retomar: ${e.message}`; render(); }
   }
 
   // 3. rim tap -> plate mask -> ellipse -> scale
@@ -693,7 +708,8 @@ export function createEstimate(ctx) {
     // the URL leaves #/estimate/resume BEFORE anything heavy runs: a tab killed now must not reopen straight into the resume again
     screenEstimateResume: async () => { history.replaceState(null, '', `${location.pathname}${location.search}#/estimate`); await resumeDraft(); },
     /** Auto mode's second page (after the reload that frees SAM): the same resume, which names the pending foods. */
-    screenEstimateName: async () => { history.replaceState(null, '', `${location.pathname}${location.search}#/estimate`); await resumeDraft(); },
+    // the naming URL is KEPT while the naming model loads: if Safari kills this page, its reload comes back here and moves on to the next plan
+    screenEstimateName: async () => { await resumeDraft(); },
     screenEstimates,
     beginWithFile,
     /** The home screen starts loading the models in the background, so the analysis is faster after the photo. */

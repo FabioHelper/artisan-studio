@@ -85,26 +85,26 @@ export function ellipseResidual(mask) {
 
 // ---------------------------------------------------------------- plate
 /**
- * The plate: among masks that cover enough of the photo (not nearly all of it), cover the central box of the photo and are
- * ellipse-shaped (residual <= maxResidual), the largest. Returns { mask, index, residual, area_frac, ellipse } or null (no plate found).
- * opts: minAreaFrac, maxAreaFrac, centerFrac (side of the central box), centerCoverMin (share of that box inside the mask), maxResidual.
+ * The plate: among the candidate masks, the largest that covers enough of the photo (not nearly all of it), covers the central box of the photo and is
+ * ellipse-shaped (residual <= maxResidual). Each mask is tried as it is, with its holes filled (SAM returns the plate without its food), and, when
+ * that fails, as the region a large mask encloses (SAM returns the table AS a mask, the plate is its hole: `via: 'hole'`) and as the convex hull of a
+ * ring (SAM returns the plate rim as an almost closed ring around the food: `via: 'ring'`). Returns
+ * { mask, source, index, residual, area_frac, filled, via, ellipse } or null (no plate found).
+ * opts: minAreaFrac, maxAreaFrac, centerFrac (side of the central box), centerCoverMin (share of that box inside the mask), maxResidual,
+ * and for the ring: ringMinArc (share of the angular sectors a ring must reach), ringMinBand (share of its pixels in the rim band), ringBandLo (inner radius of the boundary band), ringSectors.
  */
 export function selectPlate(masks, opts) {
   let best = null;
   masks.forEach((raw, index) => {
-    const e = evalPlate(raw, opts, false);
+    const e = bestPlateVariant(raw, opts, false);
     if (e.verdict !== 'ok') return;
     if (!best || e.n > best.n) best = { ...e, index };
   });
-  return best ? { mask: best.mask, source: best.source, index: best.index, residual: best.residual, area_frac: best.area_frac, filled: best.mask !== best.source, ellipse: fitEllipse(best.mask) } : null;
+  return best ? { mask: best.mask, source: best.source, index: best.index, residual: best.residual, area_frac: best.area_frac, filled: best.mask !== best.source, via: best.via, ellipse: fitEllipse(best.mask) } : null;
 }
 
-/**
- * Fills the holes of a mask: background pixels that cannot reach the photo border through background (4-connected). SAM often returns a plate
- * WITHOUT its food (the food is a hole in the mask), and the plate is what carries the scale, so it is judged and used with its food in it.
- * Returns the same mask object when there is no hole; otherwise a copy (score and other fields kept).
- */
-export function fillHoles(mask) {
+/** Background pixels that reach the photo border through background (4-connected): 1 = outside. Everything else that is 0 in the mask is enclosed. */
+function outsideOf(mask) {
   const { width: w, height: h, data } = mask; const outside = new Uint8Array(w * h); const stack = [];
   const push = (i) => { if (!data[i] && !outside[i]) { outside[i] = 1; stack.push(i); } };
   for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
@@ -113,11 +113,84 @@ export function fillHoles(mask) {
     const i = stack.pop(); const x = i % w;
     if (x > 0) push(i - 1); if (x < w - 1) push(i + 1); if (i >= w) push(i - w); if (i < w * (h - 1)) push(i + w);
   }
+  return outside;
+}
+/**
+ * Fills the holes of a mask: background pixels that cannot reach the photo border through background (4-connected). SAM often returns a plate
+ * WITHOUT its food (the food is a hole in the mask), and the plate is what carries the scale, so it is judged and used with its food in it.
+ * Returns the same mask object when there is no hole; otherwise a copy (score and other fields kept).
+ */
+export function fillHoles(mask) {
+  const { data } = mask; const outside = outsideOf(mask);
   let holes = 0; for (let i = 0; i < data.length; i++) if (!data[i] && !outside[i]) holes++;
   if (!holes) return mask;
   const out = new Uint8Array(data); for (let i = 0; i < out.length; i++) if (!out[i] && !outside[i]) out[i] = 1;
   return withData(mask, out);
 }
+/** The enclosed regions of a mask (its holes, one mask each, at least minPixels pixels; score kept): what SAM leaves inside a mask of the TABLE is the plate. */
+export function enclosedRegions(mask, minPixels = 1) {
+  const { width: w, height: h, data } = mask; const outside = outsideOf(mask); const seen = new Uint8Array(w * h); const out = [];
+  for (let s = 0; s < data.length; s++) {
+    if (data[s] || outside[s] || seen[s]) continue;
+    const comp = []; const stack = [s]; seen[s] = 1;
+    while (stack.length) {
+      const i = stack.pop(); comp.push(i); const x = i % w;
+      for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i >= w ? i - w : -1, i < w * (h - 1) ? i + w : -1]) if (j >= 0 && !data[j] && !outside[j] && !seen[j]) { seen[j] = 1; stack.push(j); }
+    }
+    if (comp.length >= minPixels) { const d = new Uint8Array(w * h); for (const i of comp) d[i] = 1; out.push(withData(mask, d)); }
+  }
+  return out;
+}
+/** The convex hull of a mask's pixels as a filled mask (score kept). A ring that does not close, or a plate with a bite, becomes the whole disc. */
+export function convexHull(mask) {
+  const { width: w, height: h, data } = mask; const pts = [];
+  for (let y = 0; y < h; y++) {
+    let x0 = -1; let x1 = -1; const row = y * w;
+    for (let x = 0; x < w; x++) if (data[row + x]) { if (x0 < 0) x0 = x; x1 = x; }
+    if (x0 >= 0) { pts.push([x0, y]); if (x1 !== x0) pts.push([x1, y]); }
+  }
+  if (pts.length < 3) return mask;
+  pts.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (list) => { const s = []; for (const p of list) { while (s.length >= 2 && cross(s[s.length - 2], s[s.length - 1], p) <= 0) s.pop(); s.push(p); } s.pop(); return s; };
+  const poly = [...half(pts), ...half([...pts].reverse())];
+  const out = new Uint8Array(w * h); let y0 = h; let y1 = -1; for (const p of poly) { if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
+  for (let y = y0; y <= y1; y++) {
+    let xl = Infinity; let xr = -Infinity;
+    for (let k = 0; k < poly.length; k++) {
+      const p = poly[k]; const q = poly[(k + 1) % poly.length];
+      if ((y < p[1] && y < q[1]) || (y > p[1] && y > q[1])) continue;
+      if (p[1] === q[1]) { xl = Math.min(xl, p[0], q[0]); xr = Math.max(xr, p[0], q[0]); continue; }
+      const x = p[0] + (y - p[1]) * (q[0] - p[0]) / (q[1] - p[1]); if (x < xl) xl = x; if (x > xr) xr = x;
+    }
+    for (let x = Math.ceil(xl - 1e-9); x <= Math.floor(xr + 1e-9); x++) if (x >= 0 && x < w) out[y * w + x] = 1;
+  }
+  return withData(mask, out);
+}
+/**
+ * How a mask sits on an ellipse's rim: `arc` = the share of `sectors` equal angular sectors (around the ellipse centre, in the ellipse's own frame) in
+ * which the mask has pixels in the boundary band (radius bandLo to 1.1 of the ellipse); `band` = the share of the mask's pixels that lie in that band.
+ * A plate rim is a ring: it reaches (almost) all the way around AND nearly all of it is in the band. A placemat cross can reach every sector too, but
+ * most of it is inside or outside the band; a heap of food reaches almost no sector.
+ */
+export function ringFit(mask, ellipse, { sectors = 16, bandLo = 0.6 } = {}) {
+  const { width: w, height: h, data } = mask; const { cx, cy, a, b, angle_rad: ang } = ellipse; const c = Math.cos(ang); const s = Math.sin(ang); const hit = new Uint8Array(sectors);
+  let all = 0; let inBand = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!data[y * w + x]) continue;
+    all++;
+    const u = ((x - cx) * c + (y - cy) * s) / a; const v = (-(x - cx) * s + (y - cy) * c) / b; const rho = Math.hypot(u, v);
+    if (rho >= bandLo && rho <= 1.1) { inBand++; hit[Math.min(sectors - 1, Math.floor(((Math.atan2(v, u) + Math.PI) / (2 * Math.PI)) * sectors))] = 1; }
+  }
+  let n = 0; for (const k of hit) n += k;
+  return { arc: n / sectors, band: all ? inBand / all : 0 };
+}
+/** ringFit(...).arc: how much of the way around the ellipse the mask reaches (1 = a closed annulus, 0.5 a half ring). */
+export const arcCoverage = (mask, ellipse, opts) => ringFit(mask, ellipse, opts).arc;
+/** A mask is the plate rim when it reaches ringMinArc of the way around the ellipse and at least ringMinBand of it lies in the rim band. */
+export const isRing = (mask, ellipse, { ringMinArc, ringMinBand = 0, ringBandLo, ringSectors }) => {
+  const r = ringFit(mask, ellipse, { sectors: ringSectors, bandLo: ringBandLo }); return r.arc >= ringMinArc && r.band >= ringMinBand;
+};
 
 /**
  * One mask judged as a plate: after filling its holes, its area share of the photo, the share of the central box it covers, its ellipse residual.
@@ -142,15 +215,33 @@ function evalPlate(raw, { minAreaFrac, maxAreaFrac = 1, centerFrac, centerCoverM
   return row;
 }
 /**
- * Why each mask is or is not the plate, for the CI summary (T-017): [{ x, y, score, area_frac, area_raw, cover, residual, residual_raw, verdict }]
- * (x, y = the prompt point when the mask carries one). area_raw and residual_raw are before the holes are filled. Same options as selectPlate.
+ * evalPlate of the mask as it is (`via` 'raw', or 'filled' when holes were filled) and, when that is not a plate but the mask is big enough to matter,
+ * of its enclosed regions ('hole') and of the hull of a ring ('ring': the hull must pass the same rules AND the mask must reach ringMinArc of the way
+ * around the hull's ellipse). The largest variant that passes wins; otherwise the plain evaluation is returned, so the diagnostics show the raw reason.
+ */
+function bestPlateVariant(raw, opts, full) {
+  const base = evalPlate(raw, opts, full); base.via = base.mask === raw ? 'raw' : 'filled';
+  if (base.verdict === 'ok' || base.verdict === 'empty' || opts.variants === false || raw.width * raw.height * opts.minAreaFrac / 2 > stats(raw).n) return base;
+  const total = raw.width * raw.height; let best = null;
+  const take = (e, via) => { if (e.verdict === 'ok' && (!best || e.n > best.n)) best = { ...e, source: raw, via }; };
+  for (const region of enclosedRegions(raw, Math.ceil(total * opts.minAreaFrac))) take(evalPlate(region, opts, false), 'hole');
+  if (opts.ringMinArc !== undefined) {
+    const hull = convexHull(raw); const hv = hull === raw ? null : evalPlate(hull, opts, false);
+    if (hv && hv.verdict === 'ok' && isRing(raw, fitEllipse(hull), opts)) take(hv, 'ring');
+  }
+  return best ?? base;
+}
+/**
+ * Why each mask is or is not the plate, for the CI summary (T-017): [{ x, y, score, area_frac, area_raw, cover, residual, residual_raw, verdict, via }]
+ * (x, y = the prompt point when the mask carries one). area_raw and residual_raw are before the holes are filled; via says how a passing mask
+ * became a plate (raw, filled, hole, ring). Same options as selectPlate.
  */
 export function plateDiagnostics(masks, opts) {
   const r = (v) => (v === null ? null : Math.round(v * 1000) / 1000);
   return masks.map((raw) => {
-    const e = evalPlate(raw, opts, true); const total = raw.width * raw.height;
+    const e = bestPlateVariant(raw, opts, true); const total = raw.width * raw.height;
     return { x: raw.point ? Math.round(raw.point.x) : null, y: raw.point ? Math.round(raw.point.y) : null, score: r(raw.score ?? 0), area_frac: r(e.area_frac), area_raw: r(stats(raw).n / total),
-      cover: r(e.cover), residual: r(e.residual), residual_raw: e.mask === raw ? r(e.residual) : (e.n ? r(ellipseResidual(raw)) : null), verdict: e.verdict };
+      cover: r(e.cover), residual: r(e.residual), residual_raw: e.mask === raw ? r(e.residual) : (e.n && e.via === 'filled' ? r(ellipseResidual(raw)) : null), verdict: e.verdict, via: e.via };
   });
 }
 
@@ -161,7 +252,7 @@ export function plateDiagnostics(masks, opts) {
  * `plate` is a selectPlate result or a mask. With plateDupIou (< 1) a mask whose IoU with the plate is above it is the plate itself and is dropped
  * (SAM returns the plate with and without its food). Returns copies with plate_frac and inside_frac attached.
  */
-export function filterFoods(masks, plate, { minFrac, maxFrac, minPredIoU, minInsideFrac = 0, plateDupIou = 1 }) {
+export function filterFoods(masks, plate, { minFrac, maxFrac, minPredIoU, minInsideFrac = 0, plateDupIou = 1, ringMinArc, ringMinBand, ringBandLo, ringSectors }) {
   const pm = plate.mask ?? plate; const ps = stats(pm); const src = plate.source ?? null;
   if (ps.n === 0) return [];
   const out = [];
@@ -172,6 +263,7 @@ export function filterFoods(masks, plate, { minFrac, maxFrac, minPredIoU, minIns
     const inter = intersection(m, sm, pm, ps);
     const plateFrac = inter / ps.n; const inside = inter / sm.n;
     if (plateDupIou < 1 && inter / (ps.n + sm.n - inter) > plateDupIou) continue; // the plate again (with or without its food), not a food
+    if (ringMinArc !== undefined && plate.ellipse && isRing(m, plate.ellipse, { ringMinArc, ringMinBand, ringBandLo, ringSectors })) continue; // the plate rim (a ring around the plate), not a food
     if (plateFrac < minFrac || plateFrac > maxFrac || inside < minInsideFrac) continue;
     out.push({ ...m, plate_frac: plateFrac, inside_frac: inside });
   }
@@ -253,17 +345,49 @@ export function rejectNonFood(items, scores, nonFoodLabelPrompts) {
 }
 
 // ---------------------------------------------------------------- plate scale prior
+// ---------------------------------------------------------------- pipeline
+/** A filled ellipse ({ cx, cy, a, b, angle_rad }) as a 0/1 mask of the photo size. */
+export function ellipseMask(e, width, height) {
+  const data = new Uint8Array(width * height); const c = Math.cos(e.angle_rad ?? 0); const s = Math.sin(e.angle_rad ?? 0);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) { const u = (x - e.cx) * c + (y - e.cy) * s; const v = -(x - e.cx) * s + (y - e.cy) * c; if ((u / e.a) ** 2 + (v / e.b) ** 2 <= 1) data[y * width + x] = 1; }
+  return { width, height, data };
+}
+/**
+ * The stand-in for a plate that was not found (zero setup: never ask for a tap): a CIRCLE (no tilt is known) centred on the food, with the radius
+ * of the food region's moment ellipse times spanFactor, i.e. the food is assumed to span a typical plate. With no food, a circle of defaultFrac x
+ * the short side of the photo at its centre. Shaped like a selectPlate result plus `synthetic: true`; the scale from it is approximate, and the
+ * caller must say so ("prato não detectado — escala aproximada") and use the wider no-plate scale uncertainty.
+ */
+export function syntheticPlate(foodMasks, width, height, { spanFactor = 1.15, defaultFrac = 0.8 } = {}) {
+  let cx = width / 2; let cy = height / 2; let r = defaultFrac * Math.min(width, height) / 2;
+  if (foodMasks.length) {
+    const union = new Uint8Array(width * height); for (const m of foodMasks) for (let i = 0; i < union.length; i++) if (m.data[i]) union[i] = 1;
+    const e = fitEllipse({ width, height, data: union }); cx = e.cx; cy = e.cy; r = Math.sqrt(e.a * e.b) * spanFactor;
+  }
+  const ellipse = { cx, cy, a: r, b: r, angle_rad: 0 }; const mask = ellipseMask(ellipse, width, height); const n = stats(mask).n;
+  return { mask, source: null, index: -1, residual: 0, area_frac: n / (width * height), filled: false, via: 'synthetic', synthetic: true, ellipse: fitEllipse(mask) };
+}
 /**
  * The plate to scale by: a registered plate ({ id, name, diameter_mm }) or, when it is unknown (null), the "prato típico" prior with its
- * wider scale uncertainty. Returns { diameter_mm, typical, scale_uncertainty, name, id }.
+ * wider scale uncertainty; with { noPlate: true } the typical plate for a photo where no plate was found, with the wider no-plate uncertainty.
+ * Returns { diameter_mm, typical, scale_uncertainty, name, id, no_plate }.
  */
-export function plateSetup(priors, plate) {
-  if (plate) return { id: plate.id, name: plate.name, diameter_mm: plate.diameter_mm, typical: false, scale_uncertainty: priors.scale_uncertainty.value };
-  return { id: null, name: 'Prato típico', diameter_mm: priors.typical_plate.diameter_mm, typical: true, scale_uncertainty: priors.typical_plate_scale_uncertainty.value };
+export function plateSetup(priors, plate, { noPlate = false } = {}) {
+  if (plate && !noPlate) return { id: plate.id, name: plate.name, diameter_mm: plate.diameter_mm, typical: false, no_plate: false, scale_uncertainty: priors.scale_uncertainty.value };
+  if (noPlate) return { id: null, name: 'Prato típico (prato não detectado)', diameter_mm: priors.typical_plate.diameter_mm, typical: true, no_plate: true, scale_uncertainty: priors.no_plate_scale_uncertainty?.value ?? priors.typical_plate_scale_uncertainty.value };
+  return { id: null, name: 'Prato típico', diameter_mm: priors.typical_plate.diameter_mm, typical: true, no_plate: false, scale_uncertainty: priors.typical_plate_scale_uncertainty.value };
 }
 /** priors with the scale uncertainty replaced by the plate's, so estimateItem widens every range for an unknown plate. */
 export const priorsForPlate = (priors, setup) => ({ ...priors, scale_uncertainty: { ...priors.scale_uncertainty, value: setup.scale_uncertainty } });
+export const NO_PLATE_NOTE = 'prato não detectado — escala aproximada';
 
+/** Nearest-neighbour resize of a mask to w x h (fields such as score kept): auto-mode masks come back small and are used at the photo size. */
+export function resizeMask(mask, w, h) {
+  if (mask.width === w && mask.height === h) return mask;
+  const out = new Uint8Array(w * h); const fx = mask.width / w; const fy = mask.height / h;
+  for (let y = 0; y < h; y++) { const row = Math.min(mask.height - 1, Math.floor((y + 0.5) * fy)) * mask.width; for (let x = 0; x < w; x++) out[y * w + x] = mask.data[row + Math.min(mask.width - 1, Math.floor((x + 0.5) * fx))]; }
+  return withData({ ...mask, width: w, height: h }, out);
+}
 /** priors.autoseg -> plain values (every entry needs a value, an assumption flag and a rationale). */
 export function autosegParams(priors) {
   const out = {};
@@ -278,57 +402,86 @@ export function autosegParams(priors) {
 // ---------------------------------------------------------------- pipeline
 /**
  * Photo -> plate + foods, over an injected model object (the same one the app uses; tests mock it):
- *   models.segmentPoints(points, { batch, budgetMs, perPoint, onProgress }) -> { masks (with score), decodes, ms, timed_out }
+ *   models.segmentPoints(points, { batch, budgetMs, perPoint, lowRes?, onProgress }) -> { masks (with score), decodes, ms, timed_out }
  *   models.classify(blob, prompts)                                          -> [{ label, score }]
  * `crop(mask)` returns the image blob SigLIP names (the app cuts it from the photo). Returns
- *   { status: 'ok' | 'no_plate' | 'empty_plate', plate, items, rejected, timings }
- * items: { mask, label (class id), cls, top (top-3), score, parts? }. The plate is null on 'no_plate'; the caller falls back to manual mode.
+ *   { status: 'ok' | 'empty_plate', plate, plate_detected, note, items, rejected, timings }
+ * items: { mask, label (class id), cls, top (top-3), score, parts? }. Zero setup: when no plate is found the result is NOT a failure and never
+ * asks for a tap. The foods are looked for on a grid over the centre of the whole photo and the plate is a synthetic circle around them
+ * (syntheticPlate: the food is assumed to span a typical plate); then plate_detected is false and `note` says "prato não detectado — escala aproximada".
+ * status 'no_plate' remains only for a caller that passes fallback: false (it returns before any food is decoded).
  */
-export async function detectAuto({ models, params, classes, width, height, crop, onStage = () => {}, now = () => Date.now(), diagnostics = false }) {
+export async function detectAuto({ models, params, classes, width, height, photoWidth = width, photoHeight = height, crop, onStage = () => {}, now = () => Date.now(), diagnostics = false, fallback = true }) {
   const t0 = now(); const p = params;
+  // width x height is the MASK space the pipeline works in; with a smaller mask space than the photo (T-017: memory on the iPhone) the points go to
+  // the model in photo pixels and the masks come back at width x height (models.segmentPoints lowRes)
+  const low = photoWidth !== width || photoHeight !== height; const sx = photoWidth / width; const sy = photoHeight / height;
   const timings = { prompts: 0, decodes: 0, decode_ms: 0, classify_ms: 0, plate_decode_ms: 0, food_decode_ms: 0, total_ms: 0, timed_out: false, plate_grid_n: p.plate_grid_n, food_grid_n: p.food_grid_n };
   const finish = (r) => { timings.total_ms = Math.round(now() - t0); return { ...r, timings }; };
   const grid = async (points, stage, perPoint) => {
     const left = Math.max(0, p.time_budget_ms - (now() - t0));
-    const r = await models.segmentPoints(points, { batch: p.decode_batch, budgetMs: left, perPoint, onProgress: (e) => onStage({ stage, ...e }) });
+    const r = await models.segmentPoints(low ? points.map((q) => ({ x: q.x * sx, y: q.y * sy })) : points, { batch: p.decode_batch, budgetMs: left, perPoint, ...(low ? { lowRes: { w: width, h: height } } : {}), onProgress: (e) => onStage({ stage, ...e }) });
+    if (r.masks.some((m) => m.width !== width || m.height !== height)) throw new Error(`máscaras ${r.masks[0].width}x${r.masks[0].height}, esperado ${width}x${height}`);
     timings.prompts += r.done ?? points.length; timings.decodes += r.decodes ?? points.length; timings.decode_ms += r.ms ?? 0; timings[`${stage === 'plate' ? 'plate' : 'food'}_decode_ms`] += r.ms ?? 0; timings.timed_out ||= !!r.timed_out;
     return r.masks;
+  };
+  /** Naming of the kept masks and rejection of the non-food ones (a plate rim, cutlery, the table). -> { merged, rejected } */
+  const nameFoods = async (kept) => {
+    onStage({ stage: 'naming', done: 0, total: kept.length });
+    const nfPrompts = nonFoodPrompts(p.non_food_labels); const prompts = [...namePrompts(classes), ...nfPrompts];
+    const tc = now(); const items = []; const scores = [];
+    for (const mask of kept) {
+      const blob = await crop(mask);
+      const s = await models.classify(blob, prompts);
+      items.push({ mask, score: mask.score ?? 0, blob, index: items.length }); scores.push(s);
+      onStage({ stage: 'naming', done: items.length, total: kept.length });
+    }
+    const { foods, rejected } = rejectNonFood(items, scores, nfPrompts);
+    const named = foods.map((it) => {
+      const top = topNames(scores[it.index], classes, 3);
+      return { ...it, top, cls: top[0]?.cls ?? null, label: top[0]?.cls?.id ?? null };
+    }).filter((it) => it.cls);
+    timings.classify_ms += Math.round(now() - tc);
+    return { merged: mergeSameLabel(named, p.merge_adjacency_px), rejected };
   };
 
   onStage({ stage: 'plate', done: 0, total: p.plate_grid_n ** 2 });
   // the plate stage keeps every multimask output of a point (the whole plate is often not the best-scoring one), the food stage the best one
   const plateRaw = await grid(gridPoints(width, height, p.plate_grid_n), 'plate', p.plate_masks_per_point ?? p.masks_per_point);
-  const plateOpts = { minAreaFrac: p.plate_min_area_frac, maxAreaFrac: p.plate_max_area_frac, centerFrac: p.plate_center_frac, centerCoverMin: p.plate_center_cover_min, maxResidual: p.plate_max_residual };
+  const plateOpts = { minAreaFrac: p.plate_min_area_frac, maxAreaFrac: p.plate_max_area_frac, centerFrac: p.plate_center_frac, centerCoverMin: p.plate_center_cover_min, maxResidual: p.plate_max_residual,
+    ringMinArc: p.plate_ring_min_arc, ringMinBand: p.plate_ring_min_band, ringBandLo: p.plate_ring_band_lo, ringSectors: p.plate_ring_sectors };
   const plateCandidates = dedupe(plateRaw, p.dedupe_iou);
   const plate = selectPlate(plateCandidates, plateOpts);
   const debug = diagnostics ? { plate_candidates: plateDiagnostics(plateRaw, plateOpts) } : {};
-  if (!plate) return finish({ status: 'no_plate', plate: null, items: [], rejected: [], ...debug });
+
+  if (!plate) {
+    if (!fallback) return finish({ status: 'no_plate', plate: null, plate_detected: false, items: [], rejected: [], ...debug });
+    // no plate, and still no tap: foods from a grid over the centre of the whole photo, the plate becomes a circle around them
+    const cf = p.noplate_center_frac ?? 0.8; const total = width * height;
+    const pts = gridPoints(width, height, p.food_grid_n).filter((q) => Math.abs(q.x - width / 2) <= cf * width / 2 && Math.abs(q.y - height / 2) <= cf * height / 2);
+    onStage({ stage: 'foods', done: 0, total: pts.length });
+    const raw = await grid(pts, 'foods', p.masks_per_point);
+    const touches = (m) => { const b = stats(m).box; return b ? (b.x0 === 0) + (b.y0 === 0) + (b.x1 === width - 1) + (b.y1 === height - 1) : 0; };
+    const cand = dedupe(raw, p.dedupe_iou).filter((m) => {
+      if ((m.score ?? 0) < p.food_min_pred_iou) return false; const frac = stats(m).n / total;
+      return frac >= (p.noplate_food_min_image_frac ?? 0.005) && frac <= (p.noplate_food_max_image_frac ?? 0.35) && touches(m) < 2; // not the table or the background
+    });
+    const resolved = resolveOverlaps(cand).filter((m) => m.pixels / total >= (p.noplate_food_min_image_frac ?? 0.005));
+    const kept = resolved.sort((a, b) => b.pixels - a.pixels).slice(0, p.max_food_items);
+    const { merged, rejected } = await nameFoods(kept);
+    const fake = syntheticPlate(merged.map((it) => it.mask), width, height, { spanFactor: p.noplate_span_factor, defaultFrac: p.noplate_default_plate_frac });
+    return finish({ status: merged.length ? 'ok' : 'empty_plate', plate: fake, plate_detected: false, note: NO_PLATE_NOTE, items: merged, rejected, ...debug });
+  }
 
   const e = plate.ellipse; const inner = { ...e, a: e.a * p.food_grid_inset, b: e.b * p.food_grid_inset };
   const foodPoints = gridPoints(width, height, p.food_grid_n, { insideEllipse: inner });
   onStage({ stage: 'foods', done: 0, total: foodPoints.length });
   const raw = await grid(foodPoints, 'foods', p.masks_per_point);
-  const filtered = filterFoods(dedupe(raw, p.dedupe_iou), plate, { minFrac: p.food_min_frac, maxFrac: p.food_max_frac, minPredIoU: p.food_min_pred_iou, minInsideFrac: p.food_min_inside_frac, plateDupIou: p.dedupe_iou });
+  const filtered = filterFoods(dedupe(raw, p.dedupe_iou), plate, { minFrac: p.food_min_frac, maxFrac: p.food_max_frac, minPredIoU: p.food_min_pred_iou, minInsideFrac: p.food_min_inside_frac, plateDupIou: p.dedupe_iou,
+    ringMinArc: p.plate_ring_min_arc, ringMinBand: p.plate_ring_min_band, ringBandLo: p.plate_ring_band_lo, ringSectors: p.plate_ring_sectors });
   const plateArea = stats(plate.mask).n;
   const resolved = resolveOverlaps(filtered).filter((m) => m.pixels / plateArea >= p.food_min_frac);
   const kept = resolved.sort((a, b) => b.pixels - a.pixels).slice(0, p.max_food_items);
-
-  onStage({ stage: 'naming', done: 0, total: kept.length });
-  const nfPrompts = nonFoodPrompts(p.non_food_labels); const prompts = [...namePrompts(classes), ...nfPrompts];
-  const tc = now(); const items = []; const scores = [];
-  for (const mask of kept) {
-    const blob = await crop(mask);
-    const s = await models.classify(blob, prompts);
-    items.push({ mask, score: mask.score ?? 0, blob, index: items.length }); scores.push(s);
-    onStage({ stage: 'naming', done: items.length, total: kept.length });
-  }
-  const { foods, rejected } = rejectNonFood(items, scores, nfPrompts);
-  const named = foods.map((it) => {
-    const top = topNames(scores[it.index], classes, 3);
-    return { ...it, top, cls: top[0]?.cls ?? null, label: top[0]?.cls?.id ?? null };
-  }).filter((it) => it.cls);
-  timings.classify_ms = Math.round(now() - tc);
-  const merged = mergeSameLabel(named, p.merge_adjacency_px);
-  const out = { plate, items: merged, rejected, ...debug };
-  return finish({ status: merged.length ? 'ok' : 'empty_plate', ...out });
+  const { merged, rejected } = await nameFoods(kept);
+  return finish({ status: merged.length ? 'ok' : 'empty_plate', plate, plate_detected: true, items: merged, rejected, ...debug });
 }

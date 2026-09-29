@@ -330,6 +330,35 @@ async function loadFirst(T, candidates, { hasGpu, warm, progress, prepare }) {
 }
 
 /** One SAM output slice (any nonzero value) -> a 0/1 mask with its predicted IoU score. */
+/** IEEE half-precision bits -> number (ONNX float16 outputs arrive as Uint16Array where Float16Array is missing). */
+export function halfToFloat(h) {
+  const s = h & 0x8000 ? -1 : 1; const e = (h >> 10) & 0x1f; const f = h & 0x3ff;
+  if (e === 0) return s * 2 ** -14 * (f / 1024);
+  if (e === 31) return f ? NaN : s * Infinity;
+  return s * 2 ** (e - 15) * (1 + f / 1024);
+}
+/**
+ * One SAM mask straight from the decoder's low-resolution logits (pred_masks, Lh x Lw, over the padded Hp x Wp model input), bilinear on the
+ * logits and thresholded at 0 (SAM's mask threshold), at outW x outH covering the photo. The photo occupies the top-left validH x validW of the
+ * model input (reshaped_input_sizes), so the low-res region used is validH*Lh/Hp x validW*Lw/Wp. T-017: auto mode decodes dozens of points; the
+ * library's post_process_masks upsamples every mask to the full photo in float32 (~12 MB per decode), which killed the Safari tab on the iPhone.
+ * `logits` is the Float32Array (or float16 Uint16Array) of ONE mask. -> 0/1 Uint8Array of outW * outH.
+ */
+export function lowResMask(logits, { Lh, Lw, Hp, Wp, validH, validW, outW, outH }) {
+  const get = logits instanceof Uint16Array ? (i) => halfToFloat(logits[i]) : (i) => logits[i];
+  const vh = validH * Lh / Hp; const vw = validW * Lw / Wp; const out = new Uint8Array(outW * outH);
+  for (let oy = 0; oy < outH; oy++) {
+    const fy = Math.min(Lh - 1, Math.max(0, (oy + 0.5) * vh / outH - 0.5)); const y0 = Math.floor(fy); const y1 = Math.min(Lh - 1, y0 + 1); const wy = fy - y0;
+    for (let ox = 0; ox < outW; ox++) {
+      const fx = Math.min(Lw - 1, Math.max(0, (ox + 0.5) * vw / outW - 0.5)); const x0 = Math.floor(fx); const x1 = Math.min(Lw - 1, x0 + 1); const wx = fx - x0;
+      const top = get(y0 * Lw + x0) * (1 - wx) + get(y0 * Lw + x1) * wx; const bot = get(y1 * Lw + x0) * (1 - wx) + get(y1 * Lw + x1) * wx;
+      if (top * (1 - wy) + bot * wy > 0) out[oy * outW + ox] = 1;
+    }
+  }
+  return out;
+}
+/** The working size of auto-mode masks: the photo scaled so its long side is `side` (never up). */
+export const maskSize = (width, height, side) => { const s = Math.min(1, side / Math.max(width, height)); return { w: Math.max(1, Math.round(width * s)), h: Math.max(1, Math.round(height * s)) }; };
 const toMask = (data, width, height, score) => { const m = new Uint8Array(width * height); for (let i = 0; i < m.length; i++) m[i] = data[i] ? 1 : 0; return { width, height, data: m, score }; };
 
 /**
@@ -344,7 +373,7 @@ const toMask = (data, width, height, score) => { const m = new Uint8Array(width 
  *   setImage(blob)              -> { encoder_ms }                           the working photo the taps refer to; the image encoder runs once here
  *   segment(x, y)               -> [{ width, height, data, score }]         SAM masks for a point tap (image px), best score first
  *   segmentPoints(points, opts) -> { masks, decodes, done, total, ms, timed_out }   T-014: one prompt per point {x, y}, ONE decoder run per point (T-017: SAM 2.1 takes a single prompt group per run) on the
- *                                  cached embedding; opts { batch (budget check and progress granularity), budgetMs, perPoint, onProgress({done, total}), now }; masks carry score and point
+ *                                  cached embedding; opts { batch (budget check and progress granularity), budgetMs, perPoint, lowRes ({ w, h }: masks at that size from the low-res logits), onProgress({done, total}), now }; masks carry score and point
  *   classify(blob, prompts)     -> [{ label, score }]                       image embedding vs text embeddings: one score per prompt (softmax); throws EmbeddingsError when the file is missing or stale
  */
 export function createModels({ importer, versions, sequential = isIOS(), labels, embeddingsBase, loadEmbeddings, probe, segmentCandidates = SEGMENT_CANDIDATES, namingCandidates = NAMING_CANDIDATES } = {}) {
@@ -408,14 +437,24 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
    * One SAM decoder run for ONE prompt group (a single tap): the prompt tensors come from samPromptTensors (one group, contract-checked in Node),
    * the image side from the cached embedding (or pixel_values when there is none). Masks of that point, best predicted IoU first.
    */
-  async function samDecode(h, prep, point, cache) {
+  async function samDecode(h, prep, point, cache, lowRes = null) {
     const p = scaleSamPoint(point, prep.original_sizes[0], prep.reshaped_input_sizes[0]);
     const prompt = Object.fromEntries(samPromptTensors([[p.x, p.y]], [1]).map((spec) => [spec.name, specToTensor(T, spec)]));
     const out = await h.model({ ...(cache && typeof h.model.get_image_embeddings === 'function' ? cache : { pixel_values: prep.pixel_values }), ...prompt });
+    const readScores = (n) => { const d = out.iou_scores?.data; return d ? Array.from(d.slice(0, n), (v) => (d instanceof Uint16Array ? halfToFloat(v) : Number(v))) : new Array(n).fill(0); };
+    const free = () => { for (const k of Object.keys(out)) try { out[k]?.dispose?.(); } catch { /* ignore */ } };
+    if (lowRes) { // auto mode: straight from the low-res logits, no full-size float upsampling (T-017, the iPhone tab was killed)
+      const pm = out.pred_masks; const dims = pm.dims; const Lh = dims[dims.length - 2]; const Lw = dims[dims.length - 1]; const n = dims[dims.length - 3];
+      const pd = prep.pixel_values.dims; const [validH, validW] = prep.reshaped_input_sizes[0];
+      const geo = { Lh, Lw, Hp: pd[pd.length - 2], Wp: pd[pd.length - 1], validH, validW, outW: lowRes.w, outH: lowRes.h };
+      const res = readScores(n).map((score, i) => ({ width: lowRes.w, height: lowRes.h, data: lowResMask(pm.data.subarray(i * Lh * Lw, (i + 1) * Lh * Lw), geo), score })).sort((a, b) => b.score - a.score);
+      free(); return res;
+    }
     const masks = await h.proc.post_process_masks(out.pred_masks, prep.original_sizes, prep.reshaped_input_sizes);
     const t = masks[0]; const dims = t.dims; const H = dims[dims.length - 2]; const W = dims[dims.length - 1]; const n = dims[dims.length - 3];
-    const scores = out.iou_scores ? Array.from(out.iou_scores.data).slice(0, n) : new Array(n).fill(0);
-    return scores.map((score, i) => toMask(t.data.subarray ? t.data.subarray(i * H * W, (i + 1) * H * W) : t.data.slice(i * H * W, (i + 1) * H * W), W, H, score)).sort((a, b) => b.score - a.score);
+    const scores = readScores(n);
+    const res = scores.map((score, i) => toMask(t.data.subarray ? t.data.subarray(i * H * W, (i + 1) * H * W) : t.data.slice(i * H * W, (i + 1) * H * W), W, H, score)).sort((a, b) => b.score - a.score);
+    free(); return res;
   }
 
   /** The image encoder runs once per photo; every later prompt only pays for the decoder. */
@@ -438,19 +477,20 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
       await ensureSeg();
       return encode();
     },
-    async segment(x, y) {
+    /** Masks of one tap at the photo size, or with `lowRes` ({ w, h }) straight from the decoder's low-res logits at that size (auto mode). */
+    async segment(x, y, lowRes = null) {
       if (!image) throw new Error('nenhuma foto carregada');
       const s = await ensureSeg();
-      try { return await samDecode(s.handle, prepared, { x, y }, embeddings); } catch (e) {
+      try { return await samDecode(s.handle, prepared, { x, y }, embeddings, lowRes); } catch (e) {
         if (!embeddings) throw e;
-        embeddings = null; return samDecode(s.handle, prepared, { x, y }, null); // cached embeddings not accepted by this model: recompute
+        embeddings = null; return samDecode(s.handle, prepared, { x, y }, null, lowRes); // cached embeddings not accepted by this model: recompute
       }
     },
     /**
      * One decoder run per point (F-008: SAM 2.1 accepts one prompt group per run), on the embedding computed once in setImage. `batch` is only the
-     * granularity of the time-budget check and of the progress callbacks. A failing decode is an error (no silent fallback: it hid F-008 on the phone).
+     * granularity of the time-budget check and of the progress callbacks; `lowRes` ({ w, h }) returns masks at that size (lowResMask). A failing decode is an error (no silent fallback: it hid F-008 on the phone).
      */
-    async segmentPoints(points, { batch = 4, budgetMs = Infinity, perPoint = 1, onProgress = () => {}, now = () => performance.now() } = {}) {
+    async segmentPoints(points, { batch = 4, budgetMs = Infinity, perPoint = 1, lowRes = null, onProgress = () => {}, now = () => performance.now() } = {}) {
       if (!image) throw new Error('nenhuma foto carregada');
       const s = await ensureSeg();
       const t0 = now(); const masks = []; let done = 0; let decodes = 0; let timed_out = false;
@@ -458,7 +498,7 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
       for (let i = 0; i < points.length; i += batch) {
         if (now() - t0 > budgetMs) { timed_out = true; break; }
         const chunk = points.slice(i, i + batch);
-        for (const pt of chunk) { const r = await api.segment(pt.x, pt.y); decodes++; masks.push(...r.slice(0, perPoint).map((m) => ({ ...m, point: pt }))); }
+        for (const pt of chunk) { const r = await api.segment(pt.x, pt.y, lowRes); decodes++; masks.push(...r.slice(0, perPoint).map((m) => ({ ...m, point: pt }))); }
         done += chunk.length; onProgress({ done, total: points.length });
       }
       return { masks, decodes, done, total: points.length, ms: Math.round(now() - t0), timed_out };

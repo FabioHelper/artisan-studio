@@ -3,16 +3,16 @@
 
 **Mission** (approved): Point the phone camera at a food or meal and get the most likely real weight of each item plus protein, carbs, fat and kcal, with honest ranges and the lowest achievable error, starting with Brazilian meals and running on-device with no paid LLM on the critical path.
 
-**Next action:** continue T-004 "Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI" → make its acceptance checks pass, then `mc verify T-004`, review, `mc done T-004`
+**Next action:** start T-005 "Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities" with `mc start T-005`
 
 ## Goals
 
 | Goal | Title | Measure | Tasks done |
 |---|---|---|---|
 | G-1 | Trustworthy delivery | mc check passes on every commit to main, and every done task carries verify evidence (plus an accepting review when required) in the journal | 2/2 |
-| G-2 | Low portion and macro error | On the locked weighed Brazilian benchmark, the upper 95% CI of per-meal kcal MAPE is <=30% (phase 1), <=20% (phase 2), <=15% (phase 3), with signed bias within +-10% | 1/9 |
+| G-2 | Low portion and macro error | On the locked weighed Brazilian benchmark, the upper 95% CI of per-meal kcal MAPE is <=30% (phase 1), <=20% (phase 2), <=15% (phase 3), with signed bias within +-10% | 2/9 |
 | G-3 | Zero marginal inference cost | The capture-to-result pipeline runs on-device with no network call; any optional cloud fallback is confidence-gated and costs <= US$0.001 per photo | 0/4 |
-| G-4 | Honest uncertainty | Shown 80% ranges contain the weighed truth for 75-85% of benchmark items | 1/3 |
+| G-4 | Honest uncertainty | Shown 80% ranges contain the weighed truth for 75-85% of benchmark items | 2/3 |
 | G-5 | Effortless capture | Result in <= 2 s on a recent iPhone, with at most one confirmation tap for a typical plate | 0/4 |
 
 **Non-goals:** Estimating grams with an LLM/VLM; A native iOS app in phases 0-1 (no Mac or developer account; PWA first, see ADR 0004); Meal plans, coaching or social features in v1; Packaged-food barcode lookup in v1; Android in v1 (iPhone first; Android after the iPhone MVP passes its gate)
@@ -28,12 +28,12 @@
 | T-001 | Mission-control harness and documentation system | done | G-1 | — | optional | [spec](decisions/0001-agent-harness-architecture.md) |
 | T-002 | Define Macrofy's mission, goals, non-goals and first product milestone with the owner | done | G-1 | T-001 | required | — |
 
-### M1 — Phase 0: weighed Brazilian benchmark, evaluation engine and baselines (1/9 done)
+### M1 — Phase 0: weighed Brazilian benchmark, evaluation engine and baselines (2/9 done)
 
 | Task | Title | Status | Goals | Depends on | Review | Spec |
 |---|---|---|---|---|---|---|
 | T-003 | Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules | done | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-003-benchmark-tooling.md) |
-| T-004 | Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI | active | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-004-evaluation-engine.md) |
+| T-004 | Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI | done | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-004-evaluation-engine.md) |
 | T-005 | Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities | todo | G-2, G-3 | T-002 | required | — |
 | T-006 | Owner collects 300 weighed meals (150 calibration, 150 locked test) following the capture protocol, split by capture date | todo | G-2 | T-003, T-011 | required | — |
 | T-007 | Experiment: metric scale error from a registered plate (known diameter, rim ellipse fit) on the iPhone 16e at 25-40 cm | todo | G-2, G-5 | T-011 | required | — |
@@ -58,8 +58,8 @@
 
 ## Recent handoffs
 
+- #40 2026-09-29 (claude-code): done: T-004 eval engine (review accepted after classifier outage retry) / next: T-012 browser feasibility page on GitHub Pages (repo is public) via implementer sub-agent / gotchas: Safari exposes no JS memory API, so T-012 records download size + tab survival instead of peak memory
 - #37 2026-09-29 (claude-code): fix: Stop hook judged committed changes by mtime, so merges re-triggered the handoff rule (F-002, closed; regression test added) / next: T-004 under independent review in a worktree; its branch will diverge from this note -> reviewer re-records on main / gotchas: none
 - #36 2026-09-29 (implementer): done: T-004 evaluation engine built and verified (eval/metrics.mjs pure metrics + day-cluster bootstrapCI, eval/run.mjs CLI, eval/selftest.mjs with hand-computed fixtures, SPEC-T-004, architecture section); eval-selftest passes, check --fast green, 13 mutations of metrics.mjs all caught by the selftest / next: reviewer runs 'mc review T-004' then 'mc done T-004'; T-005 must pass truthNutrients(item, meal) to evaluate() to enable kcal/macro metrics (CLI reports n/a until wired); T-010 and phase gates read report.gates / gotchas: \|bias\| upper bound = 97.5th percentile of resampled \|bias\| (both meal-kcal and item-mass variants reported, owner/reviewer to pick which the gate uses); meals without a prediction entry count as all omissions; a meal is kcal-scored only if every true item has truth nutrients and every predicted item has kcal; verify #34 was run without MC_AGENT (attributed claude-code), #35 is the implementer verify; evaluate() validates the manifest, so synthetic manifests need valid photos/plates
 - #32 2026-09-28 (claude-code): done: T-003 benchmark tooling (review round 2 accepted #30) / next: T-004 evaluation engine via implementer sub-agent in worktree / gotchas: worktree journal rule added to CLAUDE.md
 - #29 2026-09-28 (claude-code): T-003 review fixes merged (lock covers referenced plates; completeness mode fails without a lock); verify re-run on merged main because the branch journal diverged from main / next: re-review T-003 / gotchas: while a worktree sub-agent holds a task, avoid appending to main's journal; if unavoidable, keep main's journal on merge and re-run verify
-- #27 2026-09-28 (claude-code): T-003 active: implementation merged, independent review REJECTED (#26): completeness mode must fail without a test lock; lock must also hash plates referenced by test meals. Implementer fixing in its worktree / next: merge fix, re-review, done, then T-004

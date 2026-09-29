@@ -100,7 +100,7 @@
         "G-2",
         "G-4"
       ],
-      "status": "active",
+      "status": "done",
       "review": "required",
       "depends_on": [
         "T-002"
@@ -307,7 +307,7 @@
       "acceptance": [
         {
           "id": "A1",
-          "criterion": "Owner runs the hosted feasibility page; first-load time, cached load, peak memory and per-model latency are recorded; go/no-go against <=2 s total inference",
+          "criterion": "Owner runs the hosted feasibility page (GitHub Pages) on the iPhone 16e; for each model it records which candidate loaded, backend (WebGPU/WASM), download size, first and cached load time, median inference latency, and whether the tab survived; go/no-go against <=2 s total inference",
           "manual": true
         }
       ]

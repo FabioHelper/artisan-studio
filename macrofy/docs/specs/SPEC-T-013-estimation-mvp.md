@@ -34,8 +34,12 @@ a weighed meal by id) and exports macrofy.predictions/1 for the eval engine.
   - `grams = volume_ml * density * calibration_factor(group)`; the factor is 1.0 until
     `web/estimate/calibration.json` has fitted values. Macros come from `nutrition/lookup-core.mjs` plus oil.
   - Oil: Sem óleo / Pouco / Normal / Muito = 0 / 0.5 / 1 / 2 times the class `default_oil_g_per_100g`.
-  - 80% range: `sigma = sqrt(ln(1+cv^2) + ln(1+s^2))`, `lo80 = grams * exp(-1.2816 sigma)`, `hi80 = grams * exp(1.2816 sigma)`,
-    s = 5% scale uncertainty (an assumption). T-008 replaces this with conformal calibration.
+  - 80% range: area goes with mm_per_px squared, so a scale error s counts twice:
+    `sigma = sqrt(ln(1+cv^2) + (2 ln(1+s))^2)`, `lo80 = grams * exp(-1.2816 sigma)`, `hi80 = grams * exp(1.2816 sigma)`,
+    s = 5% scale uncertainty (an assumption); density and tilt errors are not modelled. T-008 replaces this with conformal calibration.
+  - Plate total range, in log space: thickness errors are independent per item (Fenton-Wilkinson match of the sum of lognormals);
+    the scale error is one shared error, so it enters once, not averaged. Summing item bounds would assume full correlation
+    of everything (too wide); full independence would shrink the shared scale term (too narrow).
   - `toPredictions` builds macrofy.predictions/1; labels are the vocab `pt` names, as in the capture app.
 - Priors: every number that is not measured (thickness and cv per group, solid density, scale
   uncertainty) carries `assumption: true`, `calibrate_from` and a one-line rationale.

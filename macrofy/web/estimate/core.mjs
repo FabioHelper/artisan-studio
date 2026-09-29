@@ -122,8 +122,15 @@ export function loadCalibration(json) {
 }
 
 // ---------------------------------------------------------------- range
-/** sigma of the multiplicative lognormal: sqrt(ln(1+cv^2) + ln(1+s^2)); cv = thickness prior, s = scale uncertainty. */
-export const rangeSigma = (cv, s) => Math.sqrt(Math.log(1 + cv * cv) + Math.log(1 + s * s));
+// Grams = area x thickness x density, and area goes with mm_per_px^2, so a relative scale error s (lognormal sigma ln(1+s))
+// becomes a grams error of sigma 2 ln(1+s): the scale enters twice. The thickness prior cv is a lognormal with sigma^2 = ln(1+cv^2).
+// The two are independent, so their variances add. (Density and tilt errors are not modelled; T-008 replaces all of this.)
+/** Log-sd of the scale term on grams: 2 ln(1+s). */
+export const scaleSigma = (s) => 2 * Math.log(1 + s);
+/** Log-sd of the thickness term: sqrt(ln(1+cv^2)). */
+export const thicknessSigma = (cv) => Math.sqrt(Math.log(1 + cv * cv));
+/** sigma of the multiplicative lognormal on grams: sqrt(ln(1+cv^2) + (2 ln(1+s))^2); cv = thickness prior, s = scale uncertainty. */
+export const rangeSigma = (cv, s) => Math.sqrt(thicknessSigma(cv) ** 2 + scaleSigma(s) ** 2);
 /** 80% interval of a lognormal-ish error around the point estimate: grams * exp(-+ 1.2816 sigma). Replaced by conformal intervals in T-008. */
 export const range80 = (grams, sigma) => ({ lo80: grams * Math.exp(-Z80 * sigma), hi80: grams * Math.exp(Z80 * sigma) });
 
@@ -145,22 +152,41 @@ export function estimateItem({ cls, pixels, scale, oil = 'normal', priors, calib
   const factor = calibrationFactor(calibration, group);
   const grams = volume * density * factor;
   const sigma = rangeSigma(prior.cv, priors.scale_uncertainty.value);
+  const sigma_thickness = thicknessSigma(prior.cv); const sigma_scale = scaleSigma(priors.scale_uncertainty.value);
   const { lo80, hi80 } = range80(grams, sigma);
   const oil_g = oilGrams(cls, grams, level.factor);
   const n = lookup.nutrientsFor({ label: cls.id, grams, oil_g });
   return {
     class_id: cls.id, label: cls.pt, group, pixels, area_mm2: r1(area), thickness_mm: prior.thickness_mm, volume_ml: r1(volume),
-    density_g_per_ml: density, density_basis: basis, calibration_factor: factor, sigma: Math.round(sigma * 1e4) / 1e4,
+    density_g_per_ml: density, density_basis: basis, calibration_factor: factor, sigma: Math.round(sigma * 1e4) / 1e4, sigma_thickness: Math.round(sigma_thickness * 1e4) / 1e4, sigma_scale: Math.round(sigma_scale * 1e4) / 1e4,
     grams: r1(grams), lo80: r1(lo80), hi80: r1(hi80), oil: level.id, oil_g: r2(oil_g), ...n, calibrated: false,
   };
 }
 
-/** Plate totals. The range is the sum of the item bounds: the items share one scale estimate, so their errors are not independent. */
+/**
+ * Plate totals. Grams, kcal and macros add up. The 80% range of the total is centred on the summed grams and combined in log space:
+ *  - the per-item thickness errors are independent, so the total's thickness variance is the Fenton-Wilkinson match of a sum of
+ *    independent lognormals: with mean m_i = g_i exp(s_i^2 / 2) and variance m_i^2 (exp(s_i^2) - 1) (s_i = the thickness sigma),
+ *    sigma_th^2 = ln(1 + sum(var_i) / (sum m_i)^2);
+ *  - the scale error is ONE error shared by every item on the plate (one ellipse fit), so it is fully correlated and is not averaged
+ *    away: it enters once, as (2 ln(1+s))^2, exactly as for a single item;
+ *  - sigma_total = sqrt(sigma_th^2 + sigma_scale^2), lo80 and hi80 = grams x exp(-+ 1.2816 sigma_total).
+ * Summing the item bounds would assume every error is fully correlated (too wide, a hidden 100% correlation); assuming full independence
+ * would shrink the shared scale term (too narrow). This splits the two honestly. One item gives exactly that item's range.
+ */
 export function totals(items) {
-  const t = { grams: 0, lo80: 0, hi80: 0, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+  const t = { grams: 0, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
   for (const it of items) for (const k of Object.keys(t)) t[k] += it[k];
-  for (const k of Object.keys(t)) t[k] = r1(t[k]);
-  return t;
+  let M = 0; let V = 0; let scale = 0;
+  for (const it of items) {
+    const v = it.sigma_thickness ** 2; const m = it.grams * Math.exp(v / 2);
+    M += m; V += m * m * (Math.exp(v) - 1); scale = Math.max(scale, it.sigma_scale);
+  }
+  const sigma = M > 0 ? Math.sqrt(Math.log(1 + V / (M * M)) + scale * scale) : 0;
+  const { lo80, hi80 } = range80(t.grams, sigma);
+  const out = { grams: t.grams, lo80, hi80, kcal: t.kcal, protein_g: t.protein_g, carbs_g: t.carbs_g, fat_g: t.fat_g };
+  for (const k of Object.keys(out)) out[k] = r1(out[k]);
+  return { ...out, sigma: Math.round(sigma * 1e4) / 1e4 };
 }
 
 // ---------------------------------------------------------------- naming (SigLIP zero-shot over the vocab pt names)

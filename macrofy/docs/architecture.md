@@ -121,7 +121,7 @@ Photo to grams, macros and an 80% range, uncalibrated. Spec: [SPEC-T-013](specs/
 
 | Module | Responsibility |
 |---|---|
-| `web/estimate/core.mjs` | Pure, import-free maths: ellipse fit from a plate mask (second moments), mm per pixel and tilt, item area, volume, F-004 solid-aware density, calibration factor, oil levels, lognormal 80% range, plate totals, name prompts, and `toPredictions` (macrofy.predictions/1) |
+| `web/estimate/core.mjs` | Pure, import-free maths: ellipse fit from a plate mask (second moments), mm per pixel and tilt, item area, volume, F-004 solid-aware density, calibration factor, oil levels, lognormal 80% range (scale error counted twice), plate totals combined in log space (independent thickness, shared scale), name prompts, and `toPredictions` (macrofy.predictions/1) |
 | `web/estimate/priors.json` | The only invented numbers: thickness and cv per food group, the solid density, the scale uncertainty; each labelled as an assumption with a rationale and what to calibrate it from |
 | `web/estimate/calibration.json` | Per-group grams factors fitted later on weighed meals; empty means 1.0 |
 | `web/estimate/selftest.mjs` | The check `estimator-selftest`: hand-computed fixtures, range, oil, export accepted and scored by the evaluation engine, negative checks |

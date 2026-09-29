@@ -137,8 +137,8 @@
       "calibrate_from": "iPhone crash reports (Diagnóstico)"
     },
     "naming_page_plans": {
-      "value": [[["webgpu", "q4f16"]], [["wasm", "q8"]]],
-      "rationale": "Backends for the naming model in auto mode's naming page on the iPhone, one plan per attempt; a death in that page moves the next attempt (Safari's own reload, or the retry button) to the next plan. Owner runs: WebGPU q4f16 died right after the SAM page once and then worked in a fresh tab; the CPU plan with q4 first died (q4 on the CPU likely unpacks the weights to float), so the CPU plan is q8 only and comes second. The SAM page now also destroys its WebGPU device before the reload.",
+      "value": [[["wasm", "q8"]], [["webgpu", "q4f16"]]],
+      "rationale": "Backends for the naming model in auto mode's naming page on the iPhone, one plan per attempt; a death in that page moves the next attempt (Safari's own reload, or the retry button) to the next plan. Owner runs (2026-09-29): WebGPU q4f16 died right after the SAM page twice, even with the SAM page's WebGPU device destroyed; the CPU q8 plan then named the foods (1.4 s for 2 crops). CPU q4 died once (likely unpacks the weights to float), so it is not used.",
       "assumption": true,
       "calibrate_from": "owner device runs (Diagnóstico last_crash)"
     },
@@ -285,6 +285,24 @@
       "rationale": "From ADR 0005: what a mask that is not food is called; a mask whose best SigLIP label is one of these is dropped.",
       "assumption": true,
       "calibrate_from": "the owner's photos"
+    },
+    "food_masks_per_point": {
+      "value": 3,
+      "rationale": "The food grid keeps all three multimask outputs of each point (same decode, no extra cost): a heap of small pieces is often not SAM's best-scoring output of a point, one piece is.",
+      "assumption": true,
+      "calibrate_from": "item recall on the benchmark"
+    },
+    "food_min_pred_iou_supported": {
+      "value": 0.6,
+      "rationale": "A food mask under food_min_pred_iou is still kept when its predicted IoU reaches this AND food_support_min distinct grid points returned an agreeing mask (IoU >= dedupe_iou). Owner's photo (2026-09-29): the french-fries heap came back from 3 points at 0.65-0.78 and was dropped at 0.8, so the result showed only the rice.",
+      "assumption": true,
+      "calibrate_from": "item recall and precision on the benchmark"
+    },
+    "food_support_min": {
+      "value": 3,
+      "rationale": "Distinct grid points that must agree on a middling-confidence food mask (see food_min_pred_iou_supported); one or two agreeing points is what noise does.",
+      "assumption": true,
+      "calibrate_from": "item recall and precision on the benchmark"
     },
     "non_food_margin": {
       "value": 3,

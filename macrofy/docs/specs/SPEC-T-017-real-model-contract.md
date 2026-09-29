@@ -79,6 +79,11 @@ and a reload landed on `#/estimate/resume`, which re-ran the same analysis and S
   non-food labels from priors `non_food_labels_en`); the app still looks them up by its Portuguese prompt strings. Measuring naming accuracy stays T-010.
 - Diagnóstico: every food-grid mask with the reason it is or is not an item (`food_candidates`: kept k, duplicate, plate, rim, low_score,
   too_small, too_large, off_plate, background, overlap, over_max) and the naming model's top 3 plus the best non-food label per kept mask.
+- Same fries photo again (with the new Diagnóstico): WebGPU naming died after the SAM page even with the device destroyed, and the page went on
+  by itself with the CPU q8 plan, which named the rice right (0.88). The fries were never an item: SAM returned single fries (too small) or the whole
+  heap at predicted IoU 0.65-0.78 from 3 points, under food_min_pred_iou 0.8. Now the food grid keeps all three multimask outputs
+  (`food_masks_per_point`) and a mask of middling confidence (>= `food_min_pred_iou_supported`) is kept when `food_support_min` distinct points
+  agree on it (`markSupport`). The naming page tries the CPU q8 first, WebGPU second.
 - CI: the integration test runs auto mode in the same low-res mask space, checks low-res vs full-size masks of one tap (IoU >= 0.9),
   and requires >= 1 food on the pinned Commons photo (`tools/it-photo.json`); a stand-in plate there is a warning.
 

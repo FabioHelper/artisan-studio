@@ -283,7 +283,7 @@ check('food filter: the plate again, with or without its food, is not a food (pl
 const holedScene = { plateStage: [S.table, holed, S.speckOutside], foodStage: [holed, S.rice, S.meat, S.salad, S.lowScore] };
 const mh = makeModels(holedScene); const rh = await detect(mh, { diagnostics: true });
 check('pipeline with a plate that has holes for its food: plate found (filled), 3 foods kept, the plate-without-food mask is not one of them', rh.status === 'ok' && rh.plate.filled === true && rh.items.map((i) => i.cls.id).sort().join() === 'arroz-branco-cozido,bife-grelhado,salada-mista-crua');
-check('pipeline: the plate grid keeps all multimask outputs (plate_masks_per_point), the food grid the best one', mh.calls.seg[0].opts.perPoint === P.plate_masks_per_point && P.plate_masks_per_point === 3 && mh.calls.seg[1].opts.perPoint === P.masks_per_point);
+check('pipeline: both grids keep all multimask outputs (plate_masks_per_point, food_masks_per_point: a heap is often not the best output of a point)', mh.calls.seg[0].opts.perPoint === P.plate_masks_per_point && P.plate_masks_per_point === 3 && mh.calls.seg[1].opts.perPoint === P.food_masks_per_point && P.food_masks_per_point === 3);
 check('pipeline: per-stage decode timings and (on request) the plate diagnostics; without the flag no diagnostics', rh.timings.plate_decode_ms === 7 && rh.timings.food_decode_ms === 7 && Array.isArray(rh.plate_candidates) && rh.plate_candidates.length === 3 && rh.plate_candidates.some((r) => r.verdict === 'ok') && !('plate_candidates' in ok1));
 const nop = await detect(makeModels({ plateStage: [S.table, S.rice], foodStage: [] }), { diagnostics: true, fallback: false });
 check('no plate with diagnostics: the rows explain it', nop.status === 'no_plate' && nop.plate_candidates.map((r) => r.verdict).join() === 'too_large,too_small');
@@ -372,6 +372,16 @@ check('naming diagnostics: every kept mask has its top 3 names with scores and i
   && dg.naming_rows.every((r) => r.top.length === 3 && r.top.every(([id, sc]) => typeof id === 'string' && sc >= 0 && sc <= 1) && r.pixels > 0)
   && dg.naming_rows.some((r) => r.nonfood[0] === core.NAME_PROMPT('talher') && r.nonfood[1] > 0.5));
 check('diagnostics off: no food or plate rows (the phone does not pay for them unless asked)', !('food_candidates' in ok1) && !('plate_candidates' in ok1));
+// ---------------------------------------------------------------- T-017: a heap of small pieces (owner's photo: the fries heap came back at 0.65-0.78 from 3 points, dropped at 0.8)
+const heapAt = (x, y, score) => ({ ...ell(96, 72, 26, 18, 0, score), point: { x, y } });
+const heap3 = [heapAt(90, 70, 0.78), heapAt(100, 75, 0.76), heapAt(95, 80, 0.65)]; const heap1 = [heapAt(90, 70, 0.78)];
+A.markSupport(heap3, { lo: P.food_min_pred_iou_supported, hi: P.food_min_pred_iou, iouThr: P.dedupe_iou }); A.markSupport(heap1, { lo: P.food_min_pred_iou_supported, hi: P.food_min_pred_iou, iouThr: P.dedupe_iou });
+check('markSupport: the heap returned by 3 distinct points has support 3; alone, support 1; a confident mask is not counted', heap3.every((m) => m.support === 3) && heap1[0].support === 1 && A.markSupport([{ ...S.rice, point: { x: 1, y: 1 } }], { lo: 0.6, hi: 0.8, iouThr: 0.7 })[0].support === undefined);
+const heapRun = async (heapMasks) => detect(makeModels({ plateStage: scene.plateStage, foodStage: [S.rice, ...heapMasks] }), { diagnostics: true });
+const hr3 = await heapRun(heap3.map(({ support, ...m }) => m)); const hr1 = await heapRun(heap1.map(({ support, ...m }) => m));
+check('pipeline: a middling-confidence heap that 3 points agree on becomes an item (rice + heap); from one point it stays out (low_score)',
+  hr3.items.length === 2 && hr1.items.length === 1 && hr1.food_candidates.some((r) => r.verdict === 'low_score') && P.food_support_min === 3 && P.food_min_pred_iou_supported === 0.6, JSON.stringify([hr3.food_candidates.map((r) => r.verdict), hr1.food_candidates.map((r) => r.verdict)]));
+check('priors: the naming page tries the CPU (q8) first, WebGPU second (owner runs: WebGPU died after the SAM page twice, CPU q8 named the foods)', JSON.stringify(P.naming_page_plans) === JSON.stringify([[['wasm', 'q8']], [['webgpu', 'q4f16']]]));
 // ---------------------------------------------------------------- T-017: split (the iPhone: SAM in one page, the naming model alone in the next)
 // The owner's run died at "dando nome aos alimentos (0/4)": after SAM, loading the naming model in the same page killed the tab (the feasibility run
 // that worked loaded one model per page). detectAuto({ split }) stops before naming; finishAuto names what was kept, from a stored copy.

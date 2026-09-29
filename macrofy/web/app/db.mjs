@@ -1,7 +1,7 @@
 // IndexedDB storage. Plates, meals, photo blobs, the unfinished meal (draft) and settings stay on the phone.
 const NAME = 'macrofy-capture';
-const VERSION = 2; // 2: adds the estimates store (T-013); onupgradeneeded creates any missing store
-const STORES = { plates: 'id', meals: 'id', photos: 'sha256', kv: 'key', estimates: 'id' };
+const VERSION = 3; // 2: adds the estimates store (T-013); 3: adds the checks store (T-016, scale checks); onupgradeneeded creates any missing store
+const STORES = { plates: 'id', meals: 'id', photos: 'sha256', kv: 'key', estimates: 'id', checks: 'id' };
 
 let dbp;
 export function openDb() {

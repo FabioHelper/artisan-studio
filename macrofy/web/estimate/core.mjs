@@ -5,7 +5,7 @@
 
 export const PREDICTIONS_SCHEMA_ID = 'macrofy.predictions/1';
 export const CALIBRATION_SCHEMA_ID = 'macrofy.calibration/1';
-export const PIPELINE = { name: 'macrofy-estimator', version: '0.1.0-uncalibrated' };
+export const PIPELINE = { name: 'macrofy-estimator', version: '0.2.0' };
 /** Standard normal quantile of the 90th percentile: the 80% central interval is +-Z80 sigma. */
 export const Z80 = 1.2816;
 export const NAME_PROMPT = (pt) => `uma foto de ${pt}`;
@@ -144,7 +144,8 @@ export function estimateItem({ cls, pixels, scale, oil = 'normal', priors, calib
   const area = areaMm2(pixels, scale);
   const volume = volumeMl(area, prior.thickness_mm);
   const factor = calibrationFactor(calibration, group);
-  const grams = volume * density * factor;
+  const raw = volume * density; // before any learned factor: what scale checks are compared with, so corrections never compound
+  const grams = raw * factor;
   const sigma = rangeSigma(prior.cv, priors.scale_uncertainty.value);
   const sigma_thickness = thicknessSigma(prior.cv); const sigma_scale = scaleSigma(priors.scale_uncertainty.value);
   const { lo80, hi80 } = range80(grams, sigma);
@@ -153,7 +154,7 @@ export function estimateItem({ cls, pixels, scale, oil = 'normal', priors, calib
   return {
     class_id: cls.id, label: cls.pt, group, pixels, area_mm2: r1(area), thickness_mm: prior.thickness_mm, volume_ml: r1(volume),
     density_g_per_ml: density, density_basis: basis, calibration_factor: factor, sigma: Math.round(sigma * 1e4) / 1e4, sigma_thickness: Math.round(sigma_thickness * 1e4) / 1e4, sigma_scale: Math.round(sigma_scale * 1e4) / 1e4,
-    grams: r1(grams), lo80: r1(lo80), hi80: r1(hi80), oil: level.id, oil_g: r2(oil_g), ...n, calibrated: false,
+    raw_grams: r1(raw), grams: r1(grams), lo80: r1(lo80), hi80: r1(hi80), oil: level.id, oil_g: r2(oil_g), ...n, calibrated: factor !== 1,
   };
 }
 

@@ -410,12 +410,12 @@
         "G-4",
         "G-5"
       ],
-      "status": "todo",
+      "status": "active",
       "review": "required",
       "depends_on": [
         "T-005"
       ],
-      "spec": null,
+      "spec": "docs/specs/SPEC-T-016-zero-setup-scale-checks.md",
       "acceptance": [
         {
           "id": "A1",

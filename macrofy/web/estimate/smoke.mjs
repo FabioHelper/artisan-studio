@@ -1,10 +1,13 @@
 // Headless smoke of the estimate flows with a MOCKED model layer (no CDN or Hugging Face access needed).
 //   node web/estimate/smoke.mjs            (run from macrofy/; needs the global playwright and python3)
-// Serves web/ with python3 -m http.server and walks two scenarios, each in a fresh browser context:
-//   AUTO (T-014, the default): photo -> progress ("Encontrando o prato…", "Encontrando os alimentos…") -> ONE confirmation screen with names, grams,
+// Serves web/ with python3 -m http.server and walks three scenarios, each in a fresh browser context:
+//   ZERO (T-016, the default flow): NO plate registered, no taps. Home "Apontar para o prato" -> photo -> automatic analysis -> result (typical-plate prior, model ranges,
+//     "Não calibrado") -> "Conferir com balança" (item grams + other-app kcal) changes the calibration state -> the next estimate shows the learned factor ->
+//     a plate-total check -> "Precisão" (evaluate over the checks, other-app table, "precisa de mais conferências" under 5) -> export -> conformal ranges after 10 checks.
+//   AUTO (T-014, corrections under "Ajustes / Corrigir"): photo -> progress ("Encontrando o prato…", "Encontrando os alimentos…") -> ONE confirmation screen with names, grams,
 //     ranges and macros and zero taps -> corrections (rename, add by tap, remove, merge, separate, split) -> oil -> unknown-plate prior widens the range
 //     -> save with timings -> export; then a reload mid-flow resumes from IndexedDB; then "no plate found" falls back to manual mode.
-//   MANUAL (T-013, "Modo manual"): photo -> plate -> rim tap -> three food taps -> names (top-3 and "outro…") -> oil -> result -> link -> save -> export.
+//   MANUAL (T-013, "Modo manual" under Ajustes / Corrigir): photo -> plate -> rim tap -> three food taps -> names (top-3 and "outro…") -> oil -> result -> link -> save -> export.
 // The numbers on screen are compared with the pure core fed the same masks; the exports are checked by the eval validator.
 // Not a registered check (it needs a browser); the registered ones are estimator-selftest, autoseg-selftest and web-selftest. Set SMOKE_SHOTS=<dir> for screenshots.
 import { spawn, execSync } from 'node:child_process';
@@ -17,7 +20,9 @@ import * as core from './core.mjs';
 import * as auto from './autoseg.mjs';
 import { createLookup } from '../../nutrition/lookup-core.mjs';
 import { VOCAB } from '../../nutrition/lookup.mjs';
-import { validatePredictions } from '../../eval/metrics.mjs';
+import { createHash } from 'node:crypto';
+import * as cal from './calibration.mjs';
+import { validatePredictions, evaluate } from '../../eval/metrics.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WEB = join(HERE, '..');
@@ -28,6 +33,7 @@ const W = 800; const H = 600;
 const [priors, calibrationJson] = ['priors.json', 'calibration.json'].map((f) => JSON.parse(fs.readFileSync(join(HERE, f), 'utf8')));
 const calibration = core.loadCalibration(calibrationJson); const lookup = createLookup(VOCAB);
 const cls = (id) => VOCAB.classes.find((c) => c.id === id);
+const sha = (x) => createHash('sha256').update(x).digest('hex');
 
 // ---- the scene the mock model layer returns (specs are drawn in the browser; the same specs are drawn here to predict the numbers)
 const draw = (fn) => { const d = new Uint8Array(W * H); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (fn(x, y)) d[y * W + x] = 1; return { width: W, height: H, data: d }; };
@@ -118,15 +124,164 @@ async function seed(page) {
     await db.put('meals', { id: 'm20260908121000-abcd', captured_at: '2026-09-08T12:10:00-03:00', split: 'test', plate_id: 'prato-raso-branco', photos: [], items: [{ id: 'i1', label: 'arroz branco cozido', grams: 150, state: 'cooked', method: 'boiled' }] });
   });
 }
-const photoPng = (page) => page.evaluate(({ W, H }) => {
+const photoPng = (page, variant = 0) => page.evaluate(({ W, H, variant }) => {
   const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
   g.fillStyle = '#8b6b4a'; g.fillRect(0, 0, W, H); g.fillStyle = '#f4f4f4'; g.beginPath(); g.ellipse(400, 300, 330, 250, 0, 0, 7); g.fill();
   g.fillStyle = '#f4f1e6'; g.beginPath(); g.arc(300, 300, 70, 0, 7); g.fill(); g.fillStyle = '#4a2a1a'; g.beginPath(); g.arc(500, 320, 55, 0, 7); g.fill(); g.fillStyle = '#3f8a3a'; g.beginPath(); g.arc(400, 430, 45, 0, 7); g.fill();
+  g.fillStyle = `rgb(${variant % 256},0,${255 - (variant % 256)})`; g.fillRect(2, 2, 6, 6); // a different file (sha256) per variant
   return c.toDataURL('image/png').split(',')[1];
-}, { W, H });
-const upload = async (page) => page.locator('input[type=file]:not([capture])').setInputFiles({ name: 'prato.png', mimeType: 'image/png', buffer: Buffer.from(await photoPng(page), 'base64') });
+}, { W, H, variant });
+const upload = async (page, variant = 0) => page.locator('input[type=file]:not([capture])').setInputFiles({ name: 'prato.png', mimeType: 'image/png', buffer: Buffer.from(await photoPng(page, variant), 'base64') });
+/** The home screen's camera button ("Apontar para o prato"). */
+const shoot = async (page, variant = 0) => page.locator('input[type=file][capture]').setInputFiles({ name: 'prato.png', mimeType: 'image/png', buffer: Buffer.from(await photoPng(page, variant), 'base64') });
+const openFix = async (page, i) => { const d = page.locator(`[data-item="${i}"] details.fix`); if (!(await d.evaluate((e) => e.open))) await d.locator('summary').click(); };
+const openAdjust = async (page) => { const d = page.locator('#adjust'); if (!(await d.evaluate((e) => e.open))) await d.locator('summary').click(); };
+const pct = (x) => (x === null || x === undefined ? 'n/d' : `${(x * 100).toFixed(1).replace('.', ',')} %`);
+const dbAll = (page, store) => page.evaluate(async (st) => (await (await import('./db.mjs')).getAll(st)), store);
 const tapAt = async (page, x, y) => { const box = await page.locator('#stage').boundingBox(); await page.locator('#stage').click({ position: { x: x * box.width / W, y: y * box.height / H } }); };
 const n0 = (x) => Math.round(x);
+
+/** Waits until the card of item i shows the numbers of e (a plate, name or calibration change recomputes asynchronously). */
+const seesItemOn = (page) => async (i, e) => {
+  const want = [`${n0(e.grams)} g`, `Faixa de 80%: ${n0(e.lo80)} a ${n0(e.hi80)} g`, `${n0(e.kcal)} kcal`];
+  try { await page.waitForFunction(([idx, parts]) => { const t = document.querySelector(`[data-item="${idx}"]`)?.innerText ?? ''; return parts.every((x) => t.includes(x)); }, [i, want], { timeout: 4000 }); }
+  catch { assert.fail(`item ${i}: expected ${want.join(' | ')}, got: ${(await page.locator(`[data-item="${i}"]`).innerText()).replace(/\n+/g, ' ')}`); }
+};
+/** The text of the result outside every <details> (the default path): no plate, ruler, registration or tap words may be there. */
+const defaultPathText = (page) => page.evaluate(() => { const m = document.querySelector('main').cloneNode(true); m.querySelectorAll('details').forEach((d) => d.remove()); return m.textContent; });
+
+// ================================================================ ZERO
+async function zeroScenario() {
+  const { page, problems, shot } = await newPage(PLAN_AUTO);
+  const plateMask = shape(SC.plate); const foodMasks = [SC.rice, SC.meat, SC.salad].map(shape);
+  const typical = auto.plateSetup(priors, null); const scaleTyp = core.scaleFromPlateMask(plateMask, priors.typical_plate.diameter_mm);
+  const counts = core.exclusiveCounts(foodMasks); const ids = ['arroz-branco-cozido', 'bife-grelhado', 'salada-mista-crua'];
+  const estimateWith = (calibration) => ids.map((id, i) => core.estimateItem({ cls: cls(id), pixels: counts[i], scale: scaleTyp, oil: 'normal', priors: auto.priorsForPlate(priors, typical), calibration, lookup }));
+  const seesItem = seesItemOn(page);
+  const params = cal.paramsFrom(priors);
+  const learnedFrom = (checks) => { const state = cal.learn(checks, params); return { state, calibration: core.loadCalibration(cal.toCalibration(state)) }; };
+  const nextEstimate = async (variant) => { // back to the home screen, reset the mock's naming plan and point the camera again
+    await page.goto(`${base()}#/`); await page.getByText('Apontar para o prato').waitFor();
+    await page.evaluate(() => { window.__classifyIdx = 0; window.__grids = []; });
+    await shoot(page, variant); await page.waitForSelector('h2:text-is("Resultado")'); await page.waitForSelector('[data-item="2"]');
+  };
+
+  step('zero: home opens on "Apontar para o prato"; no plate, ruler, registration or weighing words on it');
+  await page.goto(`${base()}#/`); await page.getByText('Apontar para o prato').waitFor();
+  const homeText = await page.locator('main').innerText();
+  assert.doesNotMatch(homeText, /régua|cadastr|registr|Pesar refeição|Nenhum prato/i, homeText);
+  assert.equal(await page.locator('main a[href="#/plates"], main a[href="#/plates/new"], main a[href="#/meal"], main a[href="#/estimate/new"]').count(), 0, 'no plate, weighing or estimate-setup link on the home screen');
+  assert.equal((await page.locator('#settings-link').innerText()).trim(), 'Ajustes / Corrigir');
+  assert.match(await page.locator('#home-state').innerText(), /Não calibrado/);
+  assert.equal(await page.locator('input[type=file][capture=environment]').count(), 1, 'the camera button');
+  await shot('z01-home');
+
+  step('zero: photo -> automatic analysis -> result with NO plate registered and NO taps (typical-plate prior, model ranges)');
+  await shoot(page, 0);
+  await page.waitForSelector('h2:text-is("Resultado")'); await page.waitForSelector('text=Etapa 3 de 3: Resultado');
+  assert.equal(await page.evaluate(() => (window.__taps ?? []).length), 0, 'no tap');
+  assert.equal((await dbAll(page, 'plates')).length, 0, 'no plate was ever registered');
+  assert.equal(await page.locator('[data-item]').count(), 3);
+  const est0 = estimateWith(core.loadCalibration(calibrationJson)); const tot0 = core.totals(est0);
+  for (let i = 0; i < 3; i++) await seesItem(i, est0[i]);
+  assert.match(await page.locator('#totals').innerText(), new RegExp(`Total do prato: ${n0(tot0.grams)} g`));
+  assert.equal((await page.locator('#calstate').innerText()).trim(), 'Não calibrado');
+  assert.match(await page.locator('#range-basis').innerText(), /Faixas do modelo.*Escala pelo prato típico \(26 cm\): faixa mais larga/);
+  assert.ok(Math.abs(est0[0].sigma_scale - core.scaleSigma(priors.typical_plate_scale_uncertainty.value)) < 1e-4, 'the wider typical-plate scale uncertainty flows into the ranges');
+  assert.doesNotMatch(await defaultPathText(page), /régua|cadastr|registr|Pesar refeição|toque/i, 'the default path has no plate, ruler or tap prompt');
+  assert.equal(await page.locator('#plate-select').isVisible(), false, 'the plate picker is hidden under Ajustes / Corrigir');
+  assert.equal(await page.locator('#add-item').isVisible(), false, 'manual taps are hidden under Ajustes / Corrigir');
+  await shot('z02-result');
+
+  step('zero: "Conferir com balança" is optional; empty is an error; item grams + other-app kcal are stored and change the state');
+  await page.locator('#check summary').click();
+  await page.locator('#check-save').click(); await page.waitForSelector('text=Digite os gramas de pelo menos um item');
+  assert.equal((await dbAll(page, 'checks')).length, 0);
+  await page.locator('[data-check-item="0"]').fill('150,5'); await page.locator('[data-check-item="1"]').fill('100'); await page.locator('#check-other-kcal').fill('520');
+  await shot('z03-check-form');
+  await page.locator('#check-save').click(); await page.waitForSelector('#check-done');
+  assert.match(await page.locator('#calstate-now').innerText(), /Agora: Calibrado com 1 conferência\./);
+  assert.equal((await page.locator('#calstate').innerText()).trim(), 'Não calibrado', 'this estimate keeps the state it was made with');
+  await seesItem(0, est0[0]);
+  let recs = { checks: await dbAll(page, 'checks'), estimates: await dbAll(page, 'estimates') };
+  assert.equal(recs.checks.length, 1); assert.equal(recs.estimates.length, 1, 'the check saved its estimate');
+  const c1 = recs.checks[0];
+  assert.equal(c1.id, `chk-${recs.estimates[0].id}`); assert.equal(c1.estimate_id, recs.estimates[0].id); assert.equal(c1.truth_kind, 'items'); assert.deepEqual(c1.items.map((i) => i.truth_g), [150.5, 100, null]);
+  assert.equal(c1.other_app_kcal, 520); assert.equal(c1.plate.typical, true); assert.equal(c1.plate.diameter_mm, priors.typical_plate.diameter_mm); assert.match(c1.photo_sha256, /^[0-9a-f]{64}$/);
+  assert.deepEqual(c1.items.map((i) => [i.raw_g, i.grams, i.lo80, i.hi80]), est0.map((e) => [e.raw_grams, e.grams, e.lo80, e.hi80]));
+  assert.equal(c1.calibration.label, 'Não calibrado'); assert.equal(recs.estimates[0].calibration.label, 'Não calibrado'); assert.equal(recs.estimates[0].plate_typical, true);
+  await shot('z04-check-saved');
+
+  step('zero: the next estimate is "Calibrado com 1 conferência" and the grams carry the learned factor (a plate total is a second check)');
+  await page.getByRole('link', { name: 'Apontar para outro prato' }).click(); await page.getByText('Apontar para o prato').waitFor();
+  assert.match(await page.locator('#home-state').innerText(), /Calibrado com 1 conferência/);
+  await page.evaluate(() => { window.__classifyIdx = 0; window.__grids = []; }); await shoot(page, 1);
+  await page.waitForSelector('h2:text-is("Resultado")'); await page.waitForSelector('[data-item="2"]');
+  const L1 = learnedFrom(recs.checks); const est1 = estimateWith(L1.calibration);
+  assert.ok(L1.state.global.factor !== 1 && est1[0].grams !== est0[0].grams && near(est1[0].grams, est1[0].raw_grams * L1.state.global.factor, 0.06), 'a learned global factor moved the grams');
+  for (let i = 0; i < 3; i++) await seesItem(i, est1[i]);
+  assert.equal((await page.locator('#calstate').innerText()).trim(), 'Calibrado com 1 conferência');
+  assert.match(await page.locator('#range-basis').innerText(), /Faixas do modelo/);
+  assert.equal(await page.evaluate(() => (window.__taps ?? []).length), 0, 'still no tap');
+  await page.locator('#check summary').click(); await page.locator('#check-total').fill('310'); await page.locator('#check-save').click(); await page.waitForSelector('#check-done');
+  assert.match(await page.locator('#calstate-now').innerText(), /Agora: Calibrado com 2 conferências\./);
+  recs = { checks: await dbAll(page, 'checks'), estimates: await dbAll(page, 'estimates') };
+  const c2 = recs.checks.find((c) => c.truth_kind === 'total');
+  assert.equal(recs.checks.length, 2); assert.equal(c2.truth_total_g, 310); assert.equal(c2.other_app_kcal, null); assert.equal(c2.calibration.label, 'Calibrado com 1 conferência');
+  assert.notEqual(c2.photo_sha256, c1.photo_sha256);
+
+  step('zero: "Precisão" scores the checks with the evaluation engine: needs more checks under 5, other-app table, CIs');
+  const cs = (checks) => cal.accuracy(checks, { evaluate, truthNutrients: lookup.truthNutrients });
+  await page.goto(`${base()}#/accuracy`); await page.waitForSelector('#acc-n');
+  let acc = cs(recs.checks);
+  assert.match(await page.locator('#acc-more').innerText(), /precisa de mais conferências/);
+  assert.match(await page.locator('#acc-n').innerText(), /2 conferências/);
+  assert.match(await page.locator('#acc-kcal').innerText(), new RegExp(`${pct(acc.meal_kcal.mape)}[\\s\\S]*intervalo de 95%: ${pct(acc.meal_kcal.ci95.mape.lo)} a ${pct(acc.meal_kcal.ci95.mape.hi)}`));
+  assert.match(await page.locator('#acc-mass').innerText(), new RegExp(`${pct(acc.item_mass.mape)}[\\s\\S]*intervalo de 95%: ${pct(acc.item_mass.ci95.mape.lo)} a ${pct(acc.item_mass.ci95.mape.hi)}`));
+  assert.match(await page.locator('#acc-bias').innerText(), /intervalo de 95%/);
+  assert.equal(await page.locator('[data-other-row]').count(), 1); assert.match(await page.locator('[data-other-row]').innerText(), /520 kcal/);
+  assert.equal(acc.other_app.n, 1); assert.equal(acc.other_app.rows[0].theirs, 520);
+  await shot('z05-accuracy-few');
+  // three more item checks and (below) more, written straight to IndexedDB in the stored shape, so the screen has 5 and later 10 checks
+  const synth = (n, day, mul) => {
+    const items = estimateWith(core.loadCalibration(calibrationJson));
+    return cal.buildCheck({ estimate: { id: `syn${n}`, items, totals: core.totals(items), plate_typical: true, diameter_mm: 260, oil: 'normal', pipeline: core.PIPELINE }, truth_items: items.map((it, i) => String(Math.round(it.grams * mul[i % mul.length]))), photo_sha256: sha(`synth${n}`), created_at: `2026-09-${day}T12:00:00-03:00`, stateOf: (id) => cls(id).state, state: { label: 'Não calibrado', n_checks: 0 } }).check;
+  };
+  const putChecks = (cs2) => page.evaluate(async (list) => { const db = await import('./db.mjs'); for (const c of list) await db.put('checks', c); }, cs2);
+  await putChecks([synth(1, '10', [1.1, 0.9, 1.2]), synth(2, '11', [1.3, 1.0, 0.8]), synth(3, '12', [0.7, 1.1, 1.0])]);
+  await page.reload(); await page.waitForSelector('#acc-n');
+  recs.checks = await dbAll(page, 'checks'); acc = cs(recs.checks);
+  assert.equal(await page.locator('#acc-more').count(), 0, '5 or more checks: no "precisa de mais conferências"');
+  assert.match(await page.locator('#acc-n').innerText(), /5 conferências em \d+ dias/);
+  assert.match(await page.locator('#acc-kcal').innerText(), new RegExp(`${pct(acc.meal_kcal.mape)}[\\s\\S]*intervalo de 95%: ${pct(acc.meal_kcal.ci95.mape.lo)} a ${pct(acc.meal_kcal.ci95.mape.hi)}`));
+  assert.match(await page.locator('#acc-mass').innerText(), new RegExp(`${pct(acc.item_mass.mape)}`));
+  await shot('z06-accuracy');
+
+  step('zero: export the checks as JSON (share sheet or download); the repo scores it with the engine');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#export-checks').click()]);
+  const exp = JSON.parse(fs.readFileSync(await download.path(), 'utf8'));
+  assert.equal(download.suggestedFilename(), 'checks.json'); assert.equal(exp.schema, 'macrofy.checks/1'); assert.equal(exp.checks.length, 5);
+  assert.deepEqual(validatePredictions(exp.bench.predictions), []);
+  const rescored = evaluate(exp.bench.manifest, exp.bench.predictions, { truthNutrients: lookup.truthNutrients });
+  assert.equal(rescored.meal_kcal.mape, acc.meal_kcal.mape); assert.deepEqual(exp.checks.map((c) => c.truth_kind).sort(), ['items', 'items', 'items', 'items', 'total']);
+
+  step('zero: ten checks -> conformal ranges replace the model ranges on the next result');
+  await putChecks([synth(4, '13', [1.2, 1.1, 0.9]), synth(5, '14', [0.8, 1.0, 1.3]), synth(6, '15', [1.05, 0.95, 1.15]), synth(7, '16', [1.4, 0.9, 1.0]), synth(8, '17', [0.9, 1.2, 1.1]), synth(9, '18', [1.1, 1.0, 0.75])]);
+  recs.checks = await dbAll(page, 'checks');
+  await nextEstimate(2);
+  const L2 = learnedFrom(recs.checks); assert.ok(L2.state.ranges.item && L2.state.ranges.meal, 'the fixture reaches M checks');
+  const est2 = estimateWith(L2.calibration); const conf = cal.applyRanges(est2, core.totals(est2), L2.state);
+  for (let i = 0; i < 3; i++) await seesItem(i, conf.items[i]);
+  assert.match(await page.locator('#range-basis').innerText(), /Faixas calibradas pelas suas conferências/);
+  assert.match(await page.locator('#totals').innerText(), new RegExp(`Faixa de 80%: ${n0(conf.totals.lo80)} a ${n0(conf.totals.hi80)} g`));
+  assert.equal((await page.locator('#calstate').innerText()).trim(), `Calibrado com ${recs.checks.length} conferências`);
+  await shot('z07-conformal');
+
+  assert.deepEqual(problems, [], `page problems:\n${problems.join('\n')}`);
+  await page.context().close();
+  console.log('zero-setup smoke: OK');
+}
+const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
 // ================================================================ AUTO
 async function autoScenario() {
@@ -139,26 +294,18 @@ async function autoScenario() {
     const est = ids.map((id, i) => core.estimateItem({ cls: cls(id), pixels: counts[i], scale, oil, priors: auto.priorsForPlate(priors, setup), calibration, lookup }));
     return { est, tot: core.totals(est) };
   };
-  const seesItem = async (i, e) => { // waits: a plate or name change recomputes asynchronously
-    const want = [`${n0(e.grams)} g`, `Faixa de 80%: ${n0(e.lo80)} a ${n0(e.hi80)} g`, `${n0(e.kcal)} kcal`];
-    try { await page.waitForFunction(([idx, parts]) => { const t = document.querySelector(`[data-item="${idx}"]`)?.innerText ?? ''; return parts.every((x) => t.includes(x)); }, [i, want], { timeout: 4000 }); }
-    catch { assert.fail(`item ${i}: expected ${want.join(' | ')}, got: ${(await page.locator(`[data-item="${i}"]`).innerText()).replace(/\n+/g, ' ')}`); }
-  };
+  const seesItem = seesItemOn(page);
 
-  step('auto: home -> Estimar opens the automatic flow (Etapa 1 de 3) with a Modo manual button');
-  await page.goto(`${base()}#/`);
-  const estimar = page.getByRole('link', { name: 'Estimar', exact: true }); await estimar.waitFor(); await estimar.click();
-  await page.waitForSelector('text=Etapa 1 de 3: Foto');
-  await page.locator('#mode-toggle', { hasText: 'Modo manual' }).waitFor();
-  await shot('a01-photo');
+  step('auto: home camera button (with a registered plate seeded) -> automatic flow');
+  await page.goto(`${base()}#/`); await page.getByText('Apontar para o prato').waitFor(); await shot('a01-home');
 
-  step('auto: photo -> progress ("Encontrando o prato…", "Encontrando os alimentos…") -> confirmation with zero taps');
-  await upload(page);
+  step('auto: photo -> progress ("Encontrando o prato…", "Encontrando os alimentos…") -> result with zero taps');
+  await shoot(page);
   await page.waitForFunction(() => /Encontrando o prato/.test(document.getElementById('auto-label')?.textContent ?? ''));
   await page.waitForFunction(() => /Encontrando os alimentos/.test(document.getElementById('auto-label')?.textContent ?? ''));
   await shot('a02-progress');
-  await page.waitForSelector('text=Confira o prato');
-  await page.waitForSelector('text=Etapa 3 de 3: Conferir');
+  await page.waitForSelector('h2:text-is("Resultado")');
+  await page.waitForSelector('text=Etapa 3 de 3: Resultado');
   assert.equal(await page.evaluate(() => (window.__taps ?? []).length), 0, 'auto mode must not need a tap');
   assert.equal(await page.locator('[data-item]').count(), 3, 'rice, steak, salad; the fork is rejected as non-food');
   const grids = await page.evaluate(() => window.__grids);
@@ -168,58 +315,58 @@ async function autoScenario() {
   const base0 = expect(ids0);
   for (let i = 0; i < 3; i++) { assert.match(await page.locator(`[data-item="${i}"] h3`).innerText(), new RegExp(`^${VOCAB.classes.find((c) => c.id === ids0[i]).pt.slice(0, 6)}`, 'i')); await seesItem(i, base0.est[i]); }
   assert.match(await page.locator('#totals').innerText(), new RegExp(`Total do prato: ${n0(base0.tot.grams)} g`));
-  assert.equal((await page.locator('#uncal').innerText()).trim(), 'Não calibrado — estimativa inicial');
+  assert.equal((await page.locator('#calstate').innerText()).trim(), 'Não calibrado');
   assert.equal(await page.locator('#plate-select').inputValue(), 'prato-raso-branco', 'the only registered plate is the default');
   await shot('a03-confirm');
 
   step('auto: reload mid-flow -> the estimate resumes from IndexedDB');
   await page.reload(); await page.waitForSelector('#resume'); await shot('a04-resume');
-  await page.locator('#resume').click(); await page.waitForSelector('text=Confira o prato');
+  await page.locator('#resume').click(); await page.waitForSelector('h2:text-is("Resultado")');
   assert.equal(await page.locator('[data-item]').count(), 3); await seesItem(0, base0.est[0]);
   assert.match(await page.locator('#notice').innerText(), /Retomei/);
   await page.evaluate(() => { window.__classifyIdx = 4; }); // the mock restarted with the page: continue its answers after the four crops
 
   step('auto: an unknown plate uses the "prato típico" prior and a wider range');
-  await page.selectOption('#plate-select', '__typical__');
-  await page.waitForSelector('text=Prato típico: escala aproximada');
+  await openAdjust(page); await page.selectOption('#plate-select', '__typical__');
+  await page.waitForSelector('text=Escala pelo prato típico');
   const typ = expect(ids0, { setup: auto.plateSetup(priors, null), scale: core.scaleFromPlateMask(plateMask, priors.typical_plate.diameter_mm) });
   await seesItem(0, typ.est[0]);
   assert.ok(typ.est[0].hi80 - typ.est[0].lo80 > base0.est[0].hi80 - base0.est[0].lo80 || typ.est[0].sigma_scale > base0.est[0].sigma_scale);
   assert.ok(typ.est[0].sigma_scale > base0.est[0].sigma_scale, 'wider scale uncertainty');
-  await page.selectOption('#plate-select', 'prato-raso-branco'); await seesItem(0, base0.est[0]);
+  await openAdjust(page); await page.selectOption('#plate-select', 'prato-raso-branco'); await seesItem(0, base0.est[0]);
 
   step('auto: correct a name (rice -> beans)');
-  await page.locator('[data-item="0"] [data-action="rename"]').click();
+  await openFix(page, 0); await page.locator('[data-item="0"] [data-action="rename"]').click();
   await page.locator('[data-item="0"] [data-name="feijao-carioca-cozido"]').click();
   const ids1 = ['feijao-carioca-cozido', 'bife-grelhado', 'salada-mista-crua'];
   await seesItem(0, expect(ids1).est[0]);
 
   step('auto: add a missed item by tap, then remove it');
-  await page.locator('#add-item').click(); await page.waitForSelector('#tap-hint');
+  await openAdjust(page); await page.locator('#add-item').click(); await page.waitForSelector('#tap-hint');
   await tapAt(page, 600, 200);
   await page.waitForFunction(() => document.querySelectorAll('[data-item]').length === 4);
   assert.match(await page.locator('[data-item="3"] h3').innerText(), /Batata cozida/i);
-  await page.locator('[data-item="3"] [data-action="remove"]').click();
+  await openFix(page, 3); await page.locator('[data-item="3"] [data-action="remove"]').click();
   await page.waitForFunction(() => document.querySelectorAll('[data-item]').length === 3);
 
   step('auto: merge two items, then separate them again');
-  await page.locator('[data-item="1"] select[data-action="merge"]').selectOption('2');
+  await openFix(page, 1); await page.locator('[data-item="1"] select[data-action="merge"]').selectOption('2');
   await page.waitForFunction(() => document.querySelectorAll('[data-item]').length === 2);
-  await page.locator('[data-item="1"] [data-action="separate"]').click();
+  await openFix(page, 1); await page.locator('[data-item="1"] [data-action="separate"]').click();
   await page.waitForFunction(() => document.querySelectorAll('[data-item]').length === 3);
   assert.match(await page.locator('[data-item="1"] h3').innerText(), /Bife/i);
   await seesItem(1, expect(ids1).est[1]);
 
   step('auto: split an item with one tap (carve a part out of the beans), then remove the part');
-  await page.locator('[data-item="0"] [data-action="split"]').click(); await page.waitForSelector('#tap-hint');
+  await openFix(page, 0); await page.locator('[data-item="0"] [data-action="split"]').click(); await page.waitForSelector('#tap-hint');
   await tapAt(page, 280, 300);
   await page.waitForFunction(() => document.querySelectorAll('[data-item]').length === 4);
-  await page.locator('[data-item="3"] [data-action="remove"]').click();
+  await openFix(page, 3); await page.locator('[data-item="3"] [data-action="remove"]').click();
   await page.waitForFunction(() => document.querySelectorAll('[data-item]').length === 3);
   const taps = await page.evaluate(() => window.__taps); assert.equal(taps.length, 2, 'only the two correction taps');
 
   step('auto: oil answer, totals, save with timings and corrections');
-  await page.getByText('Pouco', { exact: true }).click();
+  await openAdjust(page); await page.getByText('Pouco', { exact: true }).click();
   // items were carved: recompute the expected pixel counts of the beans (rice disc minus the carved tap disc)
   const carved = draw((x, y) => ((x - 300) ** 2 + (y - 300) ** 2 <= 4900) && !((x - taps[1][0]) ** 2 + (y - taps[1][1]) ** 2 <= 3600));
   const counts2 = core.exclusiveCounts([carved, ...foodMasks.slice(1)]);
@@ -228,7 +375,7 @@ async function autoScenario() {
   await page.waitForFunction((g) => document.getElementById('totals')?.innerText.includes(`Total do prato: ${g} g`), n0(tot2.grams));
   for (let i = 0; i < 3; i++) await seesItem(i, est2[i]);
   await shot('a05-corrected');
-  await page.selectOption('#meal-link', 'm20260908121000-abcd');
+  await openAdjust(page); await page.selectOption('#meal-link', 'm20260908121000-abcd');
   await page.locator('#save').click(); await page.waitForSelector('text=Estimativa salva.');
   const rec = await page.evaluate(async () => { const db = await import('./db.mjs'); const e = (await db.getAll('estimates'))[0]; return { meal_id: e.meal_id, n: e.items.length, oil: e.oil, mode: e.mode, typical: e.plate_typical, plate_id: e.plate_id, timings: e.timings, corrections: e.corrections, photo: e.photo instanceof Blob, unc: e.scale.uncertainty, models: e.models?.segmenter }; });
   assert.equal(rec.meal_id, 'm20260908121000-abcd'); assert.equal(rec.n, 3); assert.equal(rec.oil, 'little'); assert.equal(rec.mode, 'auto'); assert.equal(rec.typical, false); assert.equal(rec.plate_id, 'prato-raso-branco');
@@ -236,6 +383,7 @@ async function autoScenario() {
   assert.equal(rec.timings.status, 'ok'); assert.equal(rec.timings.timed_out, false);
   assert.ok(rec.corrections.rename >= 1 && rec.corrections.add === 1 && rec.corrections.remove >= 1 && rec.corrections.merge === 1 && rec.corrections.split >= 1, JSON.stringify(rec.corrections));
   assert.equal(rec.photo, true); assert.equal(rec.unc, priors.scale_uncertainty.value);
+  assert.equal((await dbAll(page, 'estimates'))[0].calibration.label, 'Não calibrado'); assert.equal((await dbAll(page, 'checks')).length, 0, 'saving an estimate is not a scale check');
   assert.equal(await page.evaluate(async () => (await (await import('./db.mjs')).getSetting('estimate_draft')) ?? null), null, 'the draft is cleared after saving');
 
   step('auto: export predictions');
@@ -251,7 +399,7 @@ async function autoScenario() {
   await page.evaluate(() => { window.__noPlate = true; });
   await page.goto(`${base()}#/estimate/new`); await page.waitForSelector('text=Etapa 1 de 3: Foto');
   await page.evaluate(() => { window.__noPlate = true; });
-  await upload(page);
+  await upload(page, 3);
   await page.waitForSelector('#notice');
   assert.match(await page.locator('#notice').innerText(), /Não encontrei o prato automaticamente/);
   await page.waitForSelector('text=Toque uma vez na borda do prato'); await page.waitForSelector('text=Etapa 3 de 7: Borda');
@@ -271,11 +419,10 @@ async function manualScenario() {
   const expectedIds = ['arroz-branco-cozido', 'bife-grelhado', 'salada-mista-crua'];
   const disk = (cx, cy, r) => draw((x, y) => (x - cx) ** 2 + (y - cy) ** 2 <= r * r);
 
-  step('manual: home -> Estimar -> Modo manual (Etapa 1 de 7)');
+  step('manual: home -> Ajustes / Corrigir -> Modo manual (Etapa 1 de 7)');
   await page.goto(`${base()}#/`);
-  const estimar = page.getByRole('link', { name: 'Estimar', exact: true }); await estimar.waitFor(); await shot('m01-home'); await estimar.click();
-  await page.waitForSelector('text=Etapa 1 de 3: Foto');
-  await page.locator('#mode-toggle').click();
+  await page.locator('#settings-link').click(); await page.waitForSelector('text=Nada daqui é necessário'); await shot('m01-settings');
+  await page.getByRole('link', { name: 'Modo manual (marcar com toques)' }).click();
   await page.waitForSelector('text=Etapa 1 de 7: Foto');
   await shot('m02-photo');
   await upload(page);
@@ -325,8 +472,8 @@ async function manualScenario() {
   await page.getByRole('button', { name: 'Ver o resultado' }).click();
 
   step('manual: result matches the pure core on the same masks');
-  await page.waitForSelector('#uncal');
-  assert.equal((await page.locator('#uncal').innerText()).trim(), 'Não calibrado — estimativa inicial');
+  await page.waitForSelector('#calstate');
+  assert.equal((await page.locator('#calstate').innerText()).trim(), 'Não calibrado');
   const taps = (await page.evaluate(() => window.__taps)).slice(-3); // [rim tap, food, food, food] -> the last three are the foods
   const counts = core.exclusiveCounts(taps.map(([x, y]) => disk(x, y, 60)));
   const est = expectedIds.map((id, i) => core.estimateItem({ cls: cls(id), pixels: counts[i], scale: ell, oil: 'little', priors, calibration, lookup }));
@@ -339,7 +486,7 @@ async function manualScenario() {
   await shot('m06-result');
 
   step('manual: link to the weighed meal, save');
-  await page.selectOption('#meal-link', 'm20260908121000-abcd');
+  await page.locator('summary', { hasText: 'Ajustes / Corrigir' }).click(); await page.selectOption('#meal-link', 'm20260908121000-abcd');
   await page.locator('#save').click();
   await page.waitForSelector('text=Estimativa salva.');
   const rec = await page.evaluate(async () => { const db = await import('./db.mjs'); return (await db.getAll('estimates')).map((e) => ({ meal_id: e.meal_id, n: e.items.length, oil: e.oil, cal: e.items.every((i) => i.calibrated === false), photo: e.photo instanceof Blob, mode: e.mode, timings: e.timings })); });
@@ -368,9 +515,10 @@ async function manualScenario() {
 try {
   await waitForServer();
   browser = await chromium.launch();
+  await zeroScenario();
   await autoScenario();
   await manualScenario();
-  console.log('estimate smoke: OK (auto and manual, no page errors)');
+  console.log('estimate smoke: OK (zero setup, auto corrections and manual, no page errors)');
 } catch (e) {
   failed = true; console.error(`estimate smoke: FAILED\n${e.stack || e}`);
   try { for (const c of browser?.contexts() ?? []) for (const p of c.pages()) { console.error(`page text:\n${(await p.locator('main').innerText()).slice(0, 900)}`); if (SHOTS) await p.screenshot({ path: join(SHOTS, 'failure.png'), fullPage: true }); } } catch { /* ignore */ }

@@ -15,6 +15,9 @@ export const COPIES = [
   { from: 'web/estimate/priors.json', to: 'web/app/data/priors.json' },
   { from: 'web/estimate/calibration.json', to: 'web/app/data/calibration.json' },
   { from: 'web/lib/models.mjs', to: 'web/app/vendor/models.mjs' },
+  // scale checks (T-016): the pure calibration maths, and the evaluation engine (its schema import renamed to the vendored browser-safe core) for the accuracy screen
+  { from: 'web/estimate/calibration.mjs', to: 'web/app/vendor/calibration.mjs' },
+  { from: 'eval/metrics.mjs', to: 'web/app/vendor/metrics.mjs', replace: [["from '../bench/schema.mjs'", "from './schema-core.mjs'"]] },
   // automatic mode (T-014): the pure mask post-processing; its import of the core is renamed to the vendored file name
   { from: 'web/estimate/autoseg.mjs', to: 'web/app/vendor/autoseg.mjs', replace: [["from './core.mjs'", "from './estimate-core.mjs'"]] },
   // T-015: the CI model probe (real ONNX sizes and revisions) orders the candidates in the app too. It does not exist until the workflow

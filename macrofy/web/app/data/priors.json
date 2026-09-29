@@ -59,6 +59,27 @@
     "assumption": true,
     "calibrate_from": "the owner's plates and the benchmark"
   },
+  "calibration": {
+    "note": "How the app learns from scale checks (web/estimate/calibration.mjs). All three are assumptions about how fast to trust a few weighings; they are tuned on the checks themselves.",
+    "shrinkage_k": {
+      "value": 5,
+      "rationale": "Pseudo-checks that pull a learned factor toward 1 (or a group factor toward the global one): with n checks the learned log-correction is weighted n/(n+5), so 5 checks give half of what they measured.",
+      "assumption": true,
+      "calibrate_from": "scale checks"
+    },
+    "group_min_checks": {
+      "value": 5,
+      "rationale": "N: a food group gets its own factor only after this many item checks in that group; before that it uses the global factor.",
+      "assumption": true,
+      "calibrate_from": "scale checks"
+    },
+    "conformal_min_checks": {
+      "value": 10,
+      "rationale": "M: conformal 80% ranges replace the model-based ones only after this many checks; the quantile needs at least 4 residuals to exist at all and is noisy with few.",
+      "assumption": true,
+      "calibrate_from": "scale checks"
+    }
+  },
   "autoseg": {
     "note": "Thresholds of the automatic plate and food detection (web/estimate/autoseg.mjs). All are guesses to be tuned on the owner's phone and on the benchmark with tap-mode outlines as the oracle.",
     "plate_grid_n": {

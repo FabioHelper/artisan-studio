@@ -300,7 +300,7 @@
         "G-3",
         "G-5"
       ],
-      "status": "blocked",
+      "status": "active",
       "review": "required",
       "depends_on": [
         "T-002"
@@ -372,6 +372,33 @@
         {
           "id": "A2",
           "criterion": "On 10 real plates on the owner iPhone 16e, auto mode finds the plate in >=9 and >=80% of items with zero taps; per-photo time recorded",
+          "manual": true
+        }
+      ]
+    },
+    {
+      "id": "T-015",
+      "milestone": "M1",
+      "title": "Fit segmentation and naming in Safari on the iPhone 16e: per-backend crash resume, vision-only naming with text embeddings precomputed in CI, storage/quota diagnostics, lighter candidates",
+      "goals": [
+        "G-3",
+        "G-5"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-012"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Selftests prove every (model, backend, dtype) is attempted once and a crash skips only that attempt; the naming stage loads only a vision encoder and scores against a committed text-embedding file whose provenance (model id, revision, labels hash) is checked against the vocab",
+          "check": "web-selftest"
+        },
+        {
+          "id": "A2",
+          "criterion": "Owner re-runs the feasibility page on the iPhone 16e: segmentation (SAM on some backend, or a documented no-SAM fallback) and naming both load, combined inference recorded; go/no-go against <=2 s",
           "manual": true
         }
       ]

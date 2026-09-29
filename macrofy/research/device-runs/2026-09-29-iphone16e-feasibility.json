@@ -1,0 +1,8 @@
+{
+  "schema": "macrofy.device-runs/1",
+  "device": "iPhone 16e (owner), Safari 26.6.2, WebGPU true",
+  "runs": [
+    {"run": 1, "page": "feasibility v1 (all stages in one page)", "result": {"depth": {"model": "onnx-community/depth-anything-v2-small", "backend": "webgpu/fp16", "bytes": 49642941, "load_ms": 12504, "cached_load_ms": 297, "infer_ms_median": 926, "ok": true}, "segmentation": "tab killed while loading the first candidate", "naming": "not reached"}},
+    {"run": 2, "page": "feasibility v2 (F-005 memory fixes, one stage per page load)", "result": {"segmentation": {"ok": false, "failed_attempts": ["Xenova/slimsam-77-uniform webgpu/q8: tab killed", "onnx-community/sam2.1-hiera-tiny-ONNX webgpu/q8: tab killed"], "note": "wasm and fp16 backends were never attempted (resume bug F-006)"}, "naming": {"ok": false, "failed_attempts": ["siglip2-base webgpu/fp16, webgpu/q8, wasm/q8: Load failed", "Xenova/siglip-base webgpu/fp16, webgpu/q8, wasm/q8: Load failed"]}, "depth": {"backend": "webgpu/fp16", "load_ms": 700, "cached_load_ms": 397, "infer_ms_median": 924, "ok": true}, "verdict": "no-go"}}
+  ]
+}

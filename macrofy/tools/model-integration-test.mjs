@@ -103,7 +103,7 @@ function assertMasks(masks, { width, height }, what) {
 const ms = (t0) => Math.round(performance.now() - t0);
 
 /** Runs the whole test on a transformers.js module `T`. -> { ok, summary } (never throws for a failing stage: the stage is listed in summary.failures) */
-export async function runIntegration({ T, root = join(here, '..'), log = () => {}, gridN = null, loadEmbeddings: loadEmb = null, loadPhoto = null } = {}) {
+export async function runIntegration({ T, root = join(here, '..'), log = () => {}, gridN = null, loadEmbeddings: loadEmb = null, loadPhoto = null, requireStickHeap = true } = {}) {
   const vocab = JSON.parse(readFileSync(join(root, 'nutrition/vocab.json'), 'utf8'));
   const priors = JSON.parse(readFileSync(join(root, 'web/estimate/priors.json'), 'utf8'));
   const params = { ...autosegParams(priors), time_budget_ms: 20 * 60 * 1000 }; // CPU on a CI runner, not the phone budget
@@ -148,7 +148,8 @@ export async function runIntegration({ T, root = join(here, '..'), log = () => {
       const sm = img.sticks.mask(ms.w, ms.h); const n = sm.data.reduce((a, v) => a + v, 0);
       const cover = Math.max(0, ...r.items.map((it) => { let k = 0; for (let i = 0; i < sm.data.length; i++) if (sm.data[i] && it.mask.data[i]) k++; return k / (n || 1); }));
       out.stick_heap = { cover: Number(cover.toFixed(3)), item: r.items.find((it) => { let k = 0; for (let i = 0; i < sm.data.length; i++) if (sm.data[i] && it.mask.data[i]) k++; return k / (n || 1) === cover; })?.cls.id ?? null };
-      if (require === 'plate' && cover < 0.5) summary.warnings.push(`auto mode on ${label}: the stick heap was not found as one item (best cover ${cover.toFixed(2)}; see heap_groups and food_rows)`);
+      // required for the proven segmenter (CI 2e3a05f, SAM 2.1: one 3-point group decode covered 0.63 of the heap; before the heap step 0)
+      if (require === 'plate' && r.plate_detected && cover < 0.5 && requireStickHeap) throw Object.assign(new Error(`auto mode on ${label}: the stick heap was not found as one item (best cover ${cover.toFixed(2)}; see heap_groups and food_rows)`), { details: out });
     }
     try {
       assert.ok(['ok', 'no_plate', 'empty_plate'].includes(r.status), `auto status ${r.status}`); assert.ok(t.prompts >= params.plate_grid_n ** 2, 'the plate grid was decoded');

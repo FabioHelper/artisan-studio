@@ -9,13 +9,20 @@ export const transformersUrl = (version) => `https://cdn.jsdelivr.net/npm/@huggi
 // Smallest first, never fp32: the owner's iPhone 16e killed the Safari tab while loading the largest SAM candidate with the
 // depth model still resident (F-005). SlimSAM q8 is tried first, then SAM 2.1 tiny in q8 or fp16. Each candidate may list its own
 // backends; without `backends` the shared BACKENDS apply.
+// `probeFiles`: name fragments of the ONNX files a candidate needs; the size estimate (orderBySize) sums, per fragment, the smallest
+// matching file of the probe (tools/build-text-embeddings.mjs writes it in CI).
 export const SEGMENT_CANDIDATES = [
-  { id: 'Xenova/slimsam-77-uniform', sam: 'SamModel', backends: [['webgpu', 'q8'], ['wasm', 'q8']] },
-  { id: 'onnx-community/sam2.1-hiera-tiny-ONNX', sam: 'Sam2Model', backends: [['webgpu', 'q8'], ['webgpu', 'fp16'], ['wasm', 'q8']] },
+  { id: 'Xenova/slimsam-77-uniform', sam: 'SamModel', backends: [['webgpu', 'q8'], ['wasm', 'q8']], probeFiles: ['vision_encoder', 'prompt_encoder_mask_decoder'] },
+  { id: 'onnx-community/sam2.1-hiera-tiny-ONNX', sam: 'Sam2Model', backends: [['webgpu', 'q8'], ['webgpu', 'fp16'], ['wasm', 'q8']], probeFiles: ['vision_encoder', 'prompt_encoder_mask_decoder'] },
 ];
+// T-015: naming loads ONLY the image tower (the full SigLIP files, text tower included, failed with "Load failed" on the iPhone 16e) and
+// scores it against text embeddings committed in the app data folder, built in CI from the text tower (see checkEmbeddings). `vision` and
+// `text` list transformers.js class names, the first one present in the library wins. Default order: smallest vision file first (a guess
+// until the probe file exists; orderBySize then uses real sizes).
 export const NAMING_CANDIDATES = [
-  { id: 'onnx-community/siglip2-base-patch16-224-ONNX', task: 'zero-shot-image-classification' },
-  { id: 'Xenova/siglip-base-patch16-224', task: 'zero-shot-image-classification' },
+  { id: 'Xenova/clip-vit-base-patch32', vision: ['CLIPVisionModelWithProjection'], text: ['CLIPTextModelWithProjection'], pad: 'longest', probeFiles: ['vision_model'] },
+  { id: 'Xenova/siglip-base-patch16-224', vision: ['SiglipVisionModel'], text: ['SiglipTextModel'], pad: 'max_length', maxLength: 64, probeFiles: ['vision_model'] },
+  { id: 'onnx-community/siglip2-base-patch16-224-ONNX', vision: ['Siglip2VisionModel', 'SiglipVisionModel'], text: ['Siglip2TextModel', 'SiglipTextModel'], pad: 'max_length', maxLength: 64, probeFiles: ['vision_model'] },
 ];
 /** Tried in order per candidate; WebGPU entries are skipped when the browser has no WebGPU adapter. Never fp32 (memory on iOS). */
 export const BACKENDS = [['webgpu', 'fp16'], ['webgpu', 'q8'], ['wasm', 'q8']];
@@ -24,6 +31,119 @@ export const isIOS = () => /iP(hone|ad|od)/.test(globalThis.navigator?.userAgent
 export const backendsOf = (candidate) => candidate.backends ?? BACKENDS;
 
 const msg = (e) => String(e?.message || e).slice(0, 200);
+
+// ---------------------------------------------------------------- probe file (real sizes) and candidate order
+const PROBE_URLS = [new URL('./model-probe.json', import.meta.url), new URL('../data/model-probe.json', import.meta.url)]; // lib/ (feasibility) or vendor/ (app)
+async function readJson(url) {
+  const u = new URL(url, globalThis.location?.href);
+  if (u.protocol === 'file:') return JSON.parse(await (await import('node:fs/promises')).readFile(u, 'utf8'));
+  const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json();
+}
+/** The CI probe file { models: [{ id, revision, onnx: [{ path, size }] }] }, or null when it does not exist (yet). */
+export async function loadProbe(urls = PROBE_URLS) {
+  for (const u of urls) { try { const p = await readJson(u); if (Array.isArray(p?.models)) return p; } catch { /* absent: try the next place */ } }
+  return null;
+}
+/** Estimated download bytes of a candidate from the probe (sum of the smallest matching ONNX file per fragment), or null when unknown. */
+export function candidateBytes(c, probe) {
+  const m = probe?.models?.find((x) => x.id === c.id); if (!m?.onnx?.length || !c.probeFiles?.length) return null;
+  let total = 0;
+  for (const frag of c.probeFiles) {
+    const sizes = m.onnx.filter((f) => f.path.includes(frag) && f.path.endsWith('.onnx') && Number.isFinite(f.size)).map((f) => f.size);
+    if (!sizes.length) return null;
+    total += Math.min(...sizes);
+  }
+  return total;
+}
+/** A copy of `candidates`, smallest first by probe size. Unchanged order unless EVERY candidate has a known size (no guessing). Stable. */
+export function orderBySize(candidates, probe) {
+  const sized = candidates.map((c, i) => ({ c, i, bytes: candidateBytes(c, probe) }));
+  if (sized.some((x) => x.bytes === null)) return [...candidates];
+  return sized.sort((a, b) => a.bytes - b.bytes || a.i - b.i).map((x) => x.c);
+}
+
+// ---------------------------------------------------------------- text embeddings (naming stage) and their provenance
+export const safeModelId = (id) => id.replace(/[^A-Za-z0-9._-]+/g, '__');
+export async function sha256Hex(text) {
+  const buf = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+/** Hash of the vocab label list (the `pt` names in vocab order): the provenance key shared with tools/build-text-embeddings.mjs. */
+export const labelsSha256 = (labels) => sha256Hex(JSON.stringify(labels));
+export const fillTemplate = (template, label) => template.replace('{}', label);
+export class EmbeddingsError extends Error {
+  constructor(modelId, reason) { super(`embeddings missing/stale (${modelId}): ${reason}`); this.name = 'EmbeddingsError'; }
+}
+/** Provenance check of a text-embedding file: model id, revision, labels hash against the CURRENT vocab, shape, unit norm. -> { ok, reason } */
+export async function checkEmbeddings(file, { modelId, labels }) {
+  const bad = (reason) => ({ ok: false, reason });
+  if (!file || typeof file !== 'object') return bad('file missing');
+  if (file.model_id !== modelId) return bad(`file is for ${file.model_id}`);
+  if (!file.revision || typeof file.revision !== 'string') return bad('no revision recorded');
+  if (typeof file.prompt_template !== 'string' || !file.prompt_template.includes('{}')) return bad('no prompt_template');
+  if (file.labels_sha256 !== await labelsSha256(labels)) return bad('vocab labels changed since the file was built (labels hash differs)');
+  if (JSON.stringify(file.labels) !== JSON.stringify(labels)) return bad('label list differs from the vocab');
+  if (!Number.isInteger(file.dim) || file.dim < 1) return bad('bad dim');
+  const shapeOk = (rows, n) => Array.isArray(rows) && rows.length === n && rows.every((r) => Array.isArray(r) && r.length === file.dim);
+  if (!shapeOk(file.embeddings, labels.length)) return bad('embeddings shape does not match labels and dim');
+  if (!shapeOk(file.extra_embeddings ?? [], (file.extra_labels ?? []).length)) return bad('extra embeddings shape does not match extra_labels');
+  for (const row of [...file.embeddings, ...(file.extra_embeddings ?? [])]) { let n = 0; for (const x of row) n += x * x; if (!(Math.abs(Math.sqrt(n) - 1) < 0.02)) return bad('embeddings are not normalized'); }
+  return { ok: true };
+}
+/** prompt -> vector, for the vocab labels and the extra (non-food) labels of a checked file. */
+export function buildTable(file) {
+  const table = new Map();
+  file.labels.forEach((l, i) => table.set(fillTemplate(file.prompt_template, l), Float32Array.from(file.embeddings[i])));
+  (file.extra_labels ?? []).forEach((l, i) => table.set(fillTemplate(file.prompt_template, l), Float32Array.from(file.extra_embeddings[i])));
+  return table;
+}
+const unit = (v) => { let n = 0; for (const x of v) n += x * x; n = Math.sqrt(n) || 1; return Float32Array.from(v, (x) => x / n); };
+/** Image embedding from a vision-only handle (CLIP: image_embeds; SigLIP has no projection: pooler_output). Normalized. */
+export async function embedImage(h, img) {
+  const out = await h.model(await h.proc(img));
+  const t = out.image_embeds ?? out.pooler_output ?? out.embeds;
+  if (!t?.data) throw new Error(`o codificador de imagem não devolveu embedding (saídas: ${Object.keys(out ?? {}).join(', ')})`);
+  return unit(t.data);
+}
+/** Scores an image embedding against the prompts: softmax over 100 x cosine, so scores sum to 1 and rank like the cosine. */
+export function scoreImage(vec, table, modelId, prompts) {
+  const logits = prompts.map((p) => {
+    const v = table.get(p); if (!v || v.length !== vec.length) throw new EmbeddingsError(modelId, `no text vector for "${p}"`);
+    let d = 0; for (let i = 0; i < v.length; i++) d += v[i] * vec[i]; return 100 * d;
+  });
+  const mx = Math.max(...logits); const e = logits.map((x) => Math.exp(x - mx)); const z = e.reduce((a, b) => a + b, 0);
+  return prompts.map((label, i) => ({ label, score: e[i] / z }));
+}
+
+/** The vocab pt names in vocab order (what the embeddings are built over), from a vocab.json URL. */
+export async function vocabLabels(url = new URL('../data/vocab.json', import.meta.url)) { return (await readJson(url)).classes.map((c) => c.pt); }
+export const defaultEmbeddingsBase = () => new URL('../data/text-emb/', import.meta.url).href;
+/** Fetches the text-embedding file of a model from `base` (null when it does not exist). */
+export async function fetchEmbeddings(modelId, base = defaultEmbeddingsBase()) {
+  try { const r = await fetch(new URL(`${safeModelId(modelId)}.json`, new URL(base, globalThis.location?.href))); return r.ok ? await r.json() : null; } catch { return null; }
+}
+/** Loads and CHECKS the text embeddings of a naming candidate against the vocab labels. Throws EmbeddingsError (missing/stale); never guesses. */
+export async function prepareEmbeddings(modelId, { labels, base, loadEmbeddings } = {}) {
+  const file = await (loadEmbeddings ?? ((id) => fetchEmbeddings(id, base)))(modelId);
+  const chk = await checkEmbeddings(file, { modelId, labels: typeof labels === 'function' ? await labels() : (labels ?? await vocabLabels()) });
+  if (!chk.ok) throw new EmbeddingsError(modelId, chk.reason);
+  return { revision: file.revision, file, table: buildTable(file) };
+}
+
+// ---------------------------------------------------------------- which file is being fetched (diagnostics for "Load failed")
+export const hfFileUrl = (model, file, revision = 'main') => `https://huggingface.co/${model}/resolve/${revision}/${file}`;
+/** Wraps a transformers.js progress callback: remembers the files initiated and not yet done. `file`/`url` = the latest of them. */
+export function fileTracker(model, inner) {
+  const open = new Map();
+  const callback = (e) => {
+    if (e?.file) {
+      const url = hfFileUrl(e.name ?? model, e.file);
+      if (e.status === 'done') open.delete(url); else if (['initiate', 'download', 'progress'].includes(e.status)) { open.delete(url); open.set(url, e.file); }
+    }
+    inner?.(e);
+  };
+  return { callback, get url() { return [...open.keys()].at(-1) ?? null; }, get file() { return [...open.values()].at(-1) ?? null; }, get inFlight() { return [...open.keys()]; } };
+}
 
 /** Imports transformers.js, trying each pinned version until one loads. `importer` is injectable for tests. */
 export async function importTransformers({ versions = TRANSFORMERS_VERSIONS, importer = (url) => import(url) } = {}) {
@@ -45,6 +165,14 @@ export async function detectWebGpu() {
 /** One candidate -> a handle { task, ..., dispose }. A `task` candidate is a pipeline; a `sam` one is a model class plus its processor. */
 export async function loadCandidate(T, c, opts) {
   if (c.task) { const p = await T.pipeline(c.task, c.id, opts); return { task: c.task, p, dispose: () => p.dispose?.() }; }
+  if (c.vision) { // vision-only naming: the image tower and its image processor, never the text tower
+    const names = [].concat(c.vision); const M = names.map((n) => T[n]).find(Boolean);
+    if (!M) throw new Error(`${names.join(' / ')} indisponível nesta versão da biblioteca`);
+    const P = T.AutoImageProcessor ?? T.AutoProcessor;
+    const popts = { ...(opts.revision ? { revision: opts.revision } : {}), ...(opts.progress_callback ? { progress_callback: opts.progress_callback } : {}) };
+    const [model, proc] = await Promise.all([M.from_pretrained(c.id, { model_file_name: 'vision_model', ...opts }), P.from_pretrained(c.id, popts)]);
+    return { task: 'vision', model, proc, dispose: () => model.dispose?.() };
+  }
   const M = T[c.sam];
   if (!M) throw new Error(`${c.sam} indisponível nesta versão da biblioteca`);
   const [model, proc] = await Promise.all([M.from_pretrained(c.id, opts), T.AutoProcessor.from_pretrained(c.id)]);
@@ -63,16 +191,22 @@ export function progressTracker(onProgress, stage, label) {
   };
 }
 
-/** First candidate/backend combination that loads and survives `warm` (WebGPU shader errors surface at the first inference). */
-async function loadFirst(T, candidates, { hasGpu, warm, progress }) {
-  const errors = [];
+/**
+ * First candidate/backend combination that loads and survives `warm` (WebGPU shader errors surface at the first inference). `prepare(c)`
+ * runs once per candidate BEFORE any download (naming: checks the text-embedding file); its result comes back as `prep`, and a `revision`
+ * in it pins the model files to the revision the embeddings were built from.
+ */
+async function loadFirst(T, candidates, { hasGpu, warm, progress, prepare }) {
+  const errors = []; const preps = new Map();
   for (const c of candidates) for (const [device, dtype] of backendsOf(c)) {
     if (device === 'webgpu' && !hasGpu) continue;
     let h = null;
     try {
-      h = await loadCandidate(T, c, { device, dtype, progress_callback: progress });
+      let prep = null;
+      if (prepare) { if (!preps.has(c.id)) preps.set(c.id, prepare(c)); prep = await preps.get(c.id); }
+      h = await loadCandidate(T, c, { device, dtype, progress_callback: progress, ...(prep?.revision ? { revision: prep.revision } : {}) });
       await warm?.(h);
-      return { handle: h, candidate: c, device, dtype, errors };
+      return { handle: h, candidate: c, device, dtype, errors, prep };
     } catch (e) { errors.push(`${c.id} ${device}/${dtype}: ${msg(e)}`); try { await h?.dispose(); } catch { /* ignore */ } }
   }
   throw Object.assign(new Error(`nenhum modelo carregou (${errors.join('; ')})`), { errors });
@@ -102,16 +236,22 @@ export function splitBatchMasks(masks, scores, points, perPoint = 1) {
 
 /**
  * The model object the estimate screens use (tests inject a mock with the same methods). Memory: with `sequential` (default on iOS)
- * only one of the two models is resident at a time: SAM loads first, and SigLIP loads on the first classify() after freeing SAM;
- * a later segment() frees SigLIP, reloads SAM from the browser cache and encodes the photo again. Otherwise both stay loaded.
- *   load(onProgress)            -> { version, backend, segmenter, namer, sequential, warnings }   loads SAM (and SigLIP unless sequential); progress { stage, label, fraction }
+ * only one of the two models is resident at a time: SAM loads first, and the naming vision encoder loads on the first classify() after
+ * freeing SAM; a later segment() frees it, reloads SAM from the browser cache and encodes the photo again. Otherwise both stay loaded.
+ * Naming (T-015) loads only an image tower and scores its embedding against the committed text-embedding file of that model, whose
+ * provenance is checked against the vocab labels first (no download otherwise): options `labels` (array or function returning the vocab
+ * pt names; default: the vocab.json next to the data folder), `embeddingsBase` (URL of the text-emb folder), `loadEmbeddings(modelId)`
+ * (tests), `probe` (the CI probe object; default: loadProbe()) which orders the candidates by real size.
+ *   load(onProgress)            -> { version, backend, segmenter, namer, sequential, warnings }   loads SAM (and the namer unless sequential); progress { stage, label, fraction }
  *   setImage(blob)              -> { encoder_ms }                           the working photo the taps refer to; the image encoder runs once here
  *   segment(x, y)               -> [{ width, height, data, score }]         SAM masks for a point tap (image px), best score first
  *   segmentPoints(points, opts) -> { masks, decodes, done, total, ms, timed_out }   T-014: one prompt per point {x, y}, decoded in batches on the
  *                                  cached embedding; opts { batch, budgetMs, perPoint, onProgress({done, total}), now }; masks carry score and point
- *   classify(blob, prompts)     -> [{ label, score }]                       SigLIP zero-shot: one score per prompt
+ *   classify(blob, prompts)     -> [{ label, score }]                       image embedding vs text embeddings: one score per prompt (softmax); throws EmbeddingsError when the file is missing or stale
  */
-export function createModels({ importer, versions, sequential = isIOS() } = {}) {
+export function createModels({ importer, versions, sequential = isIOS(), labels, embeddingsBase, loadEmbeddings, probe } = {}) {
+  let segCands = SEGMENT_CANDIDATES; let nameCands = NAMING_CANDIDATES;
+  const prepare = (c) => prepareEmbeddings(c.id, { labels, base: embeddingsBase, loadEmbeddings });
   let T = null; let seg = null; let name = null; let embeddings = null; let image = null; let info = null;
   let segP = null; let nameP = null; let hasGpu = false; let progressCb = () => {}; let encoderMs = null;
 
@@ -122,6 +262,8 @@ export function createModels({ importer, versions, sequential = isIOS() } = {}) 
     const lib = await importTransformers({ importer, versions });
     T = lib.T;
     hasGpu = await detectWebGpu();
+    const pr = probe ?? await loadProbe();
+    segCands = orderBySize(SEGMENT_CANDIDATES, pr); nameCands = orderBySize(NAMING_CANDIDATES, pr);
     info = { version: lib.version, backend: null, segmenter: null, namer: null, sequential, warnings: [...lib.errors] };
     await ensureSeg();
     if (!sequential) await ensureNaming(); // on the phone the naming model loads on first use, after the segmentation model is freed
@@ -136,7 +278,7 @@ export function createModels({ importer, versions, sequential = isIOS() } = {}) 
     return (segP ??= (async () => {
       if (sequential) await releaseName();
       const probe = await makeProbeImage();
-      const r = await loadFirst(T, SEGMENT_CANDIDATES, {
+      const r = await loadFirst(T, segCands, {
         hasGpu, progress: progressTracker((e) => progressCb(e), 'segmentation', 'Modelo de contorno (SAM)'),
         warm: (h) => samRun(h, probe, { x: probe.width / 2, y: probe.height / 2 }).then(() => undefined),
       });
@@ -150,11 +292,11 @@ export function createModels({ importer, versions, sequential = isIOS() } = {}) 
     return (nameP ??= (async () => {
       if (sequential) await releaseSeg();
       const probe = await makeProbeImage();
-      const r = await loadFirst(T, NAMING_CANDIDATES, {
-        hasGpu, progress: progressTracker((e) => progressCb(e), 'naming', 'Modelo de nomes (SigLIP)'),
-        warm: (h) => h.p(probe, ['uma foto de teste'], { hypothesis_template: '{}' }),
+      const r = await loadFirst(T, nameCands, {
+        hasGpu, progress: progressTracker((e) => progressCb(e), 'naming', 'Modelo de nomes (codificador de imagem)'), prepare,
+        warm: (h) => embedImage(h, probe),
       });
-      name = r; info.namer = r.candidate.id; info.namer_backend = `${r.device}/${r.dtype}`; info.warnings.push(...r.errors);
+      name = { ...r, table: r.prep.table }; info.namer = r.candidate.id; info.namer_backend = `${r.device}/${r.dtype}`; info.warnings.push(...r.errors);
       return name;
     })().finally(() => { nameP = null; }));
   }
@@ -229,8 +371,7 @@ export function createModels({ importer, versions, sequential = isIOS() } = {}) 
     async classify(blob, prompts) {
       const img = await T.RawImage.fromBlob(blob);
       const n = await ensureNaming();
-      const out = await n.handle.p(img, prompts, { hypothesis_template: '{}' });
-      return out.map((o) => ({ label: o.label, score: o.score }));
+      return scoreImage(await embedImage(n.handle, img), n.table, n.candidate.id, prompts);
     },
     /** Frees both models (the estimate screens call this when leaving the flow). */
     async dispose() { await releaseSeg(); await releaseName(); },

@@ -24,7 +24,7 @@ export function createEstimate(ctx) {
   function fresh() {
     return { mode: 'auto', notice: '', auto: null, tapMode: null, timings: null, encoder_ms: null, corrections: {}, step: 'photo', work: null, workBlob: null, imageSetFor: null, plateId: '', rim: null, items: [], oil: 'normal', mealId: '', saved: null, busy: '', error: '', model: { status: 'idle' }, query: {}, naming: false, namingRun: 0 };
   }
-  const getModels = () => globalThis.__macrofyModels ?? (modelsP ??= import('./vendor/models.mjs').then((m) => m.createModels()));
+  const getModels = () => globalThis.__macrofyModels ?? (modelsP ??= import('./vendor/models.mjs').then((m) => m.createModels({ labels: () => getVocab().classes.map((c) => c.pt) })));
   async function loadStatic() {
     staticData ??= (async () => {
       const [priors, calRaw] = await Promise.all(['data/priors.json', 'data/calibration.json'].map(async (u) => (await fetch(u)).json()));
@@ -281,7 +281,7 @@ export function createEstimate(ctx) {
       nav(() => go('rim'), () => { go('names'); }, 'Nomear os alimentos', st.items.length === 0)];
   }
 
-  // 5. names: SigLIP zero-shot over the vocab pt names
+  // 5. names: image embedding scored against the committed text embeddings of the vocab pt names (T-015; no guess when they are missing/stale)
   function cropBlob(mask) {
     const box = core.maskBBox(mask); if (!box) return null;
     const mx = Math.round((box.x1 - box.x0) * 0.1); const my = Math.round((box.y1 - box.y0) * 0.1);
@@ -406,7 +406,7 @@ export function createEstimate(ctx) {
     } catch (e) { st.error = `Não consegui: ${e.message}`; }
     st.busy = ''; render();
   }
-  /** SigLIP names one item (its crop) and its top-1 becomes the name; the user can change it. */
+  /** The naming model names one item (its crop) and its top-1 becomes the name; the user can change it. */
   async function nameOne(it) {
     const m = await getModels(); const classes = getVocab().classes;
     it.cropBlob = await cropBlob(it.masks[it.idx]);

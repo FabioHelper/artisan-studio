@@ -384,12 +384,12 @@
         "G-3",
         "G-5"
       ],
-      "status": "todo",
+      "status": "active",
       "review": "required",
       "depends_on": [
         "T-012"
       ],
-      "spec": null,
+      "spec": "docs/specs/SPEC-T-015-fit-models-in-safari.md",
       "acceptance": [
         {
           "id": "A1",

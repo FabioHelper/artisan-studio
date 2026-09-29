@@ -1,0 +1,62 @@
+name: macrofy-models
+
+# T-015. Runs on a runner WITH internet access (the agent sandbox has none):
+#  (a) probes every model candidate of macrofy/web/lib/models.mjs on Hugging Face (commit sha, ONNX files and sizes) and writes the probe file;
+#  (b) loads the TEXT tower of each naming candidate here in Node and writes its text embeddings over the vocab labels, with provenance.
+# The phone then loads only the image tower and scores against those committed embeddings. Outputs are committed only when they changed.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'macrofy/nutrition/vocab.json'
+      - 'macrofy/web/lib/models.mjs'
+      - '.github/workflows/macrofy-models.yml'
+
+permissions:
+  contents: write
+  actions: write # only to start macrofy-pages after the commit: a push made with GITHUB_TOKEN does not trigger other workflows
+
+concurrency:
+  group: macrofy-models
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Probe the models and build the text embeddings
+        run: node macrofy/tools/build-text-embeddings.mjs
+      - name: Web selftest (the outputs must pass the same checks as the app)
+        run: node macrofy/web/selftest.mjs
+      - name: Commit and push the outputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          add=()
+          for f in macrofy/web/lib/model-probe.json macrofy/web/app/data/model-probe.json macrofy/web/app/data/text-emb/*.json; do
+            [ -f "$f" ] && add+=("$f")
+          done
+          if [ "${#add[@]}" -eq 0 ]; then echo "::error::no outputs were written"; exit 1; fi
+          git add -- "${add[@]}"
+          if git diff --cached --quiet; then echo "outputs unchanged: nothing to commit"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "T-015: model probe and text embeddings (CI)" \
+            -m $'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01BeqUPRJeU2ToodBE3NbAEW'
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            gh workflow run macrofy-pages.yml --ref main || echo "::warning::could not start macrofy-pages; run it by hand"
+          fi

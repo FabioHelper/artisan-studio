@@ -205,7 +205,8 @@
         "T-010",
         "T-011",
         "T-012",
-        "T-013"
+        "T-013",
+        "T-014"
       ],
       "spec": null,
       "acceptance": [
@@ -343,6 +344,34 @@
         {
           "id": "A2",
           "criterion": "Owner runs it on the iPhone 16e on one real plate end to end: items outlined and named, grams and macros shown with ranges, labelled uncalibrated",
+          "manual": true
+        }
+      ]
+    },
+    {
+      "id": "T-014",
+      "milestone": "M2",
+      "title": "Automatic mode (ADR 0005): SAM2.1 point-grid masks, ellipse-fit plate selection, food/non-food filter with SigLIP, auto naming, one prefilled confirmation screen; tap mode kept for corrections",
+      "goals": [
+        "G-2",
+        "G-3",
+        "G-5"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-013"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Pure mask post-processing (grid prompts, IoU dedupe, plate selection by ellipse residual, area filters, overlap resolution, same-label fragment merge, non-food rejection) matches fixtures on synthetic scenes",
+          "check": "autoseg-selftest"
+        },
+        {
+          "id": "A2",
+          "criterion": "On 10 real plates on the owner iPhone 16e, auto mode finds the plate in >=9 and >=80% of items with zero taps; per-photo time recorded",
           "manual": true
         }
       ]

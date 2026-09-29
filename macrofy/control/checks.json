@@ -104,6 +104,14 @@
         "web/estimate/selftest.mjs"
       ],
       "description": "Pure estimation core matches hand-computed fixtures; predictions export is accepted by the eval engine"
+    },
+    {
+      "id": "autoseg-selftest",
+      "cmd": [
+        "node",
+        "web/estimate/autoseg-selftest.mjs"
+      ],
+      "description": "Automatic plate/food mask post-processing matches synthetic-scene fixtures"
     }
   ]
 }

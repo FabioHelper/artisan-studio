@@ -380,7 +380,7 @@ const accuracy = createAccuracy({ h, show, back, errorBox, db, objUrl, isoWithOf
 
 // ---------------------------------------------------------------- router and start
 const ROUTES = [
-  [/^#\/settings$/, screenSettings], [/^#\/accuracy$/, accuracy.screenAccuracy], [/^#\/estimate\/manual$/, estimate.screenEstimateManual], [/^#\/estimate\/resume$/, estimate.screenEstimateResume],
+  [/^#\/settings$/, screenSettings], [/^#\/accuracy$/, accuracy.screenAccuracy], [/^#\/estimate\/manual$/, estimate.screenEstimateManual], [/^#\/estimate\/resume$/, estimate.screenEstimateResume], [/^#\/estimate\/name$/, estimate.screenEstimateName],
   [/^#\/estimate\/new$/, estimate.screenEstimateNew], [/^#\/estimate$/, estimate.screenEstimate], [/^#\/estimates$/, estimate.screenEstimates],
   [/^#\/?$/, screenHome], [/^#\/meal$/, () => screenMeal(false)], [/^#\/meal\/new$/, () => screenMeal(true)],
   [/^#\/meals$/, screenMeals], [/^#\/meals\/(.+)$/, (m) => screenMealDetail(decodeURIComponent(m[1]))],

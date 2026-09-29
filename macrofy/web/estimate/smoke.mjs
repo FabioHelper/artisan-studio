@@ -75,13 +75,25 @@ function installMock({ W, H, SC, plan }) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let grid = 0;
   window.__classifyLog = [];
+  // iPhone mode (localStorage __mockSequential = '1'): info.sequential, so auto mode splits into a SAM page and a naming page. The model calls of
+  // every page of the tab go to sessionStorage __mockLog ('page' marks each page load), so a test can see what each page loaded.
+  const mlog = (e) => { try { const a = JSON.parse(sessionStorage.getItem('__mockLog') ?? '[]'); a.push(e); sessionStorage.setItem('__mockLog', JSON.stringify(a)); } catch { /* no storage */ } };
+  mlog('page');
+  const seq = () => { try { return localStorage.getItem('__mockSequential') === '1'; } catch { return false; } };
   window.__macrofyModels = {
     async load(onProgress) {
+      mlog('load');
       for (const f of [0.2, 0.6, 1]) { onProgress({ stage: 'segmentation', label: 'Modelo de contorno (SAM)', fraction: f }); await sleep(30); }
-      return { version: 'mock', backend: 'mock/none', segmenter: 'mock-sam', namer: 'mock-siglip', sequential: true, warnings: [] };
+      return { version: 'mock', backend: 'mock/none', segmenter: 'mock-sam', namer: 'mock-siglip', sequential: seq(), warnings: [] };
     },
-    async setImage(blob) { if (!blob || !blob.size) throw new Error('mock: empty image'); grid = 0; return { encoder_ms: 42, cached: true }; },
+    async loadNaming() {
+      mlog('loadNaming');
+      if (localStorage.getItem('__mockHangNaming') === '1') return new Promise(() => {}); // the naming page "dies" while loading the namer
+      await sleep(30); return { version: 'mock', backend: null, segmenter: null, namer: 'mock-siglip', namer_backend: 'mock/none', sequential: seq(), warnings: [] };
+    },
+    async setImage(blob) { mlog('setImage'); if (!blob || !blob.size) throw new Error('mock: empty image'); grid = 0; return { encoder_ms: 42, cached: true }; },
     async segmentPoints(points, opts = {}) {
+      mlog('segmentPoints');
       const call = ++grid; window.__grids = (window.__grids ?? []).concat([{ n: points.length, batch: opts.batch, budgetMs: opts.budgetMs, lowRes: opts.lowRes ?? null }]);
       if (window.__crashAt === call) { window.__crashAt = 0; return new Promise(() => {}); } // the tab "dies" here: the analysis never finishes
       for (let i = 0; i < points.length; i += opts.batch || 4) { await sleep(120); opts.onProgress?.({ done: Math.min(points.length, i + (opts.batch || 4)), total: points.length }); }
@@ -96,6 +108,7 @@ function installMock({ W, H, SC, plan }) {
       return [mk({ kind: 'disc', cx: x, cy: y, r: 60, score: 0.9 }), mk({ kind: 'disc', cx: x, cy: y, r: 30, score: 0.5 })];
     },
     async classify(blob, prompts) {
+      mlog('classify');
       const idx = window.__classifyIdx ?? 0; window.__classifyIdx = idx + 1; const want = plan[idx % plan.length];
       return prompts.map((p) => { const i = want.findIndex((n) => p === `uma foto de ${n}`); return { label: p, score: i < 0 ? 0.001 : 0.9 - i * 0.2 }; });
     },
@@ -437,6 +450,45 @@ async function autoScenario() {
   const lite = await page.evaluate(() => window.__grids);
   assert.ok(lite[0].n === 16 && lite.every((g) => g.lowRes.w === 256 && g.lowRes.h === 192), `lighter retry: 4x4 plate grid, 256 px masks: ${JSON.stringify(lite)}`);
   assert.equal(await page.evaluate(() => localStorage.getItem('macrofy_run')), null, 'a finished analysis leaves no crash mark');
+
+  step('auto on the iPhone (sequential models): the SAM page ends, the page reloads, the naming page loads ONLY the naming model -> the result');
+  await page.evaluate(() => { localStorage.setItem('__mockSequential', '1'); sessionStorage.setItem('__mockLog', '[]'); });
+  await page.goto('about:blank'); await page.goto(`${base()}#/estimate/new`); await page.waitForSelector('text=Etapa 1 de 3: Foto');
+  await upload(page, 2);
+  await page.waitForSelector('h2:text-is("Resultado")'); await shot('a08-split-result');
+  const pages = (await page.evaluate(() => sessionStorage.getItem('__mockLog'))).split('"page"');
+  const log = JSON.parse(await page.evaluate(() => sessionStorage.getItem('__mockLog'))); const cut = log.lastIndexOf('page');
+  const before = log.slice(0, cut); const after = log.slice(cut + 1);
+  assert.ok(before.includes('load') && before.filter((e) => e === 'segmentPoints').length === 2 && !before.includes('classify') && !before.includes('loadNaming'), `SAM page: SAM and both grids, no naming: ${JSON.stringify(log)}`);
+  assert.ok(after[0] === 'loadNaming' && !after.includes('load') && !after.includes('setImage') && !after.includes('segmentPoints') && after.filter((e) => e === 'classify').length === 4, `naming page: only the namer, 4 crops named: ${JSON.stringify(log)}`);
+  assert.ok(pages.length >= 3, 'the page really reloaded between the halves');
+  assert.equal(await page.evaluate(() => location.hash), '#/estimate', 'the naming URL is left before the naming model loads');
+  assert.equal(await page.locator('[data-item]').count(), 3, 'rice, steak, salad; the fork rejected, as in one page');
+  assert.match(await page.locator('[data-item="0"] h3').innerText(), /^Arroz/);
+  assert.match(await page.locator('#totals').innerText(), /Total do prato: \d+ g/);
+  assert.equal(await page.locator('#model-progress').count(), 0, 'no model card on the result: SAM is not loading in the naming page');
+  assert.match(await page.locator('#diag-text').textContent(), /"split": true/);
+  assert.equal(await page.evaluate(() => localStorage.getItem('macrofy_run')), null, 'no crash mark left');
+
+  step('auto on the iPhone: the naming page dies -> the resume offers to name again without re-running SAM, which works');
+  await page.evaluate(() => { localStorage.setItem('__mockHangNaming', '1'); sessionStorage.setItem('__mockLog', '[]'); });
+  await page.goto('about:blank'); await page.goto(`${base()}#/estimate/new`); await page.waitForSelector('text=Etapa 1 de 3: Foto');
+  await upload(page, 2);
+  await page.waitForFunction(() => /Carregando o modelo de nomes/.test(document.getElementById('auto-label')?.textContent ?? ''));
+  assert.equal(JSON.parse(await page.evaluate(() => localStorage.getItem('macrofy_run'))).page, 'naming');
+  await page.evaluate(() => { localStorage.removeItem('__mockHangNaming'); sessionStorage.setItem('__mockLog', '[]'); });
+  await page.goto('about:blank'); await page.goto(`${base()}#/estimate/resume`);
+  await page.waitForSelector('#crash'); await shot('a09-naming-crash');
+  assert.match(await page.locator('#crash').innerText(), /carregando o modelo de nomes/);
+  await page.locator('#retry-naming').click(); await page.waitForSelector('h2:text-is("Resultado")');
+  const log2 = JSON.parse(await page.evaluate(() => sessionStorage.getItem('__mockLog')));
+  assert.ok(!log2.includes('segmentPoints') && !log2.includes('load') && log2.includes('loadNaming'), `retry names only: ${JSON.stringify(log2)}`);
+  assert.equal(await page.locator('[data-item]').count(), 3);
+
+  step('auto on the iPhone: a correction tap loads SAM then (and only then)');
+  await openAdjust(page); await page.locator('#add-item').click();
+  await page.waitForFunction(() => JSON.parse(sessionStorage.getItem('__mockLog')).includes('load'));
+  await page.evaluate(() => localStorage.removeItem('__mockSequential'));
 
   assert.deepEqual(problems, [], `page problems:\n${problems.join('\n')}`);
   await page.context().close();

@@ -370,6 +370,7 @@ const toMask = (data, width, height, score) => { const m = new Uint8Array(width 
  * pt names; default: the vocab.json next to the data folder), `embeddingsBase` (URL of the text-emb folder), `loadEmbeddings(modelId)`
  * (tests), `probe` (the CI probe object; default: loadProbe()) which orders the candidates by real size, `segmentCandidates`, `namingCandidates` (default: the lists above; the CI integration test narrows them to one model and a CPU dtype).
  *   load(onProgress)            -> { version, backend, segmenter, namer, sequential, warnings }   loads SAM (and the namer unless sequential); progress { stage, label, fraction }
+ *   loadNaming(onProgress)      -> the same info; loads ONLY the naming model (auto mode's second page on the iPhone)
  *   setImage(blob)              -> { encoder_ms }                           the working photo the taps refer to; the image encoder runs once here
  *   segment(x, y)               -> [{ width, height, data, score }]         SAM masks for a point tap (image px), best score first
  *   segmentPoints(points, opts) -> { masks, decodes, done, total, ms, timed_out }   T-014: one prompt per point {x, y}, ONE decoder run per point (T-017: SAM 2.1 takes a single prompt group per run) on the
@@ -382,18 +383,31 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
   let T = null; let seg = null; let name = null; let embeddings = null; let image = null; let info = null;
   let segP = null; let nameP = null; let hasGpu = false; let progressCb = () => {}; let encoderMs = null; let prepared = null;
 
-  async function load(onProgress = () => {}) {
-    if (info) return info;
+  let initP = null;
+  /** The library, the WebGPU check and the candidate order (no model yet). */
+  function init(onProgress) {
     progressCb = onProgress;
-    onProgress({ stage: 'lib', label: 'Biblioteca de modelos', fraction: null });
-    const lib = await importTransformers({ importer, versions });
-    T = lib.T;
-    hasGpu = await detectWebGpu();
-    const pr = probe ?? await loadProbe();
-    segCands = orderBySize(segmentCandidates, pr); nameCands = orderBySize(namingCandidates, pr);
-    info = { version: lib.version, backend: null, segmenter: null, namer: null, sequential, warnings: [...lib.errors] };
+    return (initP ??= (async () => {
+      onProgress({ stage: 'lib', label: 'Biblioteca de modelos', fraction: null });
+      const lib = await importTransformers({ importer, versions });
+      T = lib.T;
+      hasGpu = await detectWebGpu();
+      const pr = probe ?? await loadProbe();
+      segCands = orderBySize(segmentCandidates, pr); nameCands = orderBySize(namingCandidates, pr);
+      info = { version: lib.version, backend: null, segmenter: null, namer: null, sequential, warnings: [...lib.errors] };
+      return info;
+    })().catch((e) => { initP = null; throw e; }));
+  }
+  async function load(onProgress = () => {}) {
+    await init(onProgress);
     await ensureSeg();
     if (!sequential) await ensureNaming(); // on the phone the naming model loads on first use, after the segmentation model is freed
+    return info;
+  }
+  /** Only the naming model (the second page of auto mode on the iPhone: SAM is never loaded in that page). */
+  async function loadNaming(onProgress = () => {}) {
+    await init(onProgress);
+    await ensureNaming();
     return info;
   }
 
@@ -470,6 +484,7 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
 
   const api = {
     load,
+    loadNaming,
     get info() { return info; },
     async setImage(blob) {
       if (!info) throw new Error('modelos ainda não carregados');

@@ -318,6 +318,19 @@ await t('sequential mode: SAM loads at load(), the namer on the first classify()
   assert.equal(masks.length, 3); assert.deepEqual(log.slice(3), ['dispose namer', 'load sam2', 'encode sam2']);
   await m.dispose(); assert.deepEqual(log.slice(-1), ['dispose sam2']);
 });
+await t('loadNaming (auto mode, second page on the iPhone): only the naming model loads; SAM loads only if a later correction needs it', async () => {
+  const log = []; const { T } = fakeLib();
+  const proc = async () => ({ original_sizes: [[2, 2]], reshaped_input_sizes: [[2, 2]] });
+  proc.post_process_masks = async () => [{ dims: [1, 3, 2, 2], data: new Uint8Array(12).fill(1) }];
+  const lib = { ...T, Sam2Model: { from_pretrained: async () => { log.push('load sam'); const x = async () => ({ pred_masks: {}, iou_scores: { data: [0.9, 0.5, 0.2] } }); x.get_image_embeddings = async () => ({}); x.dispose = async () => { log.push('dispose sam'); }; return x; } }, AutoProcessor: { from_pretrained: async () => proc },
+    CLIPVisionModelWithProjection: { from_pretrained: async () => { log.push('load namer'); const v = async () => ({ image_embeds: { data: [1, 0, 0], dims: [1, 3] } }); v.dispose = async () => { log.push('dispose namer'); }; return v; } } };
+  const m = mkModels({ importer: async () => lib, sequential: true });
+  const info = await m.loadNaming();
+  assert.deepEqual(log, ['load namer']); assert.equal(info.segmenter, null); assert.equal(info.namer, 'Xenova/clip-vit-base-patch32');
+  await m.classify(new Blob(['x']), ['uma foto de a']); await m.loadNaming();
+  assert.deepEqual(log, ['load namer'], 'classify and a second loadNaming reuse the loaded namer');
+  await m.load(); assert.deepEqual(log, ['load namer', 'dispose namer', 'load sam'], 'a later load() frees the namer first (sequential)');
+});
 await t('parallel mode (desktop): both models load at load() and stay', async () => {
   const { T } = fakeLib(); const m = mkModels({ importer: async () => T, sequential: false });
   const info = await m.load(); assert.equal(info.sequential, false); assert.ok(info.segmenter && info.namer);

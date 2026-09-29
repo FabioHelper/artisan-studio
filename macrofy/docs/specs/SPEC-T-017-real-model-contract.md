@@ -61,6 +61,11 @@ and a reload landed on `#/estimate/resume`, which re-ran the same analysis and S
   over the 0.43 plate that ~30 grid prompts returned, because the largest passing mask won; every weight would have come out about half. The plate is
   now the passing mask most others agree with (`plate_support_iou`), the largest only on a tie, judged on the raw grid (no dedupe: repeats are the evidence).
   The integration test requires the chosen plate on the synthetic photo to be within 20% of the drawn plate's area.
+- One model per page on the iPhone: the owner's second run (gallery photo) found the plate and 4 foods, then the tab died at "dando nome aos
+  alimentos (0/4)": loading the naming model after SAM in the same page. The feasibility run that worked (run 3) loaded one model per page. With
+  sequential models (iOS) `detectAuto({ split: true })` stops before naming, the app stores the plate and kept masks (mask_side) in the draft and
+  reloads into `#/estimate/name`, where `finishAuto` names them with only the naming model loaded (`models.loadNaming`). A death in the naming page
+  offers to name again without re-running SAM; a correction tap loads SAM only then. Desktop keeps the one-page flow.
 - CI: the integration test runs auto mode in the same low-res mask space, checks low-res vs full-size masks of one tap (IoU >= 0.9),
   and requires >= 1 food on the pinned Commons photo (`tools/it-photo.json`); a stand-in plate there is a warning.
 

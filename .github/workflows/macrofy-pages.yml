@@ -1,5 +1,7 @@
 name: macrofy-pages
 
+# Publishes macrofy/web to the gh-pages branch, which GitHub Pages serves at
+# https://fabiohelper.github.io/artisan-studio/ (GITHUB_TOKEN cannot enable Pages via the API).
 on:
   push:
     branches: [main]
@@ -7,27 +9,22 @@ on:
   workflow_dispatch:
 
 permissions:
-  pages: write
-  id-token: write
-  contents: read
+  contents: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: macrofy-pages
+  cancel-in-progress: true
 
 jobs:
-  deploy:
+  publish:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
         with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: macrofy/web
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          fetch-depth: 0
+      - name: Web selftest
+        run: node macrofy/web/selftest.mjs
+      - name: Push macrofy/web to gh-pages
+        run: |
+          git subtree split --prefix macrofy/web -b gh-pages-publish
+          git push --force origin gh-pages-publish:gh-pages

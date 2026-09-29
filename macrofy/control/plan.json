@@ -329,12 +329,12 @@
         "G-4",
         "G-5"
       ],
-      "status": "todo",
+      "status": "active",
       "review": "required",
       "depends_on": [
         "T-005"
       ],
-      "spec": null,
+      "spec": "docs/specs/SPEC-T-013-estimation-mvp.md",
       "acceptance": [
         {
           "id": "A1",

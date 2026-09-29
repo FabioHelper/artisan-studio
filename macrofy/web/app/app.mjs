@@ -1,5 +1,6 @@
 // Macrofy capture app: hash-routed screens, no framework. Pure logic is in lib.mjs, storage in db.mjs.
 import * as db from './db.mjs';
+import { createEstimate } from './estimate.mjs';
 import {
   ANGLES, LIGHTINGS, STATES, METHODS, KINDS, SPLIT_LABEL, MIN_PHOTOS_RECOMMENDED,
   sha256Hex, dHashFromRGBA, isoWithOffset, splitForCapture, plateFromForm, checkMealDraft, mealFromDraft, newMealId,
@@ -77,6 +78,7 @@ async function snapshot() {
 // ---------------------------------------------------------------- home
 async function screenHome() {
   const { plates, meals } = await snapshot();
+  const estimates = await db.getAll('estimates');
   const lastExport = await db.getSetting('last_export');
   const cal = meals.filter(m => m.split === 'calibration').length;
   const draft = await db.getSetting('draft');
@@ -91,7 +93,8 @@ async function screenHome() {
     h('div', { class: 'stack' },
       h('a', { class: 'btn', href: '#/meal' }, draft ? 'Continuar refeição em andamento' : 'Pesar refeição'),
       draft ? h('a', { class: 'btn secondary', href: '#/meal/new' }, 'Começar uma refeição nova') : null,
-      h('button', { class: 'secondary', disabled: true, 'aria-disabled': 'true' }, 'Estimar (em breve)'),
+      h('a', { class: 'btn secondary', href: '#/estimate/new' }, 'Estimar'),
+      h('a', { class: 'btn secondary', href: '#/estimates' }, `Estimativas salvas (${estimates.length})`),
       h('a', { class: 'btn secondary', href: '#/meals' }, `Refeições salvas (${meals.length})`),
       h('a', { class: 'btn secondary', href: '#/plates' }, `Pratos e balança (${plates.length})`),
       h('a', { class: 'btn secondary', href: '#/export' }, 'Exportar manifesto')),
@@ -345,8 +348,12 @@ async function screenExport() {
     h('p', { class: 'muted' }, 'Depois de exportar: envie o arquivo pelo GitHub (bench/manifest.json) ou cole o texto no chat. Detalhes no protocolo de pesagem.'));
 }
 
+// ---------------------------------------------------------------- estimation (T-013): screens live in estimate.mjs
+const estimate = createEstimate({ h, show, back, errorBox, toast, db, objUrl, fmtDate, bitmapOf, searchVocab, isoWithOffset, getVocab: () => vocab });
+
 // ---------------------------------------------------------------- router and start
 const ROUTES = [
+  [/^#\/estimate\/new$/, estimate.screenEstimateNew], [/^#\/estimate$/, estimate.screenEstimate], [/^#\/estimates$/, estimate.screenEstimates],
   [/^#\/?$/, screenHome], [/^#\/meal$/, () => screenMeal(false)], [/^#\/meal\/new$/, () => screenMeal(true)],
   [/^#\/meals$/, screenMeals], [/^#\/meals\/(.+)$/, (m) => screenMealDetail(decodeURIComponent(m[1]))],
   [/^#\/plates$/, screenPlates], [/^#\/plates\/(.+)$/, (m) => screenPlateForm(decodeURIComponent(m[1]))], [/^#\/export$/, screenExport],

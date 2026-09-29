@@ -1,5 +1,5 @@
-// Copies the shared sources the capture app needs into web/app (GitHub Pages serves only web/).
-//   node web/sync-data.mjs           copy (run after nutrition/vocab.json or bench/schema-core.mjs change)
+// Copies the shared sources the app needs into web/app (GitHub Pages serves only web/, and the app is one folder for the service worker).
+//   node web/sync-data.mjs           copy (run after any source in COPIES changes: vocab, schema, lookup, estimate core, priors, models)
 //   node web/sync-data.mjs --check   exit 1 if a copy is stale (web/selftest.mjs does the same)
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -9,6 +9,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..'); // macrofy/
 export const COPIES = [
   { from: 'nutrition/vocab.json', to: 'web/app/data/vocab.json' },
   { from: 'bench/schema-core.mjs', to: 'web/app/vendor/schema-core.mjs' },
+  // estimation (T-013): the nutrition lookup without Node imports, the pure core, its priors and calibration, the model loader
+  { from: 'nutrition/lookup-core.mjs', to: 'web/app/vendor/lookup-core.mjs' },
+  { from: 'web/estimate/core.mjs', to: 'web/app/vendor/estimate-core.mjs' },
+  { from: 'web/estimate/priors.json', to: 'web/app/data/priors.json' },
+  { from: 'web/estimate/calibration.json', to: 'web/app/data/calibration.json' },
+  { from: 'web/lib/models.mjs', to: 'web/app/vendor/models.mjs' },
 ];
 
 /** Returns the copies that are missing or differ from their source. */

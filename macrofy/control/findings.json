@@ -36,7 +36,7 @@
       "severity": "medium",
       "status": "open",
       "task": "T-013",
-      "evidence": "T-005 review (#50): kind flag present on all entries (55 pieces, 18 served); estimator must not apply pieces densities to solid outlines",
+      "evidence": "T-005 review (#50): kind flag present on all entries (55 pieces, 18 served); estimator must not apply pieces densities to solid outlines; T-013 (uncalibrated estimator): web/estimate/core.mjs now uses a solid-density prior (1.05 g/mL, an assumption in web/estimate/priors.json) for pieces-kind densities of solid groups (grilled or fried meat, fish, egg, fruit, cheese) and keeps the vocab density for served kinds and loose foods; the vocab densities themselves are unchanged and the prior awaits calibration on weighed meals",
       "expected_failing": []
     }
   ]

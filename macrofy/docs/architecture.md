@@ -84,7 +84,8 @@ Turns a food label and grams into kcal and macros, and millilitres into grams. S
 | `nutrition/data/` | Only the TACO and FNDDS rows the classes use, each extract with origin, hashes and license in its metadata |
 | `nutrition/tools/class_spec.mjs` | The human-authored class-to-row mapping; contains no nutrient or density numbers |
 | `nutrition/tools/build_vocab.mjs` | Reads the spec and the extracts, writes the vocab and sources files; `nutrition/tools/extract_sources.mjs` rebuilds the extracts from raw downloads |
-| `nutrition/lookup.mjs` | `nutrientsFor`, `massFromVolume` and the `truthNutrients` adapter for `evaluate()` in `eval/metrics.mjs` |
+| `nutrition/lookup-core.mjs` | The pure lookup (`createLookup`: `nutrientsFor`, `massFromVolume`, the `truthNutrients` adapter for `evaluate()` in `eval/metrics.mjs`), with no Node imports so the browser runs it too |
+| `nutrition/lookup.mjs` | Node wrapper: loads the real vocab and re-exports the lookup functions |
 | `nutrition/validate.mjs` | The check `nutrition-map-validate`: negative fixtures per rule, lookup arithmetic, then the real vocab and sources |
 
 Invariants: every nutrient and density is copied or derived from a bundled source row (the validator
@@ -96,20 +97,40 @@ the same (`exact`) or the closest available (`analog`); a rule with no failing f
 ## Web (`web/`)
 
 Static site published to GitHub Pages by the workflow `macrofy-pages.yml`; no build step, plain ES
-modules. It becomes the Macrofy PWA (ADR 0004). Today it holds the on-phone feasibility test and the capture app (the shell that T-013 estimation will extend).
-Spec: [SPEC-T-012](specs/SPEC-T-012-browser-feasibility.md); owner procedure:
+modules. It becomes the Macrofy PWA (ADR 0004). Today it holds the on-phone feasibility test, the capture app and the estimation flow built on it.
+Specs: [SPEC-T-012](specs/SPEC-T-012-browser-feasibility.md), [SPEC-T-013](specs/SPEC-T-013-estimation-mvp.md); owner procedure:
 [feasibility-test](runbooks/feasibility-test.md).
 
 | Module | Responsibility |
 |---|---|
 | `web/index.html` | Landing page linking to the tools |
 | `web/feasibility/index.html`, `web/feasibility/run.mjs` | pt-BR page and browser runner: per stage tries candidate models in order, WebGPU then WASM, times load, cached load and inference, saves progress to localStorage |
-| `web/feasibility/candidates.mjs` | The pinned transformers.js URL, stages, candidate model ids, labels |
+| `web/feasibility/candidates.mjs` | Stages and labels; the depth candidates live here, the segmentation and naming candidates and the transformers.js versions come from `web/lib/models.mjs` |
 | `web/feasibility/verdict.mjs` | Pure verdict and result JSON, importable from Node |
 | `web/app/` (`index.html`, `app.mjs`, `lib.mjs`, `db.mjs`, `sw.js`, `manifest.webmanifest`) | Capture app (T-011, [spec](specs/SPEC-T-011-capture-app.md)): pt-BR PWA shell with plate registry, weighed-meal entry, IndexedDB storage and export in the macrofy.bench/1 manifest format; `lib.mjs` is the pure, Node-testable logic (dHash, split, manifest, pt-BR problems), tested by `capture/selftest.mjs` |
-| `web/sync-data.mjs` | Copies `nutrition/vocab.json` and `bench/schema-core.mjs` into `web/app/` (Pages serves only `web/`); `--check` and `web/selftest.mjs` fail on a stale copy |
-| `web/selftest.mjs` | The check `web-selftest`: files, syntax, pinned CDN version, candidates, verdict fixtures, capture app files, service worker shell, copy drift |
+| `web/sync-data.mjs` | Copies the shared sources (`nutrition/vocab.json`, `bench/schema-core.mjs`, `nutrition/lookup-core.mjs`, the estimation core, priors and calibration, the model loader) into `web/app/` (Pages serves only `web/`); `--check` and `web/selftest.mjs` fail on a stale copy |
+| `web/selftest.mjs` | The check `web-selftest`: files, syntax, pinned CDN versions and their fallback, candidates, the model layer against a fake library, verdict fixtures, app files, service worker shell, copy drift |
 
-Invariants: the transformers.js URL carries an exact version; model ids are tried in order and the
+Invariants: the transformers.js URL carries an exact version (4.3.0, then 3.8.1 if the import fails); model ids are tried in order and the
 result records which loaded and why others failed; verdict logic lives only in `verdict.mjs`;
 models are disposed before the next stage runs.
+
+## Estimation (`web/estimate/`)
+
+Photo to grams, macros and an 80% range, uncalibrated. Spec: [SPEC-T-013](specs/SPEC-T-013-estimation-mvp.md).
+
+| Module | Responsibility |
+|---|---|
+| `web/estimate/core.mjs` | Pure, import-free maths: ellipse fit from a plate mask (second moments), mm per pixel and tilt, item area, volume, F-004 solid-aware density, calibration factor, oil levels, lognormal 80% range, plate totals, name prompts, and `toPredictions` (macrofy.predictions/1) |
+| `web/estimate/priors.json` | The only invented numbers: thickness and cv per food group, the solid density, the scale uncertainty; each labelled as an assumption with a rationale and what to calibrate it from |
+| `web/estimate/calibration.json` | Per-group grams factors fitted later on weighed meals; empty means 1.0 |
+| `web/estimate/selftest.mjs` | The check `estimator-selftest`: hand-computed fixtures, range, oil, export accepted and scored by the evaluation engine, negative checks |
+| `web/estimate/smoke.mjs` | Headless browser walk of the whole flow with a mocked model layer (manual run; needs a browser) |
+| `web/lib/models.mjs` | Shared model layer (app and feasibility page): transformers.js import with version fallback, SAM2.1-tiny then SlimSAM, SigLIP 2 then SigLIP, WebGPU then WASM, progress, the injectable model object |
+| `web/app/estimate.mjs` | The pt-BR estimate screens and the saved-estimates list with the predictions export; stores in the `estimates` IndexedDB store |
+
+Invariants: the core has no imports (the browser runs a copy synced by `web/sync-data.mjs`); the
+app takes its models from `window.__macrofyModels` when present, so tests mock the model layer;
+every estimate is labelled uncalibrated and carries the pipeline name and version; export labels
+are the vocab `pt` names; the shipped priors are assumptions until T-008 replaces the range with
+conformal calibration.

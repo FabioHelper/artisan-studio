@@ -1,17 +1,21 @@
-import { LABELS, STAGES, backendsOf } from './candidates.mjs';
-import { importTransformers, loadCandidate, detectWebGpu } from '../lib/models.mjs';
-import { median, buildResults, freshState, recordCrash, nextStage, candidatesLeft, failedStage } from './verdict.mjs';
+import { STAGES } from './candidates.mjs';
+import { importTransformers, loadCandidate, detectWebGpu, loadProbe, orderBySize, prepareEmbeddings, vocabLabels, embedImage, scoreImage, fileTracker } from '../lib/models.mjs';
+import { median, buildResults, migrateState, recordCrash, nextStage, nextAttempt, beginAttempt, endAttempt, noteFetching, recordFailure, recordStorage, storageRecord, failedStage } from './verdict.mjs';
 
 // Each stage runs in its own page load: after a stage the page reloads, so the models of earlier stages are freed (the iPhone 16e
-// killed the tab when SAM loaded on top of the depth model, F-005). The state is saved before every attempt; a tab that died is
-// recorded as a crashed CANDIDATE on the next load, and the run resumes with the next candidate of the same stage.
-const KEY = 'macrofy.feasibility.v2';
+// killed the tab when SAM loaded on top of the depth model, F-005). The unit is ONE ATTEMPT (model, device, dtype): it is marked tried and
+// the state is saved before it starts; a tab that died is recorded as ONE crashed attempt on the next load, and the run continues with the
+// next untried attempt of the SAME stage (F-006). See verdict.mjs.
+const KEY = 'macrofy.feasibility.v2'; // the saved state carries its own version (migrateState): a state of an older page is discarded
 const PHOTO_KEY = `${KEY}.photo`;
 const $ = (id) => document.getElementById(id);
 const now = () => performance.now();
 const save = (s) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} };
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } };
-let T, state = freshState();
+let T, state = migrateState(null);
+const EMB_BASE = new URL('../app/data/text-emb/', location.href).href; // the same committed files the app scores against
+const VOCAB_URL = new URL('../app/data/vocab.json', location.href);
+const PROBE_URLS = [new URL('../lib/model-probe.json', location.href), new URL('../app/data/model-probe.json', location.href)];
 
 function syntheticPlate() {
   const c = document.createElement('canvas'); c.width = c.height = 512;
@@ -34,11 +38,22 @@ async function rememberPhoto(file) {
   } catch { try { localStorage.removeItem(PHOTO_KEY); } catch {} }
 }
 
-const loadModel = (c, opts) => loadCandidate(T, c, opts); // shared loader: the same code path the estimate screens use
+/** navigator.storage.estimate() and persisted(), recorded before each stage (Safari's "Load failed" may be a storage quota problem). */
+async function storageDiag() {
+  try {
+    const st = navigator.storage;
+    const [est, per] = await Promise.all([st?.estimate?.().catch(() => null), st?.persisted?.().catch(() => null)]);
+    return storageRecord(est, per, st ? null : 'navigator.storage indisponível');
+  } catch (e) { return storageRecord(null, null, String(e?.message || e)); }
+}
+
+// prepared[model id] = { revision, table } for vision-only naming candidates: the checked text embeddings (fails before any download)
+const prepared = new Map();
+const prepare = (c) => { if (!prepared.has(c.id)) prepared.set(c.id, prepareEmbeddings(c.id, { labels: () => vocabLabels(VOCAB_URL), base: EMB_BASE })); return prepared.get(c.id); };
 
 const INFER = {
   'depth-estimation': (h, img) => h.p(img),
-  'zero-shot-image-classification': (h, img) => h.p(img, LABELS),
+  vision: (h, img, prep) => embedImage(h, img).then((v) => scoreImage(v, prep.table, prep.id, [...prep.table.keys()])),
   sam: async (h, img) => { // one point prompt at the image center
     const inputs = await h.proc(img, { input_points: [[[img.width / 2, img.height / 2]]] });
     const out = await h.model(inputs);
@@ -46,48 +61,60 @@ const INFER = {
   },
 };
 
-async function attempt(c, device, dtype, img) {
+async function attempt(a, img, tracker) {
+  const c = a.c, { device, dtype } = a;
   const files = new Map();
-  const progress = (e) => { if (e.status === 'progress' && e.file) files.set(e.file, e.loaded || 0); };
-  let t = now(), h = await loadModel(c, { device, dtype, progress_callback: progress });
+  const progress = tracker.callback;
+  const prep = c.vision ? { ...(await prepare(c)), id: c.id } : null; // throws "embeddings missing/stale" before anything is downloaded
+  const rev = prep ? { revision: prep.revision } : {};
+  const track = (e) => { if (e.status === 'progress' && e.file) files.set(e.file, e.loaded || 0); };
+  let t = now(), h = await loadCandidate(T, c, { device, dtype, ...rev, progress_callback: (e) => { track(e); progress(e); } });
   const load_ms = now() - t;
-  await INFER[h.task](h, img); // warm-up: WebGPU shader errors show up here, so fall back before timing
+  await INFER[h.task](h, img, prep); // warm-up: WebGPU shader errors show up here, so fall back before timing
   await h.dispose();
-  t = now(); h = await loadModel(c, { device, dtype });
+  t = now(); h = await loadCandidate(T, c, { device, dtype, ...rev });
   const cached_load_ms = now() - t, runs = [];
-  for (let i = 0; i < 3; i++) { t = now(); await INFER[h.task](h, img); runs.push(now() - t); }
+  for (let i = 0; i < 3; i++) { t = now(); await INFER[h.task](h, img, prep); runs.push(now() - t); }
   await h.dispose();
-  return { model: c.id, backend: device, dtype, bytes: [...files.values()].reduce((a, b) => a + b, 0),
+  return { model: c.id, backend: device, dtype, bytes: [...files.values()].reduce((x, y) => x + y, 0),
     load_ms: Math.round(load_ms), cached_load_ms: Math.round(cached_load_ms),
     infer_ms_median: Math.round(median(runs)), ok: true };
 }
 
-/** One stage: candidates in order (skipping ones that crashed the tab), each on its own backends. */
+/** One stage: every attempt (model, device, dtype) not tried yet, in order, until one works or none is left. */
 async function runStage(def, img, hasGpu, log) {
-  const attempts = [...(state.attempts[def.stage] ?? [])];
-  for (const c of candidatesLeft(state, def)) for (const [device, dtype] of backendsOf(c)) {
-    if (device === 'webgpu' && !hasGpu) continue;
-    log(`${def.title}: tentando ${c.id} (${device}/${dtype})…`);
-    state.running = { stage: def.stage, candidate: c.id, device, dtype }; save(state); // still set if the tab dies during this attempt
+  for (let a = nextAttempt(state, def, hasGpu); a; a = nextAttempt(state, def, hasGpu)) {
+    log(`${def.title}: tentando ${a.candidate} (${a.device}/${a.dtype})…`);
+    state = beginAttempt(state, def.stage, a); save(state); // marked tried and still `running` if the tab dies during this attempt
+    let lastUrl = null;
+    const tracker = fileTracker(a.candidate, () => { // remember the file being fetched: a killed tab then says where it died
+      if (tracker.url !== lastUrl) { lastUrl = tracker.url; state = noteFetching(state, tracker); save(state); }
+    });
     try {
-      const r = await attempt(c, device, dtype, img);
-      state.running = null;
-      return { stage: def.stage, ...r, ...(attempts.length ? { failed_attempts: attempts } : {}) };
+      const r = await attempt(a, img, tracker);
+      state = endAttempt(state); save(state);
+      const failed = state.attempts[def.stage] ?? [];
+      return { stage: def.stage, ...r, ...(failed.length ? { failed_attempts: failed } : {}) };
     } catch (e) {
-      state.running = null; attempts.push(`${c.id} ${device}/${dtype}: ${String(e?.message || e).slice(0, 160)}`);
-      state.attempts = { ...state.attempts, [def.stage]: attempts }; save(state);
+      state = recordFailure(state, def.stage, a, e, { file: tracker.file, url: tracker.url, inFlight: tracker.inFlight }); save(state);
     }
   }
-  return failedStage(def.stage, 'nenhum candidato carregou', attempts);
+  return failedStage(def.stage, 'nenhuma tentativa carregou', state.attempts[def.stage]);
 }
 
 function render(extra = '') {
-  const res = buildResults({ ua: navigator.userAgent, webgpu: !!navigator.gpu, stages: state.stages, crashes: state.crashes });
+  const res = buildResults({ ua: navigator.userAgent, webgpu: !!navigator.gpu, stages: state.stages, crashes: state.crashes, storage: state.storage, failures: state.failures });
   $('rows').innerHTML = state.stages.map((s) => `<tr><td>${s.stage}</td><td>${s.ok ? 'OK' : 'FALHOU'}</td><td>${s.backend || '-'}${s.dtype ? `/${s.dtype}` : ''}</td>
     <td>${s.infer_ms_median ?? '-'} ms</td><td>${(s.bytes / 1e6).toFixed(0)} MB</td></tr>`).join('');
   $('verdict').textContent = state.finished ? (res.verdict === 'go' ? 'Resultado: VIÁVEL (go)' : 'Resultado: NÃO VIÁVEL (no-go)') : extra;
   $('out').value = JSON.stringify(res, null, 2);
-  $('results').hidden = state.stages.length === 0 && state.crashes.length === 0;
+  $('results').hidden = state.stages.length === 0 && state.crashes.length === 0 && state.failures.length === 0;
+}
+
+/** The stage list with segmentation and naming candidates ordered by real size when the CI probe file exists (smallest first). */
+async function stagesBySize() {
+  const probe = await loadProbe(PROBE_URLS);
+  return STAGES.map((d) => (d.stage === 'depth' ? d : { ...d, candidates: orderBySize(d.candidates, probe) }));
 }
 
 /** Runs the next stage of the plan in this page load, then reloads for the one after (or finishes). */
@@ -96,7 +123,8 @@ async function runNext() {
   try { navigator.wakeLock?.request('screen').catch(() => {}); } catch {}
   const log = (m) => { $('status').textContent = m; };
   try {
-    const def = nextStage(state, STAGES);
+    const stages = await stagesBySize();
+    const def = nextStage(state, stages);
     if (!def) { state.finished = true; state.auto = false; save(state); log('Pronto! Toque em "Copiar resultados".'); }
     else {
       log('Carregando a biblioteca…');
@@ -104,29 +132,30 @@ async function runNext() {
       T = lib.T;
       log(`Biblioteca ${lib.version} carregada${lib.errors.length ? ` (falhou: ${lib.errors.join('; ')})` : ''}.`);
       const hasGpu = await detectWebGpu();
+      state = recordStorage(state, def.stage, await storageDiag()); save(state); // before the stage: quota, usage, persisted
       const img = await T.RawImage.fromBlob(await testImage());
       state.stages.push(await runStage(def, img, hasGpu, log));
       state.running = null; save(state); render(`Concluído: ${def.title}`);
-      if (nextStage(state, STAGES)) { log(`Etapa "${def.title}" concluída. Recarregando a página para liberar memória…`); setTimeout(() => location.reload(), 400); return; }
+      if (nextStage(state, stages)) { log(`Etapa "${def.title}" concluída. Recarregando a página para liberar memória…`); setTimeout(() => location.reload(), 400); return; }
       state.finished = true; state.auto = false; save(state); log('Pronto! Toque em "Copiar resultados".');
     }
-  } catch (e) { state.auto = false; save(state); log(`Erro: ${e?.message || e}`); }
+  } catch (e) { state.auto = false; save(state); log(`Erro: ${e?.name || 'Error'}: ${e?.message || e}`); }
   $('go').disabled = false; $('go').textContent = 'Refazer o teste'; render();
 }
 
 function start() {
-  const keep = state.finished ? freshState() : state; // "Refazer" starts over; "Continuar" keeps what is done
+  const keep = state.finished ? migrateState(null) : state; // "Refazer" starts over; "Continuar" keeps what is done
   state = { ...keep, auto: true }; save(state); runNext();
 }
 
 function init() {
-  state = { ...freshState(), ...(load() || {}) };
-  if (state.running) { // the previous tab died mid-attempt: record the crashed candidate; the same stage resumes with the next one
+  state = migrateState(load());
+  if (state.running) { // the previous tab died mid-attempt: record that attempt as crashed; the same stage continues with its next attempt
     const r = state.running; state = recordCrash(state); save(state);
-    $('status').textContent = `A aba foi encerrada ao testar ${r.candidate} (${r.stage}). ${state.auto ? 'Continuando com o próximo candidato…' : 'Toque em "Continuar o teste".'}`;
+    $('status').textContent = `A aba foi encerrada ao testar ${r.candidate} ${r.device}/${r.dtype} (${r.stage}). ${state.auto ? 'Continuando com a próxima tentativa…' : 'Toque em "Continuar o teste".'}`;
     $('go').textContent = 'Continuar o teste';
   }
-  if (state.stages.length || state.crashes.length) render();
+  if (state.stages.length || state.crashes.length || state.failures.length) render();
   $('go').onclick = start;
   $('photo').onchange = async (e) => { const f = e.target.files[0]; if (f) await rememberPhoto(f); };
   $('copy').onclick = async () => {

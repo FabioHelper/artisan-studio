@@ -6,10 +6,8 @@ import { TRANSFORMERS_VERSIONS, SEGMENT_CANDIDATES, NAMING_CANDIDATES, BACKENDS,
 
 export { TRANSFORMERS_VERSIONS, BACKENDS, backendsOf };
 
-export const LABELS = ['arroz branco', 'feijão', 'frango grelhado', 'bife', 'salada',
-  'batata frita', 'ovo', 'macarrão', 'farofa', 'banana'];
-
 // Order matters: the two stages the estimator needs run first, depth (informational only) last. Each stage runs in its own page load.
+// Naming candidates are vision-only (T-015): the page scores them against the committed text embeddings, as the app does.
 export const STAGES = [
   { stage: 'segmentation', title: 'Segmentação', candidates: SEGMENT_CANDIDATES },
   { stage: 'naming', title: 'Nomes dos alimentos', candidates: NAMING_CANDIDATES },

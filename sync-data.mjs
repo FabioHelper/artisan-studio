@@ -17,6 +17,10 @@ export const COPIES = [
   { from: 'web/lib/models.mjs', to: 'web/app/vendor/models.mjs' },
   // automatic mode (T-014): the pure mask post-processing; its import of the core is renamed to the vendored file name
   { from: 'web/estimate/autoseg.mjs', to: 'web/app/vendor/autoseg.mjs', replace: [["from './core.mjs'", "from './estimate-core.mjs'"]] },
+  // T-015: the CI model probe (real ONNX sizes and revisions) orders the candidates in the app too. It does not exist until the workflow
+  // macrofy-models first runs, hence `optional`: skipped while the source is missing. The text-embedding files are written by that
+  // workflow straight into web/app/data/text-emb/ (no source elsewhere), so they need no copy.
+  { from: 'web/lib/model-probe.json', to: 'web/app/data/model-probe.json', optional: true },
 ];
 
 /** The bytes a copy must have: the source, with the copy's textual replacements applied. */
@@ -28,9 +32,12 @@ export function expectedBytes({ from, replace = [] }) {
   return Buffer.from(text, 'utf8');
 }
 
-/** Returns the copies that are missing or differ from their source. */
+/** Returns the copies that are missing or differ from their source. An optional copy whose source does not exist is stale only if the copy exists. */
 export function staleCopies() {
-  return COPIES.filter(({ from, to, replace }) => !existsSync(join(root, to)) || !expectedBytes({ from, replace }).equals(readFileSync(join(root, to))));
+  return COPIES.filter(({ from, to, replace, optional }) => {
+    if (optional && !existsSync(join(root, from))) return existsSync(join(root, to));
+    return !existsSync(join(root, to)) || !expectedBytes({ from, replace }).equals(readFileSync(join(root, to)));
+  });
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
@@ -42,6 +49,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   } else {
     for (const c of COPIES) {
       const { from, to } = c;
+      if (c.optional && !existsSync(join(root, from))) { console.log(`${from} does not exist yet: skipped`); continue; }
       mkdirSync(dirname(join(root, to)), { recursive: true });
       writeFileSync(join(root, to), expectedBytes(c));
       console.log(`${from} -> ${to}`);

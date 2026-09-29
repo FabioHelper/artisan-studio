@@ -463,7 +463,7 @@ async function autoScenario() {
   const before = log.slice(0, cut); const after = log.slice(cut + 1);
   assert.ok(before.includes('load') && before.filter((e) => e === 'segmentPoints').length === 2 && !before.includes('classify') && !before.includes('loadNaming'), `SAM page: SAM and both grids, no naming: ${JSON.stringify(log)}`);
   assert.ok(before.at(-1) === 'releaseAll', `the SAM page frees the models and the GPU device just before the reload: ${JSON.stringify(before)}`);
-  assert.ok(after[0] === 'loadNaming' && after[1] === 'backends [["webgpu","q4f16"]]' && !after.includes('load') && !after.includes('setImage') && !after.includes('segmentPoints') && after.filter((e) => e === 'classify').length === 4, `naming page: only the namer, 4 crops named: ${JSON.stringify(log)}`);
+  assert.ok(after[0] === 'loadNaming' && after[1] === 'backends [["wasm","q8"]]' && !after.includes('load') && !after.includes('setImage') && !after.includes('segmentPoints') && after.filter((e) => e === 'classify').length === 4, `naming page: only the namer, 4 crops named: ${JSON.stringify(log)}`);
   assert.ok(pages.length >= 3, 'the page really reloaded between the halves');
   assert.equal(await page.evaluate(() => location.hash), '#/estimate', 'the naming URL is left before the naming model loads');
   assert.equal(await page.locator('[data-item]').count(), 3, 'rice, steak, salad; the fork rejected, as in one page');
@@ -483,14 +483,14 @@ async function autoScenario() {
   await page.waitForFunction(() => /Carregando o modelo de nomes/.test(document.getElementById('auto-label')?.textContent ?? ''));
   assert.equal(await page.evaluate(() => location.hash), '#/estimate/name', 'the naming URL is kept while the namer loads (so a Safari reload comes back here)');
   const nmark = JSON.parse(await page.evaluate(() => localStorage.getItem('macrofy_run')));
-  assert.ok(nmark.page === 'naming' && nmark.naming_plan === 0 && nmark.backends === 'webgpu/q4f16', JSON.stringify(nmark));
+  assert.ok(nmark.page === 'naming' && nmark.naming_plan === 0 && nmark.backends === 'wasm/q8', JSON.stringify(nmark));
   await page.evaluate(() => sessionStorage.setItem('__mockLog', '[]'));
   await page.goto('about:blank'); await page.goto(`${base()}#/estimate/name`); // the tab dies; Safari reloads the same URL
   await page.waitForSelector('h2:text-is("Resultado")'); await shot('a09-naming-recovered');
   const log2 = JSON.parse(await page.evaluate(() => sessionStorage.getItem('__mockLog')));
-  assert.ok(!log2.includes('segmentPoints') && !log2.includes('load') && log2.includes('backends [["wasm","q8"]]'), `next plan (the CPU), naming only: ${JSON.stringify(log2)}`);
+  assert.ok(!log2.includes('segmentPoints') && !log2.includes('load') && log2.includes('backends [["webgpu","q4f16"]]'), `next plan (WebGPU), naming only: ${JSON.stringify(log2)}`);
   assert.equal(await page.evaluate(() => location.hash), '#/estimate');
-  assert.match(await page.locator('#diag-text').textContent(), /"last_crash": \{[\s\S]*"backends": "webgpu\/q4f16"/);
+  assert.match(await page.locator('#diag-text').textContent(), /"last_crash": \{[\s\S]*"backends": "wasm\/q8"/);
   assert.equal(await page.locator('[data-item]').count(), 3);
 
   step('auto on the iPhone: every naming plan dies -> the crash card (bounded, no loop); its retry names again in a fresh page');
@@ -503,7 +503,7 @@ async function autoScenario() {
   assert.equal(JSON.parse(await page.evaluate(() => localStorage.getItem('macrofy_run'))).naming_plan, 1);
   await page.goto('about:blank'); await page.goto(`${base()}#/estimate/name`);
   await page.waitForSelector('#crash'); await shot('a10-naming-crash-card');
-  assert.match(await page.locator('#crash').innerText(), /carregando o modelo de nomes \(0\/4\) \(wasm\/q8\)/, 'the crash names the backends that died');
+  assert.match(await page.locator('#crash').innerText(), /carregando o modelo de nomes \(0\/4\) \(webgpu\/q4f16\)/, 'the crash names the backends that died');
   assert.equal(await page.evaluate(() => location.hash), '#/estimate', 'the crash card leaves the naming URL (no reload loop)');
   await page.evaluate(() => sessionStorage.setItem('__mockLog', '[]'));
   await page.locator('#retry-naming').click(); await page.waitForSelector('h2:text-is("Resultado")');

@@ -261,13 +261,13 @@ export function plateDiagnostics(masks, opts, evals = plateEvals(masks, opts, tr
  * `plate` is a selectPlate result or a mask. With plateDupIou (< 1) a mask whose IoU with the plate is above it is the plate itself and is dropped
  * (SAM returns the plate with and without its food). Returns copies with plate_frac and inside_frac attached.
  */
-export function filterFoods(masks, plate, { minFrac, maxFrac, minPredIoU, minInsideFrac = 0, plateDupIou = 1, ringMinArc, ringMinBand, ringBandLo, ringSectors }, onDrop = () => {}) {
+export function filterFoods(masks, plate, { minFrac, maxFrac, minPredIoU, minPredIoUSupported, supportMin, minInsideFrac = 0, plateDupIou = 1, ringMinArc, ringMinBand, ringBandLo, ringSectors }, onDrop = () => {}) {
   const pm = plate.mask ?? plate; const ps = stats(pm); const src = plate.source ?? null;
   if (ps.n === 0) return [];
   const out = [];
   for (const m of masks) {
     if (m === pm || m === src || m.data === pm.data) { onDrop(m, 'plate'); continue; }
-    if ((m.score ?? 0) < minPredIoU) { onDrop(m, 'low_score'); continue; }
+    if (!confident(m, { minPredIoU, minPredIoUSupported, supportMin })) { onDrop(m, 'low_score'); continue; }
     const sm = stats(m); if (sm.n === 0) { onDrop(m, 'empty'); continue; }
     const inter = intersection(m, sm, pm, ps);
     const plateFrac = inter / ps.n; const inside = inter / sm.n;
@@ -293,6 +293,27 @@ function foodRows(raw, drops, kept, resolved, areaOf) {
     return { x: m.point ? Math.round(m.point.x) : null, y: m.point ? Math.round(m.point.y) : null, score: r3(m.score ?? 0), frac: r3(areaOf(m)), verdict };
   });
 }
+
+/**
+ * Support of each low-confidence mask: how many DISTINCT prompt points returned a mask that agrees with it (IoU >= iouThr), itself included. Only masks
+ * with score in [lo, hi) are counted (the others do not need it); sets m.support. A heap of many small pieces (french fries, beans) comes back from SAM
+ * as one mask of middling predicted IoU from several points (owner's photo: the fries heap scored 0.78 from 3 points and was dropped at 0.8).
+ */
+export function markSupport(masks, { lo, hi, iouThr }) {
+  const st = masks.map((m) => stats(m)); const key = (m) => (m.point ? `${Math.round(m.point.x)},${Math.round(m.point.y)}` : null);
+  masks.forEach((m, i) => {
+    const s = m.score ?? 0; if (s < lo || s >= hi || !st[i].n) return;
+    const pts = new Set([key(m) ?? `self${i}`]);
+    masks.forEach((q, j) => {
+      if (j === i || !st[j].n || Math.min(st[i].n, st[j].n) / Math.max(st[i].n, st[j].n) < iouThr) return;
+      if (iouFrom(m, st[i], q, st[j]) >= iouThr) pts.add(key(q) ?? `m${j}`);
+    });
+    m.support = pts.size;
+  });
+  return masks;
+}
+/** A mask is confident enough: its predicted IoU reaches minPredIoU, or it reaches minPredIoUSupported and supportMin prompt points agree on it. */
+const confident = (m, { minPredIoU, minPredIoUSupported = Infinity, supportMin = Infinity }) => (m.score ?? 0) >= minPredIoU || ((m.score ?? 0) >= minPredIoUSupported && (m.support ?? 1) >= supportMin);
 
 /** Every pixel goes to the mask with the highest predicted IoU (ties: the earlier one); masks left empty are dropped. Inputs are not modified. */
 export function resolveOverlaps(masks) {
@@ -459,6 +480,9 @@ export async function detectAuto({ models, params, classes, width, height, photo
     timings.prompts += r.done ?? points.length; timings.decodes += r.decodes ?? points.length; timings.decode_ms += r.ms ?? 0; timings[`${stage === 'plate' ? 'plate' : 'food'}_decode_ms`] += r.ms ?? 0; timings.timed_out ||= !!r.timed_out;
     return r.masks;
   };
+  // food confidence: the predicted IoU, or a middling one that several prompt points agree on (a heap of small pieces)
+  const confOpts = { minPredIoU: p.food_min_pred_iou, minPredIoUSupported: p.food_min_pred_iou_supported, supportMin: p.food_support_min };
+  const supportOpts = { lo: p.food_min_pred_iou_supported ?? p.food_min_pred_iou, hi: p.food_min_pred_iou, iouThr: p.dedupe_iou };
   onStage({ stage: 'plate', done: 0, total: p.plate_grid_n ** 2 });
   // the plate stage keeps every multimask output of a point (the whole plate is often not the best-scoring one), the food stage the best one
   const plateRaw = await grid(gridPoints(width, height, p.plate_grid_n), 'plate', p.plate_masks_per_point ?? p.masks_per_point);
@@ -475,11 +499,11 @@ export async function detectAuto({ models, params, classes, width, height, photo
     const cf = p.noplate_center_frac ?? 0.8; const total = width * height;
     const pts = gridPoints(width, height, p.food_grid_n).filter((q) => Math.abs(q.x - width / 2) <= cf * width / 2 && Math.abs(q.y - height / 2) <= cf * height / 2);
     onStage({ stage: 'foods', done: 0, total: pts.length });
-    const raw = (await grid(pts, 'foods', p.masks_per_point)).map((m, r) => ({ ...m, _r: r }));
+    const raw = markSupport((await grid(pts, 'foods', p.food_masks_per_point ?? p.masks_per_point)).map((m, r) => ({ ...m, _r: r })), supportOpts);
     const touches = (m) => { const b = stats(m).box; return b ? (b.x0 === 0) + (b.y0 === 0) + (b.x1 === width - 1) + (b.y1 === height - 1) : 0; };
     const drops = new Map(); const deduped = dedupe(raw, p.dedupe_iou); for (const m of raw) if (!deduped.includes(m)) drops.set(m._r, 'duplicate');
     const why = (m) => {
-      if ((m.score ?? 0) < p.food_min_pred_iou) return 'low_score'; const frac = stats(m).n / total;
+      if (!confident(m, confOpts)) return 'low_score'; const frac = stats(m).n / total;
       if (frac < (p.noplate_food_min_image_frac ?? 0.005)) return 'too_small'; if (frac > (p.noplate_food_max_image_frac ?? 0.35)) return 'too_large';
       return touches(m) >= 2 ? 'background' : null; // not the table or the background
     };
@@ -493,9 +517,9 @@ export async function detectAuto({ models, params, classes, width, height, photo
   const e = plate.ellipse; const inner = { ...e, a: e.a * p.food_grid_inset, b: e.b * p.food_grid_inset };
   const foodPoints = gridPoints(width, height, p.food_grid_n, { insideEllipse: inner });
   onStage({ stage: 'foods', done: 0, total: foodPoints.length });
-  const raw = (await grid(foodPoints, 'foods', p.masks_per_point)).map((m, r) => ({ ...m, _r: r }));
+  const raw = markSupport((await grid(foodPoints, 'foods', p.food_masks_per_point ?? p.masks_per_point)).map((m, r) => ({ ...m, _r: r })), supportOpts);
   const drops = new Map(); const deduped = dedupe(raw, p.dedupe_iou); for (const m of raw) if (!deduped.includes(m)) drops.set(m._r, 'duplicate');
-  const filtered = filterFoods(deduped, plate, { minFrac: p.food_min_frac, maxFrac: p.food_max_frac, minPredIoU: p.food_min_pred_iou, minInsideFrac: p.food_min_inside_frac, plateDupIou: p.dedupe_iou,
+  const filtered = filterFoods(deduped, plate, { minFrac: p.food_min_frac, maxFrac: p.food_max_frac, ...confOpts, minInsideFrac: p.food_min_inside_frac, plateDupIou: p.dedupe_iou,
     ringMinArc: p.plate_ring_min_arc, ringMinBand: p.plate_ring_min_band, ringBandLo: p.plate_ring_band_lo, ringSectors: p.plate_ring_sectors }, (m, reason) => drops.set(m._r, reason));
   const plateArea = stats(plate.mask).n;
   const resolved = resolveOverlaps(filtered).filter((m) => m.pixels / plateArea >= p.food_min_frac);

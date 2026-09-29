@@ -521,11 +521,70 @@ export async function detectAuto({ models, params, classes, width, height, photo
   const drops = new Map(); const deduped = dedupe(raw, p.dedupe_iou); for (const m of raw) if (!deduped.includes(m)) drops.set(m._r, 'duplicate');
   const filtered = filterFoods(deduped, plate, { minFrac: p.food_min_frac, maxFrac: p.food_max_frac, ...confOpts, minInsideFrac: p.food_min_inside_frac, plateDupIou: p.dedupe_iou,
     ringMinArc: p.plate_ring_min_arc, ringMinBand: p.plate_ring_min_band, ringBandLo: p.plate_ring_band_lo, ringSectors: p.plate_ring_sectors }, (m, reason) => drops.set(m._r, reason));
-  const plateArea = stats(plate.mask).n;
-  const resolved = resolveOverlaps(filtered).filter((m) => m.pixels / plateArea >= p.food_min_frac);
+  const plateArea = stats(plate.mask).n; const minPix = (m) => m.pixels / plateArea >= p.food_min_frac;
+  let resolved = resolveOverlaps(filtered).filter(minPix);
+  // heaps of small pieces (french fries): SAM answers each grid point with one piece, never the heap. Neighbouring grid points that only found a
+  // small piece and that no item covers are prompted TOGETHER (one decode: them as positives, the items' centres as negatives) -> the whole heap
+  const heaps = await findHeaps({ models, p, raw, foodPoints, resolved, plate, width, height, sx, sy, low, timings });
+  if (heaps.masks.length) resolved = resolveOverlaps([...filtered, ...heaps.masks]).filter(minPix);
   const kept = resolved.sort((a, b) => b.pixels - a.pixels).slice(0, p.max_food_items);
-  const foodDebug = diagnostics ? { food_candidates: foodRows(raw, drops, kept, resolved, (m) => intersection(m, stats(m), plate.mask, stats(plate.mask)) / plateArea) } : {};
+  const foodDebug = diagnostics ? { food_candidates: foodRows(raw, drops, kept, resolved, (m) => intersection(m, stats(m), plate.mask, stats(plate.mask)) / plateArea), heap_groups: heaps.rows } : {};
   return named(finish({ status: 'segmented', width, height, plate, plate_detected: true, kept, ...debug, ...foodDebug }));
+}
+
+/**
+ * The heap step (see detectAuto). A grid point is UNEXPLAINED when it is on the plate, no resolved item covers it, and its best-scoring mask is small
+ * (under heap_fragment_max_frac of the plate: one piece, not the bare plate surface, which comes back as a large region). Unexplained points that are
+ * grid neighbours (8-neighbourhood) form a group; a group of at least heap_min_points is decoded once with models.segmentGroup (up to heap_max_points
+ * positives, the centres of the heap_max_negatives nearest items as negatives). The best output that is food-sized, not the plate, confident enough
+ * (food_min_pred_iou_supported) and covers at least half of the group's points becomes a candidate (heap: true). Needs models.segmentGroup; without
+ * it (older model layers, tests) nothing happens. Returns { masks, rows } (rows: one per group, for the Diagnóstico).
+ */
+async function findHeaps({ models, p, raw, foodPoints, resolved, plate, width, height, sx, sy, low, timings }) {
+  const out = { masks: [], rows: [] };
+  if (typeof models.segmentGroup !== 'function' || !(p.heap_min_points > 0) || !foodPoints.length) return out;
+  const pm = plate.mask; const ps = stats(pm); const at = (m, q) => m.data[Math.min(height - 1, Math.max(0, Math.round(q.y))) * width + Math.min(width - 1, Math.max(0, Math.round(q.x)))];
+  const key = (x, y) => `${Math.round(x)},${Math.round(y)}`; const byPoint = new Map();
+  for (const m of raw) if (m.point) { const k = key(m.point.x / sx, m.point.y / sy); if (!byPoint.has(k)) byPoint.set(k, []); byPoint.get(k).push(m); }
+  const frag = (q) => {
+    if (!at(pm, q) || resolved.some((m) => at(m, q))) return false;
+    const outs = byPoint.get(key(q.x, q.y)) ?? []; if (!outs.length) return false;
+    const best = outs.reduce((a, b) => ((b.score ?? 0) > (a.score ?? 0) ? b : a)); const n = stats(best).n;
+    return n > 0 && n / ps.n < p.heap_fragment_max_frac;
+  };
+  const cand = foodPoints.filter(frag); const n = p.food_grid_n; const dx = width / n; const dy = height / n;
+  const near = (a, b) => Math.abs(a.x - b.x) <= dx * 1.01 && Math.abs(a.y - b.y) <= dy * 1.01;
+  const seen = new Set(); const groups = [];
+  cand.forEach((q, i) => {
+    if (seen.has(i)) return; const g = []; const stack = [i]; seen.add(i);
+    while (stack.length) { const j = stack.pop(); g.push(cand[j]); cand.forEach((r, k) => { if (!seen.has(k) && near(cand[j], r)) { seen.add(k); stack.push(k); } }); }
+    groups.push(g);
+  });
+  const centroid = (m) => { let x = 0; let y = 0; let c = 0; for (let yy = 0; yy < height; yy++) for (let xx = 0; xx < width; xx++) if (m.data[yy * width + xx]) { x += xx; y += yy; c++; } return c ? { x: x / c, y: y / c } : null; };
+  const itemCentres = resolved.map(centroid).filter((c) => c && at(pm, c));
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  for (const g of groups) {
+    const gc = { x: g.reduce((a, q) => a + q.x, 0) / g.length, y: g.reduce((a, q) => a + q.y, 0) / g.length };
+    if (g.length < p.heap_min_points) { out.rows.push({ x: Math.round(gc.x * sx), y: Math.round(gc.y * sy), points: g.length, score: null, frac: null, verdict: 'too_few_points' }); continue; }
+    const step = Math.max(1, Math.ceil(g.length / p.heap_max_points)); const pos = g.filter((_, i) => i % step === 0).slice(0, p.heap_max_points);
+    const neg = itemCentres.map((c) => ({ c, d: Math.hypot(c.x - gc.x, c.y - gc.y) })).sort((a, b) => a.d - b.d).slice(0, p.heap_max_negatives).map((e) => e.c);
+    const prompt = [...pos.map((q) => ({ x: q.x * sx, y: q.y * sy, label: 1 })), ...neg.map((q) => ({ x: q.x * sx, y: q.y * sy, label: 0 }))];
+    const t0 = Date.now(); const masks = await models.segmentGroup(prompt, low ? { w: width, h: height } : null);
+    timings.decodes += 1; timings.decode_ms += Date.now() - t0; timings.heap_decodes = (timings.heap_decodes ?? 0) + 1;
+    let pick = null; let why = 'no_fit';
+    for (const m of [...masks].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))) {
+      if (m.width !== width || m.height !== height) throw new Error(`máscaras ${m.width}x${m.height}, esperado ${width}x${height}`);
+      const sm = stats(m); if (!sm.n) continue; const inter = intersection(m, sm, pm, ps); const frac = inter / ps.n;
+      if ((m.score ?? 0) < p.food_min_pred_iou_supported) { why = 'low_score'; continue; }
+      if (inter / (ps.n + sm.n - inter) > p.dedupe_iou || frac > p.food_max_frac) { why = 'plate'; continue; }
+      if (frac < p.food_min_frac) { why = 'too_small'; continue; }
+      if (pos.filter((q) => at(m, q)).length < pos.length / 2) { why = 'misses_points'; continue; }
+      pick = { ...m, heap: true, point: { x: gc.x * sx, y: gc.y * sy } }; why = 'kept'; break;
+    }
+    if (pick) out.masks.push(pick);
+    out.rows.push({ x: Math.round(gc.x * sx), y: Math.round(gc.y * sy), points: g.length, score: pick ? r3(pick.score ?? 0) : null, frac: pick ? r3(intersection(pick, stats(pick), pm, ps) / ps.n) : null, verdict: why });
+  }
+  return out;
 }
 
 /**
@@ -554,7 +613,7 @@ export async function finishAuto({ models, params, classes, crop, seg, onStage =
   const merged = mergeSameLabel(named, p.merge_adjacency_px);
   const ms = Math.round(now() - t1); const t = seg.timings ?? {};
   const timings = { ...t, classify_ms: (t.classify_ms ?? 0) + ms, total_ms: (t.total_ms ?? 0) + ms };
-  const debug = { ...(seg.plate_candidates ? { plate_candidates: seg.plate_candidates } : {}), ...(seg.food_candidates ? { food_candidates: seg.food_candidates } : {}) };
+  const debug = { ...(seg.plate_candidates ? { plate_candidates: seg.plate_candidates } : {}), ...(seg.food_candidates ? { food_candidates: seg.food_candidates } : {}), ...(seg.heap_groups ? { heap_groups: seg.heap_groups } : {}) };
   // what the naming model said about each kept mask (its top 3 and the best non-food label), for the Diagnóstico panel
   const r3 = (v) => Math.round(v * 1000) / 1000; const nf = new Set(nfPrompts);
   debug.naming_rows = items.map((it, i) => ({ item: i, pixels: stats(it.mask).n, top: topNames(scores[i], classes, 3).map((t) => [t.cls.id, r3(t.score)]),

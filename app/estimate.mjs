@@ -230,12 +230,14 @@ export function createEstimate(ctx) {
     plate_rows: (res.plate_candidates ?? []).slice(0, 40).map((c) => [c.x, c.y, c.score, c.area_frac, c.area_raw, c.cover, c.residual, c.verdict, c.via]),
     // every food-grid mask and why it is or is not an item; then what the naming model said about each kept one
     food_cols: ['x', 'y', 'score', 'frac', 'verdict'], food_rows: (res.food_candidates ?? []).slice(0, 64).map((c) => [c.x, c.y, c.score, c.frac, c.verdict]),
+    // the heap step: each group of neighbouring grid points that only found a small piece, prompted together once
+    heap_cols: ['x', 'y', 'points', 'score', 'frac', 'verdict'], heap_rows: (res.heap_groups ?? []).map((g) => [g.x, g.y, g.points, g.score, g.frac, g.verdict]),
     ...(res.naming_rows ? { naming_rows: res.naming_rows.map((r) => [r.item, r.pixels, ...r.top.flat(), ...r.nonfood]) } : {}) });
   /** The SAM half is done: the plate and the kept food masks (small, mask_side) go into the draft, then a fresh page names them. */
   async function handoffToNaming(me, res, { mw, mh, lite, cold, t0, attempt }) {
     const pack = (m) => ({ width: m.width, height: m.height, data: m.data, score: m.score ?? 0 });
     me.diag = diagOf(res, { mw, mh, lite });
-    const pending = { width: res.width, height: res.height, lite, cold, attempt, elapsed_ms: Math.round(performance.now() - t0), plate_detected: res.plate_detected, timings: res.timings, plate_candidates: res.plate_candidates ?? null, food_candidates: res.food_candidates ?? null,
+    const pending = { width: res.width, height: res.height, lite, cold, attempt, elapsed_ms: Math.round(performance.now() - t0), plate_detected: res.plate_detected, timings: res.timings, plate_candidates: res.plate_candidates ?? null, food_candidates: res.food_candidates ?? null, heap_groups: res.heap_groups ?? null,
       plate: res.plate ? { mask: pack(res.plate.mask), ellipse: res.plate.ellipse, via: res.plate.via, area_frac: res.plate.area_frac, residual: res.plate.residual, support: res.plate.support ?? null, filled: res.plate.filled } : null,
       kept: res.kept.map(pack) };
     const saved = await saveDraft({ pending }) && (await db.getSetting(DRAFT).catch(() => null))?.pending?.kept?.length === pending.kept.length;

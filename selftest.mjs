@@ -445,6 +445,15 @@ await t('createModels with a contract-enforcing decoder: a tap and a grid decode
   assert.deepEqual(prog, ['0/10', '4/10', '8/10', '10/10']); assert.equal(typeof r.ms, 'number');
   assert.equal(calls.embeds, 1); assert.equal(calls.pre, pre); // the photo was encoded and preprocessed once, not per decode
 });
+await t('segmentGroup (auto mode heap step): ONE prompt group of several points, positives and negatives, passes the recorded decoder contract', async () => {
+  const { T, calls } = strictLib({ file: decoderFiles(SAM2)[0], partial: partialC }); const m = mkModels({ importer: async () => T }); await m.load(); await m.setImage(new Blob(['x'])); calls.decodes.length = 0;
+  const r = await m.segmentGroup([{ x: 1, y: 1, label: 1 }, { x: 0, y: 1, label: 1 }, { x: 1, y: 0, label: 0 }]);
+  assert.deepEqual(r.map((x) => x.score), [0.9, 0.5, 0.2]); assert.equal(calls.decodes.length, 1);
+  assert.deepEqual(calls.decodes[0].input_points.dims, [1, 1, 3, 2]); assert.deepEqual(calls.decodes[0].input_points.data, [2, 2, 0, 2, 2, 0]);
+  assert.deepEqual(calls.decodes[0].input_labels.dims, [1, 1, 3]); assert.deepEqual(calls.decodes[0].input_labels.data, [1, 1, 0]);
+  await assert.rejects(m.segmentGroup([]), /grupo de pontos vazio/);
+  for (const file of realContracts ? decoderFiles(SAM2) : []) assert.equal(models.checkTensorSpecs(models.samPromptTensors([[1, 2], [3, 4], [5, 6]], [1, 1, 0]), file).ok, true, `3-point group vs ${file.path}`);
+});
 await t('segmentPoints: the time budget stops the grid early and says so; a failing decode is an error, not a silent fallback', async () => {
   const { T, calls } = strictLib({ file: decoderFiles(SAM2)[0], partial: partialC }); const m = mkModels({ importer: async () => T }); await m.load(); await m.setImage(new Blob(['x']));
   let clock = 0; const r = await m.segmentPoints(pts(12), { batch: 4, budgetMs: 250, now: () => (clock += 100) });
@@ -526,7 +535,9 @@ await t('the CI integration test, dry run against a fake library: image, cpu map
   for (const e of run.summary.sam) { assert.equal(e.single_tap.masks, 3); assert.equal(e.single_tap.best_iou, 0.95); assert.equal(e.grid.points, 9); assert.equal(e.grid.decodes, 9); assert.equal(e.auto.status, 'ok'); assert.ok(e.auto.items.length >= 1); assert.ok(e.auto.plate_rows.length >= 25 * 3 && e.auto.plate_rows.some((r) => r[8] === 'ok') && e.auto.plate_cols.length === e.auto.plate_rows[0].length); for (const k of ['encoder_ms', 'plate_decode_ms', 'food_decode_ms', 'naming_ms', 'total_ms']) assert.equal(typeof e.auto.timings[k], 'number', k); assert.equal(e.naming.top3.length, 3); assert.equal(e.load.backend, 'wasm/q8'); }
   const proven = run.summary.sam.find((e) => e.id === models.PROVEN_ATTEMPTS[0][0]); assert.equal(proven.photo.title, photoMeta.title); assert.equal(proven.photo.auto.ok, true); assert.equal(proven.photo.auto.status, 'ok'); assert.ok(!run.summary.sam.find((e) => e !== proven).photo); // the real photo runs on the proven segmenter only
   for (const e of run.summary.sam) assert.ok(e.lowres.ious[0] >= 0.9 && e.lowres.mask_size === '384x288', JSON.stringify(e.lowres)); // the low-res logits path matches the full-size masks
-  assert.equal(run.summary.warnings.length, 0);
+  assert.deepEqual(run.summary.warnings.filter((w) => !/stick heap/.test(w)), []); // the fake decoder cannot find the stick heap; the real run reports it
+  for (const e of run.summary.sam) assert.ok(e.auto.stick_heap && typeof e.auto.stick_heap.cover === 'number' && Array.isArray(e.auto.heap_groups), JSON.stringify(e.auto.stick_heap));
+  assert.ok(photoImg.sticks.segs.length === 9 && photoImg.sticks.mask(64, 48).data.some((v) => v === 1) && !photoImg.sticks.hit(320, 100), 'the stick heap is drawn clear of the plate top edge');
   assert.equal(run.summary.naming.length, 2); assert.ok(run.summary.naming.every((n) => n.ok)); JSON.parse(JSON.stringify(run.summary));
   // failures are reported per stage: a decoder that answers with masks of the wrong size fails the run
   const bad = { ...fake, Sam2Model: { from_pretrained: async () => Object.assign(async () => ({ pred_masks: {}, iou_scores: { data: [0.3, NaN, 0.5] } }), { get_image_embeddings: model.get_image_embeddings, dispose: model.dispose }) } };

@@ -2,7 +2,98 @@
   "schema": "macrofy.device-runs/1",
   "device": "iPhone 16e (owner), Safari 26.6.2, WebGPU true",
   "runs": [
-    {"run": 1, "page": "feasibility v1 (all stages in one page)", "result": {"depth": {"model": "onnx-community/depth-anything-v2-small", "backend": "webgpu/fp16", "bytes": 49642941, "load_ms": 12504, "cached_load_ms": 297, "infer_ms_median": 926, "ok": true}, "segmentation": "tab killed while loading the first candidate", "naming": "not reached"}},
-    {"run": 2, "page": "feasibility v2 (F-005 memory fixes, one stage per page load)", "result": {"segmentation": {"ok": false, "failed_attempts": ["Xenova/slimsam-77-uniform webgpu/q8: tab killed", "onnx-community/sam2.1-hiera-tiny-ONNX webgpu/q8: tab killed"], "note": "wasm and fp16 backends were never attempted (resume bug F-006)"}, "naming": {"ok": false, "failed_attempts": ["siglip2-base webgpu/fp16, webgpu/q8, wasm/q8: Load failed", "Xenova/siglip-base webgpu/fp16, webgpu/q8, wasm/q8: Load failed"]}, "depth": {"backend": "webgpu/fp16", "load_ms": 700, "cached_load_ms": 397, "infer_ms_median": 924, "ok": true}, "verdict": "no-go"}}
+    {
+      "run": 1,
+      "page": "feasibility v1 (all stages in one page)",
+      "result": {
+        "depth": {
+          "model": "onnx-community/depth-anything-v2-small",
+          "backend": "webgpu/fp16",
+          "bytes": 49642941,
+          "load_ms": 12504,
+          "cached_load_ms": 297,
+          "infer_ms_median": 926,
+          "ok": true
+        },
+        "segmentation": "tab killed while loading the first candidate",
+        "naming": "not reached"
+      }
+    },
+    {
+      "run": 2,
+      "page": "feasibility v2 (F-005 memory fixes, one stage per page load)",
+      "result": {
+        "segmentation": {
+          "ok": false,
+          "failed_attempts": [
+            "Xenova/slimsam-77-uniform webgpu/q8: tab killed",
+            "onnx-community/sam2.1-hiera-tiny-ONNX webgpu/q8: tab killed"
+          ],
+          "note": "wasm and fp16 backends were never attempted (resume bug F-006)"
+        },
+        "naming": {
+          "ok": false,
+          "failed_attempts": [
+            "siglip2-base webgpu/fp16, webgpu/q8, wasm/q8: Load failed",
+            "Xenova/siglip-base webgpu/fp16, webgpu/q8, wasm/q8: Load failed"
+          ]
+        },
+        "depth": {
+          "backend": "webgpu/fp16",
+          "load_ms": 700,
+          "cached_load_ms": 397,
+          "infer_ms_median": 924,
+          "ok": true
+        },
+        "verdict": "no-go"
+      }
+    },
+    {
+      "run": 3,
+      "page": "feasibility v3 (T-015: per-attempt resume, vision-only naming, 4-bit first, storage diagnostics)",
+      "result": {
+        "segmentation": {
+          "model": "onnx-community/sam2.1-hiera-tiny-ONNX",
+          "backend": "webgpu/q4f16",
+          "bytes": 33673224,
+          "load_ms": 1473,
+          "cached_load_ms": 698,
+          "infer_ms_median": 1603,
+          "ok": true,
+          "failed_attempts": [
+            "sam2.1-hiera-tiny wasm/q8: tab killed"
+          ]
+        },
+        "naming": {
+          "model": "Xenova/clip-vit-base-patch32",
+          "backend": "webgpu/q4f16",
+          "bytes": 53272418,
+          "load_ms": 3042,
+          "cached_load_ms": 1124,
+          "infer_ms_median": 121,
+          "ok": true
+        },
+        "depth": {
+          "model": "onnx-community/depth-anything-v2-small",
+          "backend": "wasm/q4",
+          "bytes": 27404915,
+          "load_ms": 892,
+          "cached_load_ms": 350,
+          "infer_ms_median": 5632,
+          "ok": true,
+          "failed_attempts": [
+            "depth webgpu/q4f16: tab killed"
+          ]
+        },
+        "total_infer_ms": 1724,
+        "verdict": "go",
+        "storage": {
+          "quota_mb": 41232,
+          "usage_mb": 297,
+          "persisted": false
+        },
+        "owner_comment": "took a long time and the page crashed (the crashes were the attempt search)"
+      }
+    }
   ]
 }

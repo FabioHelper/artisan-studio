@@ -29,6 +29,23 @@ export const NAMING_CANDIDATES = [
 // ones are 89-186 MB. SAM crashed the tab on WebGPU even at 9 MB (activation memory, not file size), so SAM tries WASM first.
 export const BACKENDS = [['webgpu', 'q4f16'], ['wasm', 'q4'], ['webgpu', 'fp16'], ['webgpu', 'q8'], ['wasm', 'q8']];
 
+// Combinations that loaded and ran on the owner's iPhone 16e (research/device-runs/2026-09-29-iphone16e-feasibility.json, run 3:
+// SAM 2.1 tiny 1.6 s, CLIP B/32 0.12 s). The app tries these first so it never crash-tests on the user's phone; the others
+// (which killed the tab there: SAM on WASM, depth on WebGPU) stay as fallbacks for other devices.
+export const PROVEN_ATTEMPTS = [
+  ['onnx-community/sam2.1-hiera-tiny-ONNX', 'webgpu', 'q4f16'],
+  ['Xenova/clip-vit-base-patch32', 'webgpu', 'q4f16'],
+];
+const provenRank = (id, device, dtype) => {
+  const i = PROVEN_ATTEMPTS.findIndex(([pid, pd, pt]) => pid === id && pd === device && pt === dtype);
+  return i < 0 ? Infinity : i;
+};
+/** Every (candidate, device, dtype) of `candidates`, proven combinations first, then candidate order. */
+export function provenFirst(candidates) {
+  const all = candidates.flatMap((c) => backendsOf(c).map(([device, dtype]) => [c, device, dtype]));
+  return all.map((a, i) => [a, i]).sort((x, y) => (provenRank(x[0][0].id, x[0][1], x[0][2]) - provenRank(y[0][0].id, y[0][1], y[0][2])) || (x[1] - y[1])).map(([a]) => a);
+}
+
 export const isIOS = () => /iP(hone|ad|od)/.test(globalThis.navigator?.userAgent ?? '');
 export const backendsOf = (candidate) => candidate.backends ?? BACKENDS;
 
@@ -200,7 +217,7 @@ export function progressTracker(onProgress, stage, label) {
  */
 async function loadFirst(T, candidates, { hasGpu, warm, progress, prepare }) {
   const errors = []; const preps = new Map();
-  for (const c of candidates) for (const [device, dtype] of backendsOf(c)) {
+  for (const [c, device, dtype] of provenFirst(candidates)) {
     if (device === 'webgpu' && !hasGpu) continue;
     let h = null;
     try {

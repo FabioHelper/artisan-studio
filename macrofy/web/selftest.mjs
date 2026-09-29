@@ -47,6 +47,15 @@ t('the feasibility stages share the app candidates (segmentation and naming) and
   assert.deepEqual(models.NAMING_CANDIDATES.map((c) => c.id), ['Xenova/clip-vit-base-patch32', 'Xenova/siglip-base-patch16-224', 'onnx-community/siglip2-base-patch16-224-ONNX']); // vision files, smallest first (T-015)
   assert.deepEqual(models.BACKENDS.slice(0, 2), [['webgpu', 'q4f16'], ['wasm', 'q4']]); assert.deepEqual(models.BACKENDS.at(-1), ['wasm', 'q8']); // 4-bit image towers (53-58 MB) first, per the CI model probe
 });
+t('the app tries the combinations proven on the owner iPhone 16e first (run 3), then everything else once, in candidate order', () => {
+  const seg = models.provenFirst(models.SEGMENT_CANDIDATES).map(([c, d, t]) => `${c.id} ${d}/${t}`);
+  assert.equal(seg[0], 'onnx-community/sam2.1-hiera-tiny-ONNX webgpu/q4f16');
+  assert.equal(seg.length, models.SEGMENT_CANDIDATES.reduce((n, c) => n + models.backendsOf(c).length, 0));
+  assert.equal(new Set(seg).size, seg.length);
+  assert.deepEqual(seg.slice(1), models.SEGMENT_CANDIDATES.flatMap((c) => models.backendsOf(c).map(([d, t]) => `${c.id} ${d}/${t}`)).filter((s) => s !== seg[0]));
+  assert.equal(models.provenFirst(models.NAMING_CANDIDATES).map(([c, d, t]) => `${c.id} ${d}/${t}`)[0], 'Xenova/clip-vit-base-patch32 webgpu/q4f16');
+  assert.equal(models.provenFirst([{ id: 'x/unknown', backends: [['wasm', 'q8']] }])[0][0].id, 'x/unknown'); // nothing proven: plain order
+});
 t('memory discipline for iOS (F-005): SlimSAM first, SAM on WASM before WebGPU (WebGPU crashed even at 9 MB), never fp32 anywhere', () => {
   assert.deepEqual(models.SEGMENT_CANDIDATES[0].backends, [['wasm', 'q8'], ['webgpu', 'q8']]);
   for (const c of models.SEGMENT_CANDIDATES) assert.equal(c.backends[0][0], 'wasm');

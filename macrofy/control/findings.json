@@ -43,19 +43,21 @@
       "id": "F-005",
       "title": "Safari tab killed on the iPhone 16e while loading the first segmentation candidate (memory): auto mode needs SAM on this phone",
       "severity": "high",
-      "status": "open",
+      "status": "closed",
       "task": "T-012",
       "evidence": "Owner feasibility run, iPhone 16e, Safari 26.6.2, WebGPU true: depth (onnx-community/depth-anything-v2-small, webgpu fp16) ok, 49.6 MB, load 12.5 s, cached 0.3 s, infer median 926 ms; segmentation: the tab was killed while loading the first candidate (SAM 2.1 tiny, the largest, with depth still resident; model null, tab_survived false); naming never reached. Most likely memory. Changes made under T-014: segmentation candidates smallest first (SlimSAM q8, then SAM 2.1 tiny q8/fp16, never fp32); the feasibility page runs each stage in its own page load and, after a crash, resumes with the next candidate of the same stage; depth is informational and the verdict needs only segmentation and naming (summed median inference at most 2 s); the app loads one model at a time on iOS and resumes an estimate from IndexedDB after a reload. Still open until the owner re-runs the page on the phone and segmentation and naming load.",
-      "expected_failing": []
+      "expected_failing": [],
+      "resolution": "Run 3 on the iPhone 16e: SAM 2.1 tiny webgpu/q4f16 (34 MB) loads and infers in 1.6 s, CLIP B/32 vision-only webgpu/q4f16 (53 MB) in 0.12 s; verdict go. The app now tries these proven combinations first (web/lib/models.mjs PROVEN_ATTEMPTS) so users never crash-test"
     },
     {
       "id": "F-006",
       "title": "Feasibility crash-resume skipped the remaining backends of a crashed model, so the WASM path for SAM was never tried",
       "severity": "medium",
-      "status": "open",
+      "status": "closed",
       "task": "T-015",
       "evidence": "Owner run 2 (research/device-runs/2026-09-29-iphone16e-feasibility.json): only webgpu attempts listed for slimsam and sam2.1, then the stage ended; the T-014 review had judged the resume logic loop-safe but did not check that every backend is attempted",
-      "expected_failing": []
+      "expected_failing": [],
+      "resolution": "T-015 per-attempt resume: run 3 tried the SAM WASM attempt (crashed, recorded) and continued to the next attempt of the same stage, which loaded"
     }
   ]
 }

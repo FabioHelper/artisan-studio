@@ -1,0 +1,213 @@
+{
+  "schema": "macrofy.priors/1",
+  "note": "The only invented numbers in the estimator. Every entry is an assumption to be replaced by a factor fitted on weighed meals (see calibration.json); none of them is a measurement.",
+  "scale_uncertainty": {
+    "value": 0.05,
+    "rationale": "Relative error of the plate-rim scale (ellipse fit on a SAM mask, a plate diameter typed by hand); enters the 80% range only.",
+    "assumption": true,
+    "calibrate_from": "weighed meals"
+  },
+  "solid_density_g_per_ml": {
+    "value": 1.05,
+    "rationale": "F-004: cooked meat, fish and whole fruit are close to 1.0-1.1 g/mL, while the FNDDS \"pieces\" cup density (about 0.57) is a chopped-pieces packing density.",
+    "assumption": true,
+    "calibrate_from": "weighed meals"
+  },
+  "groups": {
+    "rice_pasta": {
+      "thickness_mm": 20,
+      "cv": 0.3,
+      "solid": false,
+      "rationale": "A plated heap of rice or pasta is about 2 cm tall on average; heaps vary a lot between people.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "beans_stews": {
+      "thickness_mm": 15,
+      "cv": 0.35,
+      "solid": false,
+      "rationale": "Beans and stews are ladled as a shallow layer, roughly 1.5 cm deep, and spread into the rice.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "mash_layered": {
+      "thickness_mm": 25,
+      "cv": 0.3,
+      "solid": false,
+      "rationale": "Mashed, layered or baked starch dishes sit as a thick slab or mound of about 2.5 cm.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "starchy_pieces": {
+      "thickness_mm": 25,
+      "cv": 0.35,
+      "solid": false,
+      "rationale": "Potato, cassava and corn pieces are about one piece thick when spread, roughly 2.5 cm.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "loose_meat": {
+      "thickness_mm": 15,
+      "cv": 0.35,
+      "solid": false,
+      "rationale": "Minced meat is spooned as a low mound of about 1.5 cm.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "cooked_veg": {
+      "thickness_mm": 20,
+      "cv": 0.35,
+      "solid": false,
+      "rationale": "Cooked or sauteed vegetables are a pile of about 2 cm; leaves collapse, chunks do not.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "salad_raw": {
+      "thickness_mm": 25,
+      "cv": 0.4,
+      "solid": false,
+      "rationale": "Raw salad is a loose pile whose height is set by the leaves, about 2.5 cm and very variable.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "cutlet_meat": {
+      "thickness_mm": 15,
+      "cv": 0.25,
+      "solid": true,
+      "rationale": "A grilled steak, cutlet or breaded fillet is about 1.5 cm thick.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "thick_meat": {
+      "thickness_mm": 25,
+      "cv": 0.3,
+      "solid": true,
+      "rationale": "Thick cuts, patties, bone-in pieces and sausages are about 2.5 cm through the middle.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "fish_seafood": {
+      "thickness_mm": 15,
+      "cv": 0.3,
+      "solid": true,
+      "rationale": "Fish fillets and shrimp are about 1.5 cm thick.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "egg": {
+      "thickness_mm": 20,
+      "cv": 0.4,
+      "solid": true,
+      "rationale": "A fried egg is about 1 cm and a boiled egg about 4 cm; 2 cm is the compromise.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "whole_fruit": {
+      "thickness_mm": 40,
+      "cv": 0.35,
+      "solid": true,
+      "rationale": "Whole fruit is roughly 4 cm thick (banana about 3.5 cm, apple or orange 6 cm, berries 2 cm).",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "sliced_fruit": {
+      "thickness_mm": 25,
+      "cv": 0.35,
+      "solid": true,
+      "rationale": "Fruit slices and chunks are about 2.5 cm thick.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "cheese_slice": {
+      "thickness_mm": 8,
+      "cv": 0.3,
+      "solid": true,
+      "rationale": "A cheese slice is about 0.8 cm thick.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    },
+    "spread_sauce": {
+      "thickness_mm": 12,
+      "cv": 0.5,
+      "solid": false,
+      "rationale": "Yogurt and mayonnaise are a dollop or spread of about 1.2 cm, and the amount is highly variable.",
+      "assumption": true,
+      "calibrate_from": "weighed meals"
+    }
+  },
+  "class_groups": {
+    "arroz-branco-cozido": "rice_pasta",
+    "arroz-integral-cozido": "rice_pasta",
+    "macarrao-cozido": "rice_pasta",
+    "nhoque-de-batata": "rice_pasta",
+    "feijao-carioca-cozido": "beans_stews",
+    "feijao-preto-cozido": "beans_stews",
+    "lentilha-cozida": "beans_stews",
+    "grao-de-bico-cozido": "beans_stews",
+    "feijoada": "beans_stews",
+    "estrogonofe-de-carne": "beans_stews",
+    "estrogonofe-de-frango": "beans_stews",
+    "macarrao-molho-bolonhesa": "beans_stews",
+    "pure-de-batata": "mash_layered",
+    "lasanha-de-carne": "mash_layered",
+    "polenta-cozida": "mash_layered",
+    "batata-doce-cozida": "mash_layered",
+    "batata-cozida": "starchy_pieces",
+    "batata-frita": "starchy_pieces",
+    "mandioca-cozida": "starchy_pieces",
+    "milho-verde-cozido": "starchy_pieces",
+    "carne-moida-cozida": "loose_meat",
+    "cenoura-cozida": "cooked_veg",
+    "brocolis-cozido": "cooked_veg",
+    "couve-flor-cozida": "cooked_veg",
+    "beterraba-cozida": "cooked_veg",
+    "chuchu-cozido": "cooked_veg",
+    "abobora-cozida": "cooked_veg",
+    "couve-refogada": "cooked_veg",
+    "abobrinha-refogada": "cooked_veg",
+    "espinafre-refogado": "cooked_veg",
+    "alface-crua": "salad_raw",
+    "tomate-cru": "salad_raw",
+    "cenoura-crua": "salad_raw",
+    "pepino-cru": "salad_raw",
+    "cebola-crua": "salad_raw",
+    "repolho-cru": "salad_raw",
+    "salada-alface-tomate": "salad_raw",
+    "salada-mista-crua": "salad_raw",
+    "bife-grelhado": "cutlet_meat",
+    "alcatra-grelhada": "cutlet_meat",
+    "picanha-grelhada": "cutlet_meat",
+    "bisteca-de-porco-grelhada": "cutlet_meat",
+    "lombo-de-porco-assado": "cutlet_meat",
+    "pernil-de-porco-assado": "cutlet_meat",
+    "frango-grelhado": "cutlet_meat",
+    "frango-a-milanesa": "cutlet_meat",
+    "file-mignon-grelhado": "thick_meat",
+    "hamburguer-grelhado": "thick_meat",
+    "carne-cozida-musculo": "thick_meat",
+    "linguica-de-porco-grelhada": "thick_meat",
+    "frango-coxa-assada": "thick_meat",
+    "tilapia-grelhada": "fish_seafood",
+    "salmao-grelhado": "fish_seafood",
+    "peixe-grelhado": "fish_seafood",
+    "peixe-frito": "fish_seafood",
+    "camarao-cozido": "fish_seafood",
+    "ovo-frito": "egg",
+    "ovo-cozido": "egg",
+    "banana-prata": "whole_fruit",
+    "maca-fuji": "whole_fruit",
+    "laranja-pera": "whole_fruit",
+    "abacate": "whole_fruit",
+    "uva": "whole_fruit",
+    "morango": "whole_fruit",
+    "pera": "whole_fruit",
+    "manga": "sliced_fruit",
+    "melancia": "sliced_fruit",
+    "mamao-formosa": "sliced_fruit",
+    "abacaxi": "sliced_fruit",
+    "melao": "sliced_fruit",
+    "queijo-mucarela": "cheese_slice",
+    "iogurte-natural": "spread_sauce",
+    "maionese": "spread_sauce"
+  }
+}

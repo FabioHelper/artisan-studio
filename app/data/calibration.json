@@ -1,0 +1,5 @@
+{
+  "schema": "macrofy.calibration/1",
+  "note": "Per-group multiplicative factors on grams, fitted later on weighed meals (T-008). Empty means every factor is 1.0: the estimator is uncalibrated.",
+  "factors": {}
+}

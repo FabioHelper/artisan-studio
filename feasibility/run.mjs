@@ -1,4 +1,5 @@
-import { TRANSFORMERS_URL, LABELS, STAGES, BACKENDS } from './candidates.mjs';
+import { LABELS, STAGES, BACKENDS } from './candidates.mjs';
+import { importTransformers, loadCandidate, detectWebGpu } from '../lib/models.mjs';
 import { median, buildResults } from './verdict.mjs';
 
 const KEY = 'macrofy.feasibility.v1';
@@ -17,13 +18,7 @@ function syntheticPlate() {
   return new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
 }
 
-async function loadModel(c, opts) {
-  if (c.task) { const p = await T.pipeline(c.task, c.id, opts); return { task: c.task, p, dispose: () => p.dispose() }; }
-  const M = T[c.sam];
-  if (!M) throw new Error(`${c.sam} indisponível nesta versão da biblioteca`);
-  const [model, proc] = await Promise.all([M.from_pretrained(c.id, opts), T.AutoProcessor.from_pretrained(c.id)]);
-  return { task: 'sam', model, proc, dispose: () => model.dispose() };
-}
+const loadModel = (c, opts) => loadCandidate(T, c, opts); // shared loader: the same code path the estimate screens use
 
 const INFER = {
   'depth-estimation': (h, img) => h.p(img),
@@ -80,9 +75,10 @@ async function start() {
   const log = (m) => { $('status').textContent = m; };
   try {
     log('Carregando a biblioteca…');
-    T = await import(TRANSFORMERS_URL);
-    T.env.allowLocalModels = false;
-    const hasGpu = !!(navigator.gpu && await navigator.gpu.requestAdapter().catch(() => null));
+    const lib = await importTransformers(); // 4.3.0 first, 3.8.1 if the import fails
+    T = lib.T;
+    log(`Biblioteca ${lib.version} carregada${lib.errors.length ? ` (falhou: ${lib.errors.join('; ')})` : ''}.`);
+    const hasGpu = await detectWebGpu();
     const img = await T.RawImage.fromBlob(photo || await syntheticPlate());
     if (state.finished) state = { stages: [], running: null, finished: false };
     for (const def of STAGES) {

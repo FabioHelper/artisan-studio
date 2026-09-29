@@ -5,8 +5,8 @@
 //     and writes web/lib/model-probe.json (plus the copy web/app/data/model-probe.json that the app serves). The order of the naming and
 //     segmentation candidates in the browser comes from these real sizes (orderBySize in models.mjs).
 // (b) EMBEDDINGS: for each naming candidate loads the TEXT tower here in Node (transformers.js 4.3.0, installed into a temp dir), embeds
-//     the prompt template over the vocab `pt` names (and an English prompt over `en`, averaged), plus the non-food labels of the priors,
-//     normalizes, and writes web/app/data/text-emb/<safe-model-id>.json with its provenance (model id, revision, labels hash).
+//     an ENGLISH prompt over the vocab `en` names (the `pt` prompt only for a class without `en`), plus the non-food labels of the priors (their
+//     English forms, priors non_food_labels_en), normalizes, and writes web/app/data/text-emb/<safe-model-id>.json with its provenance (model id, revision, labels hash).
 // The browser loads only the image tower and scores against these files (checkEmbeddings refuses a file that does not match the vocab).
 // Output is deterministic (no timestamps) so the workflow commits only when something changed. A failure of one model is reported and
 // skipped; the exit code is 1 only when nothing at all could be written.
@@ -20,7 +20,10 @@ import { NAME_PROMPT } from '../web/estimate/core.mjs';
 import { STAGES } from '../web/feasibility/candidates.mjs';
 
 export const TRANSFORMERS_VERSION = '4.3.0';
-export const PROMPT_EN = 'a photo of {}';
+// CLIP and SigLIP were trained on English captions: a Portuguese prompt ("uma foto de batata frita") scores near noise (the owner's first full
+// run named french fries "arroz branco"). The vectors come from English prompts; the table is still KEYED by the app's pt prompt strings.
+export const PROMPT_EN = 'a photo of {}, a type of food.';
+export const PROMPT_EN_NONFOOD = 'a photo of {}.';
 const here = dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------- pure helpers (tested in web/selftest.mjs)
@@ -37,17 +40,18 @@ export const meanUnit = (vs) => unit(vs[0].map((_, i) => vs.reduce((a, v) => a +
 
 /**
  * The text-embedding file of one model. `embed(texts) -> number[][]` is the model's text tower (any scale; normalized here).
- * vocab classes give `pt` (+ `en`, averaged as a second prompt); `extraLabels` (non-food, Portuguese only) are embedded with the pt prompt.
+ * Each vocab class's vector is its ENGLISH prompt (templateEn over `en`; the pt prompt only when a class has no `en`); `extraLabels` (non-food, pt)
+ * use `extraLabelsEn` (same order) with templateNonFood. The file keeps the pt labels and the pt template: the app looks vectors up by its pt prompts.
  */
-export async function buildEmbeddingFile({ modelId, revision, classes, extraLabels = [], embed, template = NAME_PROMPT('{}'), templateEn = PROMPT_EN }) {
+export async function buildEmbeddingFile({ modelId, revision, classes, extraLabels = [], extraLabelsEn = [], embed, template = NAME_PROMPT('{}'), templateEn = PROMPT_EN, templateNonFood = PROMPT_EN_NONFOOD }) {
   const labels = classes.map((c) => c.pt);
-  const pt = (await embed(labels.map((l) => fillTemplate(template, l)))).map(unit);
-  const enIdx = classes.flatMap((c, i) => (c.en ? [i] : []));
-  const en = (await embed(enIdx.map((i) => fillTemplate(templateEn, classes[i].en)))).map(unit);
-  const embeddings = pt.map((v, i) => { const k = enIdx.indexOf(i); return round5(k >= 0 ? meanUnit([v, en[k]]) : v); });
-  const extra = extraLabels.length ? (await embed(extraLabels.map((l) => fillTemplate(template, l)))).map((v) => round5(unit(v))) : [];
-  return { model_id: modelId, revision, dim: embeddings[0].length, prompt_template: template, prompt_template_en: templateEn, transformers_js: TRANSFORMERS_VERSION,
-    labels_sha256: await labelsSha256(labels), labels, embeddings, extra_labels: extraLabels, extra_embeddings: extra };
+  const texts = classes.map((c) => (c.en ? fillTemplate(templateEn, c.en) : fillTemplate(template, c.pt)));
+  const embeddings = (await embed(texts)).map((v) => round5(unit(v)));
+  const extraTexts = extraLabels.map((l, i) => (extraLabelsEn[i] ? fillTemplate(templateNonFood, extraLabelsEn[i]) : fillTemplate(template, l)));
+  const extra = extraTexts.length ? (await embed(extraTexts)).map((v) => round5(unit(v))) : [];
+  return { model_id: modelId, revision, dim: embeddings[0].length, prompt_template: template, prompt_template_en: templateEn, prompt_template_nonfood: templateNonFood,
+    vectors_from: 'english prompts (en; pt only where en is missing)', transformers_js: TRANSFORMERS_VERSION,
+    labels_sha256: await labelsSha256(labels), labels, embeddings, extra_labels: extraLabels, extra_labels_en: extraLabelsEn, extra_embeddings: extra };
 }
 
 /** JSON with one embedding row per line: readable diffs, compact files. */
@@ -110,7 +114,7 @@ async function main() {
   const probeOnly = args.includes('--probe-only'); const embOnly = args.includes('--embeddings-only');
   const vocab = JSON.parse(readFileSync(join(root, 'nutrition/vocab.json'), 'utf8'));
   const priors = JSON.parse(readFileSync(join(root, 'web/estimate/priors.json'), 'utf8'));
-  const extraLabels = priors.autoseg?.non_food_labels?.value ?? [];
+  const extraLabels = priors.autoseg?.non_food_labels?.value ?? []; const extraLabelsEn = priors.autoseg?.non_food_labels_en?.value ?? [];
   const probePath = join(root, 'web/lib/model-probe.json'); const probeCopy = join(root, 'web/app/data/model-probe.json');
   let wrote = 0;
 
@@ -134,7 +138,7 @@ async function main() {
       const revision = probe.models.find((m) => m.id === c.id)?.revision;
       try {
         if (!revision) throw new Error('no revision in the probe (the probe of this model failed)');
-        const file = await buildEmbeddingFile({ modelId: c.id, revision, classes: vocab.classes, extraLabels, embed: await textEmbedder(T, c, revision) });
+        const file = await buildEmbeddingFile({ modelId: c.id, revision, classes: vocab.classes, extraLabels, extraLabelsEn, embed: await textEmbedder(T, c, revision) });
         const chk = await checkEmbeddings(file, { modelId: c.id, labels });
         if (!chk.ok) throw new Error(`the built file fails its own provenance check: ${chk.reason}`);
         const out = join(root, 'web/app/data/text-emb', `${safeModelId(c.id)}.json`);

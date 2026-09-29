@@ -694,11 +694,15 @@ const tools = await import(pathToFileURL(join(web, '..', 'tools', 'build-text-em
 const coreMod = await import(pathToFileURL(f('estimate/core.mjs')));
 await t('build-text-embeddings: a file over the REAL vocab passes the app provenance check, serializes losslessly and names the right label end to end', async () => {
   const vocab = JSON.parse(readFileSync(join(web, '..', 'nutrition', 'vocab.json'), 'utf8'));
-  const extra = JSON.parse(readFileSync(f('estimate/priors.json'), 'utf8')).autoseg.non_food_labels.value;
+  const ag = JSON.parse(readFileSync(f('estimate/priors.json'), 'utf8')).autoseg; const extra = ag.non_food_labels.value; const extraEn = ag.non_food_labels_en.value;
   const vec = (s) => { const v = new Array(24).fill(0); for (let i = 0; i < s.length; i++) v[(s.charCodeAt(i) * 7 + i) % 24] += (s.charCodeAt(i) % 5) + 1; return v; }; // deterministic stand-in for a text tower
   const seen = []; const embed = async (texts) => { seen.push(...texts); return texts.map(vec); };
-  const file = await tools.buildEmbeddingFile({ modelId: clipId, revision: 'abc123', classes: vocab.classes, extraLabels: extra, embed });
-  assert.ok(seen.includes(coreMod.NAME_PROMPT(vocab.classes[0].pt))); assert.ok(seen.includes(`a photo of ${vocab.classes[0].en}`)); assert.ok(seen.includes(coreMod.NAME_PROMPT(extra[0])));
+  const file = await tools.buildEmbeddingFile({ modelId: clipId, revision: 'abc123', classes: vocab.classes, extraLabels: extra, extraLabelsEn: extraEn, embed });
+  // the vectors come from ENGLISH prompts (the models were trained on English captions); no Portuguese prompt is embedded while an English form exists
+  assert.ok(vocab.classes.every((c) => c.en), 'every vocab class has an English name'); assert.equal(extraEn.length, extra.length, 'one English form per non-food label');
+  assert.ok(seen.includes(`a photo of ${vocab.classes[0].en}, a type of food.`)); assert.ok(seen.includes(`a photo of ${extraEn[0]}.`));
+  assert.ok(!seen.some((s) => s.startsWith('uma foto de')), `no Portuguese prompt embedded: ${seen.filter((s) => s.startsWith('uma foto de')).slice(0, 3)}`);
+  assert.equal(file.vectors_from, 'english prompts (en; pt only where en is missing)'); assert.deepEqual(file.extra_labels_en, extraEn);
   assert.equal(file.prompt_template, coreMod.NAME_PROMPT('{}')); assert.equal(file.dim, 24); assert.equal(file.embeddings.length, vocab.classes.length); assert.deepEqual(file.extra_labels, extra);
   assert.deepEqual(await models.checkEmbeddings(file, { modelId: clipId, labels: vocab.classes.map((c) => c.pt) }), { ok: true });
   assert.deepEqual(JSON.parse(tools.serializeEmbeddingFile(file)), file);
@@ -715,7 +719,7 @@ await t('build-text-embeddings: a file over the REAL vocab passes the app proven
 t('the CI workflow: dispatch and push triggers, contents write, runs the tool, commits exactly the outputs with the two trailers', () => {
   const wf = readFileSync(join(web, '..', '..', '.github', 'workflows', 'macrofy-models.yml'), 'utf8'); const tool = readFileSync(join(web, '..', 'tools', 'build-text-embeddings.mjs'), 'utf8');
   assert.match(wf, /workflow_dispatch:/); assert.match(wf, /branches: \[main\]/); assert.match(wf, /permissions:\n  contents: write/);
-  for (const p of ['macrofy/nutrition/vocab.json', 'macrofy/web/lib/models.mjs', '.github/workflows/macrofy-models.yml']) assert.ok(wf.includes(`- '${p}'`), `push path ${p}`);
+  for (const p of ['macrofy/nutrition/vocab.json', 'macrofy/web/lib/models.mjs', '.github/workflows/macrofy-models.yml', 'macrofy/tools/build-text-embeddings.mjs', 'macrofy/web/estimate/priors.json']) assert.ok(wf.includes(`- '${p}'`), `push path ${p}`);
   assert.match(wf, /node macrofy\/tools\/build-text-embeddings\.mjs/); assert.match(wf, /git add -- "\$\{add\[@\]\}"/); assert.doesNotMatch(wf, /git add (-A|\.|--all)/);
   assert.ok(wf.includes('Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>')); assert.ok(wf.includes('Claude-Session: https://claude.ai/code/session_01BeqUPRJeU2ToodBE3NbAEW'));
   assert.match(wf, /-m \$'Co-Authored-By: Claude Opus 5\.5 <noreply@anthropic\.com>\\nClaude-Session: https:\/\/claude\.ai\/code\/session_01BeqUPRJeU2ToodBE3NbAEW'/); // the trailers are the last paragraph of the commit message

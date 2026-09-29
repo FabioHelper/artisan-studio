@@ -261,22 +261,37 @@ export function plateDiagnostics(masks, opts, evals = plateEvals(masks, opts, tr
  * `plate` is a selectPlate result or a mask. With plateDupIou (< 1) a mask whose IoU with the plate is above it is the plate itself and is dropped
  * (SAM returns the plate with and without its food). Returns copies with plate_frac and inside_frac attached.
  */
-export function filterFoods(masks, plate, { minFrac, maxFrac, minPredIoU, minInsideFrac = 0, plateDupIou = 1, ringMinArc, ringMinBand, ringBandLo, ringSectors }) {
+export function filterFoods(masks, plate, { minFrac, maxFrac, minPredIoU, minInsideFrac = 0, plateDupIou = 1, ringMinArc, ringMinBand, ringBandLo, ringSectors }, onDrop = () => {}) {
   const pm = plate.mask ?? plate; const ps = stats(pm); const src = plate.source ?? null;
   if (ps.n === 0) return [];
   const out = [];
   for (const m of masks) {
-    if (m === pm || m === src || m.data === pm.data) continue;
-    if ((m.score ?? 0) < minPredIoU) continue;
-    const sm = stats(m); if (sm.n === 0) continue;
+    if (m === pm || m === src || m.data === pm.data) { onDrop(m, 'plate'); continue; }
+    if ((m.score ?? 0) < minPredIoU) { onDrop(m, 'low_score'); continue; }
+    const sm = stats(m); if (sm.n === 0) { onDrop(m, 'empty'); continue; }
     const inter = intersection(m, sm, pm, ps);
     const plateFrac = inter / ps.n; const inside = inter / sm.n;
-    if (plateDupIou < 1 && inter / (ps.n + sm.n - inter) > plateDupIou) continue; // the plate again (with or without its food), not a food
-    if (ringMinArc !== undefined && plate.ellipse && isRing(m, plate.ellipse, { ringMinArc, ringMinBand, ringBandLo, ringSectors })) continue; // the plate rim (a ring around the plate), not a food
-    if (plateFrac < minFrac || plateFrac > maxFrac || inside < minInsideFrac) continue;
+    if (plateDupIou < 1 && inter / (ps.n + sm.n - inter) > plateDupIou) { onDrop(m, 'plate'); continue; } // the plate again (with or without its food), not a food
+    if (ringMinArc !== undefined && plate.ellipse && isRing(m, plate.ellipse, { ringMinArc, ringMinBand, ringBandLo, ringSectors })) { onDrop(m, 'rim'); continue; } // the plate rim, not a food
+    if (plateFrac < minFrac) { onDrop(m, 'too_small'); continue; }
+    if (plateFrac > maxFrac) { onDrop(m, 'too_large'); continue; }
+    if (inside < minInsideFrac) { onDrop(m, 'off_plate'); continue; }
     out.push({ ...m, plate_frac: plateFrac, inside_frac: inside });
   }
   return out;
+}
+/**
+ * Why each food-grid mask is or is not an item (the Diagnóstico panel and the CI summary): [{ x, y, score, frac, verdict }], frac = share of the
+ * plate (or of the photo without a plate). verdict: kept (item k), duplicate, plate, rim, low_score, too_small, too_large, off_plate, background,
+ * overlap (lost its pixels to a better mask), over_max (beyond max_food_items).
+ */
+function foodRows(raw, drops, kept, resolved, areaOf) {
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  return raw.map((m) => {
+    const k = kept.findIndex((q) => q._r === m._r); const inRes = resolved.some((q) => q._r === m._r);
+    const verdict = k >= 0 ? `kept ${k}` : drops.get(m._r) ?? (inRes ? 'over_max' : 'overlap');
+    return { x: m.point ? Math.round(m.point.x) : null, y: m.point ? Math.round(m.point.y) : null, score: r3(m.score ?? 0), frac: r3(areaOf(m)), verdict };
+  });
 }
 
 /** Every pixel goes to the mask with the highest predicted IoU (ties: the earlier one); masks left empty are dropped. Inputs are not modified. */
@@ -454,27 +469,33 @@ export async function detectAuto({ models, params, classes, width, height, photo
     const cf = p.noplate_center_frac ?? 0.8; const total = width * height;
     const pts = gridPoints(width, height, p.food_grid_n).filter((q) => Math.abs(q.x - width / 2) <= cf * width / 2 && Math.abs(q.y - height / 2) <= cf * height / 2);
     onStage({ stage: 'foods', done: 0, total: pts.length });
-    const raw = await grid(pts, 'foods', p.masks_per_point);
+    const raw = (await grid(pts, 'foods', p.masks_per_point)).map((m, r) => ({ ...m, _r: r }));
     const touches = (m) => { const b = stats(m).box; return b ? (b.x0 === 0) + (b.y0 === 0) + (b.x1 === width - 1) + (b.y1 === height - 1) : 0; };
-    const cand = dedupe(raw, p.dedupe_iou).filter((m) => {
-      if ((m.score ?? 0) < p.food_min_pred_iou) return false; const frac = stats(m).n / total;
-      return frac >= (p.noplate_food_min_image_frac ?? 0.005) && frac <= (p.noplate_food_max_image_frac ?? 0.35) && touches(m) < 2; // not the table or the background
-    });
+    const drops = new Map(); const deduped = dedupe(raw, p.dedupe_iou); for (const m of raw) if (!deduped.includes(m)) drops.set(m._r, 'duplicate');
+    const why = (m) => {
+      if ((m.score ?? 0) < p.food_min_pred_iou) return 'low_score'; const frac = stats(m).n / total;
+      if (frac < (p.noplate_food_min_image_frac ?? 0.005)) return 'too_small'; if (frac > (p.noplate_food_max_image_frac ?? 0.35)) return 'too_large';
+      return touches(m) >= 2 ? 'background' : null; // not the table or the background
+    };
+    const cand = deduped.filter((m) => { const w = why(m); if (w) drops.set(m._r, w); return !w; });
     const resolved = resolveOverlaps(cand).filter((m) => m.pixels / total >= (p.noplate_food_min_image_frac ?? 0.005));
     const kept = resolved.sort((a, b) => b.pixels - a.pixels).slice(0, p.max_food_items);
-    return named(finish({ status: 'segmented', width, height, plate: null, plate_detected: false, kept, ...debug }));
+    const foodDebug = diagnostics ? { food_candidates: foodRows(raw, drops, kept, resolved, (m) => stats(m).n / total) } : {};
+    return named(finish({ status: 'segmented', width, height, plate: null, plate_detected: false, kept, ...debug, ...foodDebug }));
   }
 
   const e = plate.ellipse; const inner = { ...e, a: e.a * p.food_grid_inset, b: e.b * p.food_grid_inset };
   const foodPoints = gridPoints(width, height, p.food_grid_n, { insideEllipse: inner });
   onStage({ stage: 'foods', done: 0, total: foodPoints.length });
-  const raw = await grid(foodPoints, 'foods', p.masks_per_point);
-  const filtered = filterFoods(dedupe(raw, p.dedupe_iou), plate, { minFrac: p.food_min_frac, maxFrac: p.food_max_frac, minPredIoU: p.food_min_pred_iou, minInsideFrac: p.food_min_inside_frac, plateDupIou: p.dedupe_iou,
-    ringMinArc: p.plate_ring_min_arc, ringMinBand: p.plate_ring_min_band, ringBandLo: p.plate_ring_band_lo, ringSectors: p.plate_ring_sectors });
+  const raw = (await grid(foodPoints, 'foods', p.masks_per_point)).map((m, r) => ({ ...m, _r: r }));
+  const drops = new Map(); const deduped = dedupe(raw, p.dedupe_iou); for (const m of raw) if (!deduped.includes(m)) drops.set(m._r, 'duplicate');
+  const filtered = filterFoods(deduped, plate, { minFrac: p.food_min_frac, maxFrac: p.food_max_frac, minPredIoU: p.food_min_pred_iou, minInsideFrac: p.food_min_inside_frac, plateDupIou: p.dedupe_iou,
+    ringMinArc: p.plate_ring_min_arc, ringMinBand: p.plate_ring_min_band, ringBandLo: p.plate_ring_band_lo, ringSectors: p.plate_ring_sectors }, (m, reason) => drops.set(m._r, reason));
   const plateArea = stats(plate.mask).n;
   const resolved = resolveOverlaps(filtered).filter((m) => m.pixels / plateArea >= p.food_min_frac);
   const kept = resolved.sort((a, b) => b.pixels - a.pixels).slice(0, p.max_food_items);
-  return named(finish({ status: 'segmented', width, height, plate, plate_detected: true, kept, ...debug }));
+  const foodDebug = diagnostics ? { food_candidates: foodRows(raw, drops, kept, resolved, (m) => intersection(m, stats(m), plate.mask, stats(plate.mask)) / plateArea) } : {};
+  return named(finish({ status: 'segmented', width, height, plate, plate_detected: true, kept, ...debug, ...foodDebug }));
 }
 
 /**
@@ -503,7 +524,11 @@ export async function finishAuto({ models, params, classes, crop, seg, onStage =
   const merged = mergeSameLabel(named, p.merge_adjacency_px);
   const ms = Math.round(now() - t1); const t = seg.timings ?? {};
   const timings = { ...t, classify_ms: (t.classify_ms ?? 0) + ms, total_ms: (t.total_ms ?? 0) + ms };
-  const debug = seg.plate_candidates ? { plate_candidates: seg.plate_candidates } : {};
+  const debug = { ...(seg.plate_candidates ? { plate_candidates: seg.plate_candidates } : {}), ...(seg.food_candidates ? { food_candidates: seg.food_candidates } : {}) };
+  // what the naming model said about each kept mask (its top 3 and the best non-food label), for the Diagnóstico panel
+  const r3 = (v) => Math.round(v * 1000) / 1000; const nf = new Set(nfPrompts);
+  debug.naming_rows = items.map((it, i) => ({ item: i, pixels: stats(it.mask).n, top: topNames(scores[i], classes, 3).map((t) => [t.cls.id, r3(t.score)]),
+    nonfood: (() => { const b = scores[i].filter((q) => nf.has(q.label)).reduce((a, q) => (q.score > a.score ? q : a), { label: null, score: 0 }); return [b.label, r3(b.score)]; })() }));
   const status = merged.length ? 'ok' : 'empty_plate';
   if (seg.plate_detected) return { status, plate: seg.plate, plate_detected: true, items: merged, rejected, ...debug, timings };
   const fake = syntheticPlate(merged.map((it) => it.mask), seg.width, seg.height, { spanFactor: p.noplate_span_factor, defaultFrac: p.noplate_default_plate_frac });

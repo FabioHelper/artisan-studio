@@ -528,6 +528,16 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
     },
     /** Frees both models (the estimate screens call this when leaving the flow). */
     async dispose() { await releaseSeg(); await releaseName(); },
+    /**
+     * Frees both models AND destroys the WebGPU device (auto mode's SAM page, just before it reloads into the naming page): on the iPhone the GPU
+     * memory of a reloaded page was not given back in time and the naming page died loading its model. Harmless when WebGPU was never used.
+     */
+    async releaseAll() {
+      await api.dispose();
+      if (!String(info?.backend ?? '').startsWith('webgpu') && !String(info?.namer_backend ?? '').startsWith('webgpu')) return false;
+      try { const d = await T?.env?.backends?.onnx?.webgpu?.device; if (d && typeof d.destroy === 'function') { d.destroy(); return true; } } catch { /* not exposed */ }
+      return false;
+    },
   };
   return api;
 }

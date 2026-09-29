@@ -357,6 +357,16 @@ check('priors: mask_side and the crash-retry settings are assumptions', P.mask_s
 let missing = null; try { await detect({ classify: async () => [] }); } catch (e) { missing = e; }
 check('pipeline: a model layer without segmentPoints rejects', missing instanceof Error);
 
+// ---------------------------------------------------------------- T-017: the Diagnóstico explains every food mask (owner: "it found but wrong": the result must be explainable)
+const dg = await detect(makeModels(scene), { diagnostics: true });
+const verdictOf = (mask) => dg.food_candidates[scene.foodStage.indexOf(mask)]?.verdict;
+check('food diagnostics: one row per food-grid mask, with the reason it is or is not an item', dg.food_candidates.length === scene.foodStage.length
+  && verdictOf(S.plate) === 'plate' && ['plate', 'duplicate'].includes(verdictOf(S.bigBlob)) && verdictOf(S.lowScore) === 'low_score' && verdictOf(S.riceDup) === 'duplicate'
+  && verdictOf(S.speckInside) === 'too_small' && /^kept \d$/.test(verdictOf(S.rice)) && /^kept \d$/.test(verdictOf(S.fork)), JSON.stringify(dg.food_candidates.map((r) => r.verdict)));
+check('naming diagnostics: every kept mask has its top 3 names with scores and its best non-food label (the fork: talher)', dg.naming_rows.length === dg.food_candidates.filter((r) => r.verdict.startsWith('kept')).length
+  && dg.naming_rows.every((r) => r.top.length === 3 && r.top.every(([id, sc]) => typeof id === 'string' && sc >= 0 && sc <= 1) && r.pixels > 0)
+  && dg.naming_rows.some((r) => r.nonfood[0] === core.NAME_PROMPT('talher') && r.nonfood[1] > 0.5));
+check('diagnostics off: no food or plate rows (the phone does not pay for them unless asked)', !('food_candidates' in ok1) && !('plate_candidates' in ok1));
 // ---------------------------------------------------------------- T-017: split (the iPhone: SAM in one page, the naming model alone in the next)
 // The owner's run died at "dando nome aos alimentos (0/4)": after SAM, loading the naming model in the same page killed the tab (the feasibility run
 // that worked loaded one model per page). detectAuto({ split }) stops before naming; finishAuto names what was kept, from a stored copy.

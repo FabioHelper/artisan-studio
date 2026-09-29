@@ -18,6 +18,8 @@ on:
       - 'macrofy/web/feasibility/candidates.mjs'
       - 'macrofy/tools/probe-contracts.mjs'
       - 'macrofy/tools/tjs-node.mjs'
+      - 'macrofy/tools/build-text-embeddings.mjs'
+      - 'macrofy/web/estimate/priors.json'
       - '.github/workflows/macrofy-models.yml'
 
 permissions:

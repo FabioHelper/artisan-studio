@@ -88,9 +88,11 @@ function installMock({ W, H, SC, plan }) {
     },
     async loadNaming(onProgress, opts = {}) {
       mlog('loadNaming'); mlog(`backends ${JSON.stringify(opts.backends ?? null)}`);
-      if (localStorage.getItem('__mockHangNaming') === '1') return new Promise(() => {}); // the naming page "dies" while loading the namer
+      const hang = Number(localStorage.getItem('__mockHangNaming') ?? 0); // the next N naming pages "die" while loading the namer
+      if (hang > 0) { localStorage.setItem('__mockHangNaming', String(hang - 1)); return new Promise(() => {}); }
       await sleep(30); return { version: 'mock', backend: null, segmenter: null, namer: 'mock-siglip', namer_backend: 'mock/none', sequential: seq(), warnings: [] };
     },
+    async releaseAll() { mlog('releaseAll'); return true; },
     async setImage(blob) { mlog('setImage'); if (!blob || !blob.size) throw new Error('mock: empty image'); grid = 0; return { encoder_ms: 42, cached: true }; },
     async segmentPoints(points, opts = {}) {
       mlog('segmentPoints');
@@ -460,7 +462,8 @@ async function autoScenario() {
   const log = JSON.parse(await page.evaluate(() => sessionStorage.getItem('__mockLog'))); const cut = log.lastIndexOf('page');
   const before = log.slice(0, cut); const after = log.slice(cut + 1);
   assert.ok(before.includes('load') && before.filter((e) => e === 'segmentPoints').length === 2 && !before.includes('classify') && !before.includes('loadNaming'), `SAM page: SAM and both grids, no naming: ${JSON.stringify(log)}`);
-  assert.ok(after[0] === 'loadNaming' && after[1] === 'backends [["wasm","q4"],["wasm","q8"]]' && !after.includes('load') && !after.includes('setImage') && !after.includes('segmentPoints') && after.filter((e) => e === 'classify').length === 4, `naming page: only the namer, 4 crops named: ${JSON.stringify(log)}`);
+  assert.ok(before.at(-1) === 'releaseAll', `the SAM page frees the models and the GPU device just before the reload: ${JSON.stringify(before)}`);
+  assert.ok(after[0] === 'loadNaming' && after[1] === 'backends [["webgpu","q4f16"]]' && !after.includes('load') && !after.includes('setImage') && !after.includes('segmentPoints') && after.filter((e) => e === 'classify').length === 4, `naming page: only the namer, 4 crops named: ${JSON.stringify(log)}`);
   assert.ok(pages.length >= 3, 'the page really reloaded between the halves');
   assert.equal(await page.evaluate(() => location.hash), '#/estimate', 'the naming URL is left before the naming model loads');
   assert.equal(await page.locator('[data-item]').count(), 3, 'rice, steak, salad; the fork rejected, as in one page');
@@ -468,24 +471,44 @@ async function autoScenario() {
   assert.match(await page.locator('#totals').innerText(), /Total do prato: \d+ g/);
   assert.equal(await page.locator('#model-progress').count(), 0, 'no model card on the result: SAM is not loading in the naming page');
   assert.match(await page.locator('#diag-text').textContent(), /"split": true/);
+  const dtext = await page.locator('#diag-text').textContent();
+  assert.match(dtext, /"food_rows": \[[\s\S]*"kept 0"/, 'the Diagnóstico lists every food-grid mask with its verdict'); assert.match(dtext, /"naming_rows": \[/, 'and what the naming model said');
+  assert.match(dtext, /"gpu_destroyed": true/, 'the SAM page released the GPU before the reload');
   assert.equal(await page.evaluate(() => localStorage.getItem('macrofy_run')), null, 'no crash mark left');
 
-  step('auto on the iPhone: the naming page dies -> the resume offers to name again without re-running SAM, which works');
+  step('auto on the iPhone: the naming page dies -> Safari reopens it and it goes straight on with the next backend plan (no tap, no SAM re-run)');
   await page.evaluate(() => { localStorage.setItem('__mockHangNaming', '1'); sessionStorage.setItem('__mockLog', '[]'); });
   await page.goto('about:blank'); await page.goto(`${base()}#/estimate/new`); await page.waitForSelector('text=Etapa 1 de 3: Foto');
   await upload(page, 2);
   await page.waitForFunction(() => /Carregando o modelo de nomes/.test(document.getElementById('auto-label')?.textContent ?? ''));
-  assert.equal(JSON.parse(await page.evaluate(() => localStorage.getItem('macrofy_run'))).page, 'naming');
-  await page.evaluate(() => { localStorage.removeItem('__mockHangNaming'); sessionStorage.setItem('__mockLog', '[]'); });
-  await page.goto('about:blank'); await page.goto(`${base()}#/estimate/resume`);
-  await page.waitForSelector('#crash'); await shot('a09-naming-crash');
-  assert.match(await page.locator('#crash').innerText(), /carregando o modelo de nomes \(0\/4\) \(wasm\/q4, wasm\/q8\)/, 'the crash names the backends that died');
+  assert.equal(await page.evaluate(() => location.hash), '#/estimate/name', 'the naming URL is kept while the namer loads (so a Safari reload comes back here)');
+  const nmark = JSON.parse(await page.evaluate(() => localStorage.getItem('macrofy_run')));
+  assert.ok(nmark.page === 'naming' && nmark.naming_plan === 0 && nmark.backends === 'webgpu/q4f16', JSON.stringify(nmark));
+  await page.evaluate(() => sessionStorage.setItem('__mockLog', '[]'));
+  await page.goto('about:blank'); await page.goto(`${base()}#/estimate/name`); // the tab dies; Safari reloads the same URL
+  await page.waitForSelector('h2:text-is("Resultado")'); await shot('a09-naming-recovered');
+  const log2 = JSON.parse(await page.evaluate(() => sessionStorage.getItem('__mockLog')));
+  assert.ok(!log2.includes('segmentPoints') && !log2.includes('load') && log2.includes('backends [["wasm","q8"]]'), `next plan (the CPU), naming only: ${JSON.stringify(log2)}`);
+  assert.equal(await page.evaluate(() => location.hash), '#/estimate');
+  assert.match(await page.locator('#diag-text').textContent(), /"last_crash": \{[\s\S]*"backends": "webgpu\/q4f16"/);
+  assert.equal(await page.locator('[data-item]').count(), 3);
+
+  step('auto on the iPhone: every naming plan dies -> the crash card (bounded, no loop); its retry names again in a fresh page');
+  await page.evaluate(() => { localStorage.setItem('__mockHangNaming', '2'); });
+  await page.goto('about:blank'); await page.goto(`${base()}#/estimate/new`); await page.waitForSelector('text=Etapa 1 de 3: Foto');
+  await upload(page, 2);
+  await page.waitForFunction(() => /Carregando o modelo de nomes/.test(document.getElementById('auto-label')?.textContent ?? ''));
+  await page.goto('about:blank'); await page.goto(`${base()}#/estimate/name`); // plan 0 died: Safari reloads, plan 1 starts and dies too
+  await page.waitForFunction(() => /Carregando o modelo de nomes/.test(document.getElementById('auto-label')?.textContent ?? ''));
+  assert.equal(JSON.parse(await page.evaluate(() => localStorage.getItem('macrofy_run'))).naming_plan, 1);
+  await page.goto('about:blank'); await page.goto(`${base()}#/estimate/name`);
+  await page.waitForSelector('#crash'); await shot('a10-naming-crash-card');
+  assert.match(await page.locator('#crash').innerText(), /carregando o modelo de nomes \(0\/4\) \(wasm\/q8\)/, 'the crash names the backends that died');
+  assert.equal(await page.evaluate(() => location.hash), '#/estimate', 'the crash card leaves the naming URL (no reload loop)');
   await page.evaluate(() => sessionStorage.setItem('__mockLog', '[]'));
   await page.locator('#retry-naming').click(); await page.waitForSelector('h2:text-is("Resultado")');
-  const log2 = JSON.parse(await page.evaluate(() => sessionStorage.getItem('__mockLog')));
-  assert.ok(log2[0] === 'page' && !log2.includes('segmentPoints') && !log2.includes('load') && log2.includes('loadNaming') && log2.includes('backends [["webgpu","q4f16"]]'),
-    `the retry reloads into a fresh naming page, names only, with the next backend plan (WebGPU): ${JSON.stringify(log2)}`);
-  assert.equal(await page.locator('[data-item]').count(), 3);
+  const log3 = JSON.parse(await page.evaluate(() => sessionStorage.getItem('__mockLog')));
+  assert.ok(log3[0] === 'page' && !log3.includes('segmentPoints') && log3.includes('loadNaming'), `the retry reloads into a fresh naming page and names only: ${JSON.stringify(log3)}`);
 
   step('auto on the iPhone: a correction tap loads SAM then (and only then)');
   await openAdjust(page); await page.locator('#add-item').click();

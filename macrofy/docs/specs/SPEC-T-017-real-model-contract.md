@@ -71,6 +71,14 @@ and a reload landed on `#/estimate/resume`, which re-ran the same analysis and S
   per attempt: the CPU (CLIP image tower q4, then q8; 224 px input) first, WebGPU q4f16 on the retry. The retry reloads into a fresh naming page
   (the crash-card page may hold SAM, warmed up by the home screen), and the crash card names the backends that died. CI loads the naming page's
   first plan (`naming_page` stage).
+- First full result on the phone (fries and rice): the CPU naming plan (q4 first) died; the WebGPU retry in a fresh tab worked. So the plans are
+  now WebGPU q4f16 first, CPU q8 second; the SAM page destroys its WebGPU device before the reload (`models.releaseAll`); and the naming page KEEPS
+  its URL while the model loads, so Safari's own reload after a death comes back to it and goes on with the next plan by itself (bounded by the
+  number of plans; then the crash card). The result named fries "arroz branco": the text vectors were the average of a Portuguese and an English
+  prompt, and CLIP/SigLIP were trained on English captions. The vectors now come from English prompts only ("a photo of {en}, a type of food.";
+  non-food labels from priors `non_food_labels_en`); the app still looks them up by its Portuguese prompt strings. Measuring naming accuracy stays T-010.
+- Diagnóstico: every food-grid mask with the reason it is or is not an item (`food_candidates`: kept k, duplicate, plate, rim, low_score,
+  too_small, too_large, off_plate, background, overlap, over_max) and the naming model's top 3 plus the best non-food label per kept mask.
 - CI: the integration test runs auto mode in the same low-res mask space, checks low-res vs full-size masks of one tap (IoU >= 0.9),
   and requires >= 1 food on the pinned Commons photo (`tools/it-photo.json`); a stand-in plate there is a warning.
 

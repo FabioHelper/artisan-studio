@@ -122,7 +122,8 @@ export async function runIntegration({ T, root = join(here, '..'), log = () => {
     const out = { status: r.status, plate_detected: r.plate_detected, via: r.plate?.via ?? null, mask_size: `${ms.w}x${ms.h}`, items: r.items.map((i) => i.cls.id), rejected: r.rejected.length, prompts: t.prompts, decode_ms: t.decode_ms, classify_ms: t.classify_ms,
       timings: { encoder_ms: encoderMs, plate_decode_ms: t.plate_decode_ms, food_decode_ms: t.food_decode_ms, naming_ms: t.classify_ms, total_ms: encoderMs + t.total_ms },
       plate: r.plate ? { area_frac: Number(r.plate.area_frac.toFixed(3)), residual: Number(r.plate.residual.toFixed(3)), filled: r.plate.filled, via: r.plate.via, support: r.plate.support ?? null } : null,
-      plate_cols: PLATE_COLS, plate_rows: (r.plate_candidates ?? []).map((c) => PLATE_COLS.map((k) => c[k])) };
+      plate_cols: PLATE_COLS, plate_rows: (r.plate_candidates ?? []).map((c) => PLATE_COLS.map((k) => c[k])),
+      food_rows: (r.food_candidates ?? []).map((c) => [c.x, c.y, c.score, c.frac, c.verdict]), naming_rows: (r.naming_rows ?? []).map((n) => [n.pixels, ...n.top.flat(), ...n.nonfood]) };
     try {
       assert.ok(['ok', 'no_plate', 'empty_plate'].includes(r.status), `auto status ${r.status}`); assert.ok(t.prompts >= params.plate_grid_n ** 2, 'the plate grid was decoded');
       for (const it of r.items) { assert.ok(ids.has(it.cls.id), 'auto item is a vocab class'); assert.equal(it.mask.width, ms.w); assert.ok(finite(it.score)); }
@@ -183,8 +184,8 @@ export async function runIntegration({ T, root = join(here, '..'), log = () => {
     await models.dispose();
   }
 
-  { // the iPhone naming page (T-017): only the naming model, loaded with the first plan of priors naming_page_plans (the CPU, q4 first). Required.
-    const plan = params.naming_page_plans[0]; const entry = { id: clip.id, plan: plan.map((x) => x.join('/')).join(', ') }; summary.naming_page = entry;
+  { // the iPhone naming page (T-017): only the naming model, loaded with the CPU plan of priors naming_page_plans (CI has no GPU). Required.
+    const plan = params.naming_page_plans.find((pl) => pl.every(([device]) => device === 'wasm')); const entry = { id: clip.id, plan: plan.map((x) => x.join('/')).join(', ') }; summary.naming_page = entry;
     const models = make({ segmentCandidates: [cpuCandidate(SEGMENT_CANDIDATES[0])], namingCandidates: [clip], sequential: true });
     const crop = blobOf(cropRgba(photo, blobMask(photo, photo.blobs[1])));
     const bucket = {}; await stage(bucket, 'naming_page', async () => {

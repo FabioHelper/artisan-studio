@@ -3,8 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { readInput, readSession, writeSession, changedPaths, ROOT } from './common.mjs';
-import { loadSnapshot } from '../lib/state.mjs';
+import { readInput, readSession, writeSession, changedPaths, changedSets, committedChangeHandedOff, ROOT } from './common.mjs';
+import { loadSnapshot, PATHS } from '../lib/state.mjs';
 import { runGates, formatFailures } from '../lib/gates.mjs';
 
 const MC_WRITTEN = new Set(['control/journal.jsonl', 'control/plan.json', 'docs/STATUS.md']);
@@ -22,10 +22,14 @@ try {
   const failures = formatFailures(runGates(snap, { fast: true }));
   if (failures) problems.push(failures);
 
-  const mtimes = changed.filter(f => !MC_WRITTEN.has(f)).map(f => { try { return fs.statSync(path.join(ROOT, f)).mtimeMs; } catch { return 0; } });
+  const { dirty, committed } = changedSets(session);
+  const mtimes = dirty.filter(f => !MC_WRITTEN.has(f)).map(f => { try { return fs.statSync(path.join(ROOT, f)).mtimeMs; } catch { return 0; } });
   const latestChange = Math.max(0, ...mtimes);
   const lastNote = snap.journal.filter(e => e.type === 'note').pop();
-  if (latestChange && (!lastNote || Date.parse(lastNote.at) < latestChange)) {
+  const noteUncommitted = lastNote && !(snap.headRead(PATHS.journal) || '').includes(`"seq":${lastNote.seq},`);
+  const dirtyStale = latestChange && (!lastNote || Date.parse(lastNote.at) < latestChange);
+  const committedStale = !noteUncommitted && !committedChangeHandedOff(committed.filter(f => !MC_WRITTEN.has(f)));
+  if (dirtyStale || committedStale) {
     problems.push('✗ handoff: macrofy/ changed after the latest handoff note.\n    fix: node macrofy/harness/mc.mjs note "done: … / next: … / gotchas: …"  (what the next session must know)');
   }
   if (!problems.length) process.exit(0);

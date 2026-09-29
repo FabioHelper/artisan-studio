@@ -25,17 +25,33 @@ export function journalLength() {
 
 export const fullHead = () => (git(['rev-parse', 'HEAD']) || '').trim() || null;
 
-// macrofy/ paths changed in this session: uncommitted work plus commits since the session began.
-export function changedPaths(session) {
-  const out = new Set();
+// macrofy/ paths changed in this session, split into uncommitted work and commits since the session began.
+export function changedSets(session) {
+  const dirty = new Set(); const committed = new Set();
   const prefix = (git(['rev-parse', '--show-prefix']) || '').trim();
   for (const line of (git(['status', '--porcelain', '--untracked-files=all', '--', '.', ':(exclude).mc-cache']) || '').split('\n')) {
-    if (line.trim()) out.add(line.slice(3).split(' -> ').pop().replace(/^"|"$/g, '').slice(prefix.length));
+    if (line.trim()) dirty.add(line.slice(3).split(' -> ').pop().replace(/^"|"$/g, '').slice(prefix.length));
   }
   if (session?.start_head && session.start_head !== fullHead()) {
-    for (const f of (git(['diff', '--name-only', '--relative', `${session.start_head}`, 'HEAD', '--', '.']) || '').split('\n')) if (f.trim()) out.add(f.trim());
+    for (const f of (git(['diff', '--name-only', '--relative', `${session.start_head}`, 'HEAD', '--', '.']) || '').split('\n')) if (f.trim() && !dirty.has(f.trim())) committed.add(f.trim());
   }
-  return [...out];
+  return { dirty: [...dirty], committed: [...committed] };
+}
+
+export function changedPaths(session) {
+  const { dirty, committed } = changedSets(session);
+  return [...dirty, ...committed];
+}
+
+// A committed change is handed off when a commit adding a journal note contains it
+// (file mtimes are useless here: checkouts and merges rewrite them).
+export function committedChangeHandedOff(paths) {
+  if (!paths.length) return true;
+  const lastChange = (git(['log', '-1', '--format=%H', '--', ...paths]) || '').trim();
+  const noteCommit = (git(['log', '-1', '--format=%H', '-G', '"type":"note"', '--', PATHS.journal]) || '').trim();
+  if (!lastChange) return true;
+  if (!noteCommit) return false;
+  return noteCommit === lastChange || git(['merge-base', '--is-ancestor', lastChange, noteCommit]) !== null;
 }
 
 export function transcriptMentionsMacrofy(transcriptPath) {

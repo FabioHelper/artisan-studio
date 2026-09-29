@@ -77,6 +77,13 @@ gitc('add', '-A'); gitc('commit', '-q', '-m', 'committed change');
 r = hook('stop', { session_id: 's2' });
 expect('stop sees committed macrofy changes since session start', r.status === 2 && r.stderr.includes('handoff'), show(r));
 
+r = mc('note', 'done: committed change / next: none');
+gitc('add', '-A'); gitc('commit', '-q', '-m', 'note after change');
+const later = new Date(Date.now() + 5000);
+fs.utimesSync(path.join(M, 'docs', 'architecture.md'), later, later);
+r = hook('stop', { session_id: 's2' });
+expect('a merge/checkout rewriting mtimes does not re-trigger a committed handoff', r.status === 0 && !r.stderr, show(r));
+
 fs.rmSync(repo, { recursive: true, force: true });
 console.log(failures ? `\n${failures} hook selftest failure(s)` : '\nhooks selftest OK');
 process.exit(failures ? 1 : 0);

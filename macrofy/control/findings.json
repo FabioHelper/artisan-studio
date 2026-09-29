@@ -9,6 +9,16 @@
       "task": "T-006",
       "evidence": "Owner decision 2026-09-28: only the owner collects the 300 weighed meals; ADR 0002 assumed 10-20 households",
       "expected_failing": []
+    },
+    {
+      "id": "F-002",
+      "title": "Stop hook demanded a new handoff after merges because checkouts rewrite file mtimes",
+      "severity": "low",
+      "status": "closed",
+      "task": "T-001",
+      "evidence": "After fast-forwarding T-004 (note already committed in the branch), the Stop hook blocked with handoff-missing; forcing a note on main diverges from active worktree journals",
+      "expected_failing": [],
+      "resolution": "Committed changes are now judged by commit ancestry (a note-adding commit must contain the last change); mtimes only for uncommitted files. Regression case added to harness/hooks/selftest-hooks.mjs"
     }
   ]
 }

@@ -112,6 +112,12 @@
       "assumption": true,
       "calibrate_from": "recall on the benchmark"
     },
+    "plate_masks_per_point": {
+      "value": 3,
+      "rationale": "The plate grid keeps all three masks SAM returns per point: the best-scoring one is often a part of the plate or the plate without its food, and the whole plate is only one of the outputs (T-017).",
+      "assumption": true,
+      "calibrate_from": "plate recall on the benchmark"
+    },
     "dedupe_iou": {
       "value": 0.7,
       "rationale": "From ADR 0005: two masks overlapping more than this are the same object and the lower predicted IoU is dropped.",

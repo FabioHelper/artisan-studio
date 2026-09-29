@@ -256,6 +256,31 @@ const empty3 = await detect(makeModels({ ...scene, foodStage: [] }));
 check('empty plate: the foods grid returns nothing -> empty_plate', empty3.status === 'empty_plate' && empty3.items.length === 0);
 const capped = await detect(makeModels(scene), { params: { ...P, max_food_items: 2 } });
 check('pipeline: max_food_items keeps the largest few', capped.items.length === 2);
+// ---------------------------------------------------------------- T-017: the plate SAM 2.1 returns is the plate WITHOUT its food (hypothesis from the CI run: auto mode
+// found no plate on SAM 2.1 tiny while SlimSAM did; the CI summary now logs per-prompt area and residual to confirm). The food is a hole in that mask:
+// the raw mask fails the ellipse rule, the mask with its holes filled passes, and foods on the plate must not be rejected as "off the plate".
+const holed = { ...S.plate, score: 0.97, data: Uint8Array.from(S.plate.data, (v, i) => (v && !S.rice.data[i] && !S.meat.data[i] && !S.salad.data[i] ? 1 : 0)) };
+const filled = A.fillHoles(holed);
+check('fillHoles: the three food holes are filled back to the whole plate; score and size are kept', count(filled) === count(S.plate) && filled.score === 0.97 && filled !== holed && at(filled, 58, 60) === 1 && at(filled, 100, 58) === 1);
+check('fillHoles: a mask without a hole is returned as it is (same object)', A.fillHoles(S.plate) === S.plate && A.fillHoles(S.rice) === S.rice);
+const notch = { ...S.plate, data: Uint8Array.from(S.plate.data, (v, i) => (v && !(i % W >= 76 && i % W <= 84 && Math.floor(i / W) <= 62) ? 1 : 0)) }; // a bite from the centre to the top rim, open to the outside
+check('fillHoles: background connected to the photo border is not a hole (an open notch stays open)', count(A.fillHoles(notch)) === count(notch));
+const dgn = A.plateDiagnostics([S.table, holed, S.rice], plateParams);
+check('the raw plate-without-food mask fails the ellipse rule, the filled one passes: residual_raw above the limit, residual below', dgn[1].residual_raw > P.plate_max_residual && dgn[1].residual <= P.plate_max_residual && dgn[1].area_raw < dgn[1].area_frac && dgn[1].verdict === 'ok');
+check('diagnostics say why each mask is not the plate: table too large, rice too small; rows carry area, cover, residual and verdict', dgn[0].verdict === 'too_large' && dgn[2].verdict === 'too_small' && ['x', 'y', 'score', 'area_frac', 'area_raw', 'cover', 'residual', 'residual_raw', 'verdict'].every((k) => k in dgn[1]));
+const selHoled = A.selectPlate([S.table, holed, S.rice], plateParams);
+check('plate selection: the plate without its food is the plate (filled), its source is kept and the ellipse is the plate\'s', !!selHoled && selHoled.filled === true && selHoled.source === holed && selHoled.mask !== holed && near(selHoled.ellipse.a, 64, 2) && selHoled.index === 1);
+check('food filter: the plate again, with or without its food, is not a food (plateDupIou); foods on the filled plate are inside it', (() => {
+  const fs = A.filterFoods([holed, S.plate, S.rice, S.meat], selHoled, { ...foodParams, plateDupIou: P.dedupe_iou });
+  return fs.length === 2 && fs.every((m) => m.inside_frac === 1);
+})());
+const holedScene = { plateStage: [S.table, holed, S.speckOutside], foodStage: [holed, S.rice, S.meat, S.salad, S.lowScore] };
+const mh = makeModels(holedScene); const rh = await detect(mh, { diagnostics: true });
+check('pipeline with a plate that has holes for its food: plate found (filled), 3 foods kept, the plate-without-food mask is not one of them', rh.status === 'ok' && rh.plate.filled === true && rh.items.map((i) => i.cls.id).sort().join() === 'arroz-branco-cozido,bife-grelhado,salada-mista-crua');
+check('pipeline: the plate grid keeps all multimask outputs (plate_masks_per_point), the food grid the best one', mh.calls.seg[0].opts.perPoint === P.plate_masks_per_point && P.plate_masks_per_point === 3 && mh.calls.seg[1].opts.perPoint === P.masks_per_point);
+check('pipeline: per-stage decode timings and (on request) the plate diagnostics; without the flag no diagnostics', rh.timings.plate_decode_ms === 7 && rh.timings.food_decode_ms === 7 && Array.isArray(rh.plate_candidates) && rh.plate_candidates.length === 3 && rh.plate_candidates.some((r) => r.verdict === 'ok') && !('plate_candidates' in ok1));
+const nop = await detect(makeModels({ plateStage: [S.table, S.rice], foodStage: [] }), { diagnostics: true });
+check('no plate with diagnostics: the rows explain it', nop.status === 'no_plate' && nop.plate_candidates.map((r) => r.verdict).join() === 'too_large,too_small');
 let missing = null; try { await detect({ classify: async () => [] }); } catch (e) { missing = e; }
 check('pipeline: a model layer without segmentPoints rejects', missing instanceof Error);
 

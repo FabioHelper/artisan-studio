@@ -1,0 +1,483 @@
+{
+ "schema": "macrofy.model-probe/1",
+ "transformers_js": "4.3.0",
+ "models": [
+  {
+   "id": "Xenova/slimsam-77-uniform",
+   "kind": "segmentation",
+   "revision": "5850ab45f587c112167512ffef949107115e26a0",
+   "onnx": [
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_fp16.onnx",
+     "size": 8550118
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_quantized.onnx",
+     "size": 4903810
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder.onnx",
+     "size": 16557892
+    },
+    {
+     "path": "onnx/vision_encoder_fp16.onnx",
+     "size": 12170657
+    },
+    {
+     "path": "onnx/vision_encoder_quantized.onnx",
+     "size": 8882165
+    },
+    {
+     "path": "onnx/vision_encoder.onnx",
+     "size": 23276014
+    }
+   ],
+   "has_vision_model": false,
+   "has_text_model": false
+  },
+  {
+   "id": "onnx-community/sam2.1-hiera-tiny-ONNX",
+   "kind": "segmentation",
+   "revision": "814a066640debee5a91e70aa401fb8e17e030503",
+   "onnx": [
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_bnb4.onnx",
+     "size": 228219
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_bnb4.onnx_data",
+     "size": 6870016
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_fp16.onnx",
+     "size": 229799
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_fp16.onnx_data",
+     "size": 10454016
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_int8.onnx",
+     "size": 289885
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_int8.onnx_data",
+     "size": 8662016
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_q4.onnx",
+     "size": 226444
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_q4.onnx_data",
+     "size": 7130112
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_q4f16.onnx",
+     "size": 243598
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_q4f16.onnx_data",
+     "size": 4563968
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_quantized.onnx",
+     "size": 290416
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_quantized.onnx_data",
+     "size": 8662016
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_uint8.onnx",
+     "size": 290022
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_uint8.onnx_data",
+     "size": 8662016
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder.onnx",
+     "size": 213114
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder.onnx_data",
+     "size": 20958208
+    },
+    {
+     "path": "onnx/vision_encoder_bnb4.onnx",
+     "size": 367275
+    },
+    {
+     "path": "onnx/vision_encoder_bnb4.onnx_data",
+     "size": 42085568
+    },
+    {
+     "path": "onnx/vision_encoder_fp16.onnx",
+     "size": 314925
+    },
+    {
+     "path": "onnx/vision_encoder_fp16.onnx_data",
+     "size": 67005504
+    },
+    {
+     "path": "onnx/vision_encoder_int8.onnx",
+     "size": 440423
+    },
+    {
+     "path": "onnx/vision_encoder_int8.onnx_data",
+     "size": 52573088
+    },
+    {
+     "path": "onnx/vision_encoder_q4.onnx",
+     "size": 366089
+    },
+    {
+     "path": "onnx/vision_encoder_q4.onnx_data",
+     "size": 43758848
+    },
+    {
+     "path": "onnx/vision_encoder_q4f16.onnx",
+     "size": 327108
+    },
+    {
+     "path": "onnx/vision_encoder_q4f16.onnx_data",
+     "size": 28532736
+    },
+    {
+     "path": "onnx/vision_encoder_quantized.onnx",
+     "size": 441167
+    },
+    {
+     "path": "onnx/vision_encoder_quantized.onnx_data",
+     "size": 52573088
+    },
+    {
+     "path": "onnx/vision_encoder_uint8.onnx",
+     "size": 440595
+    },
+    {
+     "path": "onnx/vision_encoder_uint8.onnx_data",
+     "size": 52573088
+    },
+    {
+     "path": "onnx/vision_encoder.onnx",
+     "size": 354238
+    },
+    {
+     "path": "onnx/vision_encoder.onnx_data",
+     "size": 134084864
+    }
+   ],
+   "has_vision_model": false,
+   "has_text_model": false
+  },
+  {
+   "id": "Xenova/clip-vit-base-patch32",
+   "kind": "naming",
+   "revision": "d15189d7028b43f1d3e65039190477f6af591c2a",
+   "onnx": [
+    {
+     "path": "onnx/model_bnb4.onnx",
+     "size": 181695925
+    },
+    {
+     "path": "onnx/model_fp16.onnx",
+     "size": 303515168
+    },
+    {
+     "path": "onnx/model_q4.onnx",
+     "size": 189403477
+    },
+    {
+     "path": "onnx/model_q4f16.onnx",
+     "size": 125818295
+    },
+    {
+     "path": "onnx/model_quantized.onnx",
+     "size": 153695702
+    },
+    {
+     "path": "onnx/model_uint8.onnx",
+     "size": 152738540
+    },
+    {
+     "path": "onnx/model.onnx",
+     "size": 605799029
+    },
+    {
+     "path": "onnx/text_model_bnb4.onnx",
+     "size": 123367012
+    },
+    {
+     "path": "onnx/text_model_fp16.onnx",
+     "size": 127339794
+    },
+    {
+     "path": "onnx/text_model_int8.onnx",
+     "size": 64070791
+    },
+    {
+     "path": "onnx/text_model_q4.onnx",
+     "size": 125742108
+    },
+    {
+     "path": "onnx/text_model_q4f16.onnx",
+     "size": 72531963
+    },
+    {
+     "path": "onnx/text_model_quantized.onnx",
+     "size": 64504507
+    },
+    {
+     "path": "onnx/text_model_uint8.onnx",
+     "size": 64070835
+    },
+    {
+     "path": "onnx/text_model.onnx",
+     "size": 254058553
+    },
+    {
+     "path": "onnx/vision_model_bnb4.onnx",
+     "size": 58310402
+    },
+    {
+     "path": "onnx/vision_model_fp16.onnx",
+     "size": 176080659
+    },
+    {
+     "path": "onnx/vision_model_int8.onnx",
+     "size": 88648877
+    },
+    {
+     "path": "onnx/vision_model_q4.onnx",
+     "size": 63642858
+    },
+    {
+     "path": "onnx/vision_model_q4f16.onnx",
+     "size": 53267374
+    },
+    {
+     "path": "onnx/vision_model_quantized.onnx",
+     "size": 89117001
+    },
+    {
+     "path": "onnx/vision_model_uint8.onnx",
+     "size": 88648915
+    },
+    {
+     "path": "onnx/vision_model.onnx",
+     "size": 351685709
+    }
+   ],
+   "has_vision_model": true,
+   "has_text_model": true
+  },
+  {
+   "id": "Xenova/siglip-base-patch16-224",
+   "kind": "naming",
+   "revision": "4649052661e53c7000355844105f8a1792088239",
+   "onnx": [
+    {
+     "path": "onnx/model_bnb4.onnx",
+     "size": 206944154
+    },
+    {
+     "path": "onnx/model_fp16.onnx",
+     "size": 407013090
+    },
+    {
+     "path": "onnx/model_q4.onnx",
+     "size": 217965403
+    },
+    {
+     "path": "onnx/model_q4f16.onnx",
+     "size": 153346039
+    },
+    {
+     "path": "onnx/model_quantized.onnx",
+     "size": 210977441
+    },
+    {
+     "path": "onnx/model_uint8.onnx",
+     "size": 205091308
+    },
+    {
+     "path": "onnx/model.onnx",
+     "size": 813154118
+    },
+    {
+     "path": "onnx/text_model_bnb4.onnx",
+     "size": 149385374
+    },
+    {
+     "path": "onnx/text_model_fp16.onnx",
+     "size": 220867426
+    },
+    {
+     "path": "onnx/text_model_int8.onnx",
+     "size": 110982746
+    },
+    {
+     "path": "onnx/text_model_q4.onnx",
+     "size": 154693262
+    },
+    {
+     "path": "onnx/text_model_q4f16.onnx",
+     "size": 98710743
+    },
+    {
+     "path": "onnx/text_model_quantized.onnx",
+     "size": 111475220
+    },
+    {
+     "path": "onnx/text_model_uint8.onnx",
+     "size": 110982791
+    },
+    {
+     "path": "onnx/text_model.onnx",
+     "size": 441332132
+    },
+    {
+     "path": "onnx/vision_model_bnb4.onnx",
+     "size": 57548753
+    },
+    {
+     "path": "onnx/vision_model_fp16.onnx",
+     "size": 186142673
+    },
+    {
+     "path": "onnx/vision_model_int8.onnx",
+     "size": 94098316
+    },
+    {
+     "path": "onnx/vision_model_q4.onnx",
+     "size": 63262114
+    },
+    {
+     "path": "onnx/vision_model_q4f16.onnx",
+     "size": 54625339
+    },
+    {
+     "path": "onnx/vision_model_quantized.onnx",
+     "size": 99499129
+    },
+    {
+     "path": "onnx/vision_model_uint8.onnx",
+     "size": 94098362
+    },
+    {
+     "path": "onnx/vision_model.onnx",
+     "size": 371819850
+    }
+   ],
+   "has_vision_model": true,
+   "has_text_model": true
+  },
+  {
+   "id": "onnx-community/siglip2-base-patch16-224-ONNX",
+   "kind": "naming",
+   "revision": "ba1f3b0843f24bc5417d38e19c37b287d719b2f4",
+   "onnx": [
+    {
+     "path": "onnx/model_bnb4.onnx",
+     "size": 895080484
+    },
+    {
+     "path": "onnx/model_fp16.onnx",
+     "size": 750910198
+    },
+    {
+     "path": "onnx/model_int8.onnx",
+     "size": 378000135
+    },
+    {
+     "path": "onnx/model_q4.onnx",
+     "size": 906101733
+    },
+    {
+     "path": "onnx/model_q4f16.onnx",
+     "size": 497418715
+    },
+    {
+     "path": "onnx/model_quantized.onnx",
+     "size": 378000135
+    },
+    {
+     "path": "onnx/model_uint8.onnx",
+     "size": 378000135
+    },
+    {
+     "path": "onnx/model.onnx",
+     "size": 1501285826
+    },
+    {
+     "path": "onnx/text_model_bnb4.onnx",
+     "size": 837517980
+    },
+    {
+     "path": "onnx/text_model_fp16.onnx",
+     "size": 564862230
+    },
+    {
+     "path": "onnx/text_model_int8.onnx",
+     "size": 283438275
+    },
+    {
+     "path": "onnx/text_model_q4.onnx",
+     "size": 842825868
+    },
+    {
+     "path": "onnx/text_model_q4f16.onnx",
+     "size": 442779433
+    },
+    {
+     "path": "onnx/text_model_quantized.onnx",
+     "size": 283438275
+    },
+    {
+     "path": "onnx/text_model_uint8.onnx",
+     "size": 283438275
+    },
+    {
+     "path": "onnx/text_model.onnx",
+     "size": 1129469657
+    },
+    {
+     "path": "onnx/vision_model_bnb4.onnx",
+     "size": 57554105
+    },
+    {
+     "path": "onnx/vision_model_fp16.onnx",
+     "size": 186039516
+    },
+    {
+     "path": "onnx/vision_model_int8.onnx",
+     "size": 94553333
+    },
+    {
+     "path": "onnx/vision_model_q4.onnx",
+     "size": 63267466
+    },
+    {
+     "path": "onnx/vision_model_q4f16.onnx",
+     "size": 54630849
+    },
+    {
+     "path": "onnx/vision_model_quantized.onnx",
+     "size": 94553333
+    },
+    {
+     "path": "onnx/vision_model_uint8.onnx",
+     "size": 94553333
+    },
+    {
+     "path": "onnx/vision_model.onnx",
+     "size": 371807752
+    }
+   ],
+   "has_vision_model": true,
+   "has_text_model": true
+  }
+ ]
+}

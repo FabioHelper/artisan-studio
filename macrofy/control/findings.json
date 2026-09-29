@@ -19,6 +19,16 @@
       "evidence": "After fast-forwarding T-004 (note already committed in the branch), the Stop hook blocked with handoff-missing; forcing a note on main diverges from active worktree journals",
       "expected_failing": [],
       "resolution": "Committed changes are now judged by commit ancestry (a note-adding commit must contain the last change); mtimes only for uncommitted files. Regression case added to harness/hooks/selftest-hooks.mjs"
+    },
+    {
+      "id": "F-003",
+      "title": "CI red on main: hooks selftest copied a fixed list of repo-level files, so a new doc path (Pages workflow) failed D2 inside the test repo",
+      "severity": "medium",
+      "status": "closed",
+      "task": "T-001",
+      "evidence": "macrofy-harness runs 20-21 failed: harness-hooks-selftest, D2 on SPEC-T-012 mentioning the Pages workflow; the orchestrator had run only the fast gate after merging",
+      "expected_failing": [],
+      "resolution": "selftest-hooks copies .claude/ and .github/ whole (minus worktrees); full mc check now required after every merge (CLAUDE.md)"
     }
   ]
 }

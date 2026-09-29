@@ -10,9 +10,10 @@ const SRC = path.resolve(HERE, '..', '..');
 const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-hooks-'));
 const M = path.join(repo, 'macrofy');
 fs.cpSync(SRC, M, { recursive: true, filter: (p) => !/[\\/](\.mc-cache|node_modules)([\\/]|$)/.test(p) });
-for (const rel of ['.claude/settings.json', '.claude/agents/macrofy-reviewer.md', '.github/workflows/macrofy-harness.yml']) {
-  fs.mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
-  fs.copyFileSync(path.resolve(SRC, '..', rel), path.join(repo, rel));
+// Docs may name any repo-level harness file, so copy those folders whole rather than a list that rots.
+for (const dir of ['.claude', '.github']) {
+  const from = path.resolve(SRC, '..', dir);
+  if (fs.existsSync(from)) fs.cpSync(from, path.join(repo, dir), { recursive: true, filter: (p) => !/[\\/]worktrees([\\/]|$)/.test(p) });
 }
 
 const env = { ...process.env, MC_ROOT: M, MC_AGENT: 'hooks-selftest' };

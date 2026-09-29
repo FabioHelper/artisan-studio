@@ -26,7 +26,10 @@ import { namePrompts, topNames, NAME_PROMPT } from '../web/estimate/core.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------- pure helpers (exercised by web/selftest.mjs against a fake library)
-/** The test photo: RGBA pixels of a light elliptical plate on a dark table with three coloured blobs. Deterministic. */
+/**
+ * The test photo: RGBA pixels of a light elliptical plate on a dark table with three coloured blobs and a heap of nine thin fry-coloured sticks
+ * (T-017: the owner's french fries were never found; each stick alone is under the food minimum, only the heap is an item). Deterministic.
+ */
 export const PLATE_AREA_FRAC = Math.PI * 0.38 * 0.36; // the drawn plate's share of the test photo
 export function makePlateImage(width = 640, height = 480) {
   const cx = width / 2; const cy = height / 2; const plate = { cx, cy, a: width * 0.38, b: height * 0.36 };
@@ -35,15 +38,26 @@ export function makePlateImage(width = 640, height = 480) {
     { name: 'salad', cx: cx + 0.13 * width, cy: cy - 0.06 * height, r: 0.085 * width, rgb: [60, 150, 60] },
     { name: 'rice', cx: cx + 0.02 * width, cy: cy + 0.14 * height, r: 0.075 * width, rgb: [225, 200, 120] },
   ];
+  const sticks = stickHeap(width, height);
   const data = new Uint8ClampedArray(width * height * 4);
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     let rgb = [118 + (x * 12) / width, 82 + (y * 10) / height, 58]; // wooden table
     const e = ((x - plate.cx) / plate.a) ** 2 + ((y - plate.cy) / plate.b) ** 2;
     if (e <= 1) rgb = e > 0.85 ? [200, 200, 196] : [236, 236, 231]; // rim, then the plate
     for (const b of blobs) if ((x - b.cx) ** 2 + (y - b.cy) ** 2 <= b.r ** 2) rgb = b.rgb;
+    if (sticks.hit(x, y)) rgb = [214, 196, 96];
     const o = (y * width + x) * 4; data[o] = rgb[0]; data[o + 1] = rgb[1]; data[o + 2] = rgb[2]; data[o + 3] = 255;
   }
-  return { width, height, data, plate, blobs };
+  return { width, height, data, plate, blobs, sticks };
+}
+/** Nine thin sticks (fries) crossing each other in a heap left of the plate's top, clear of the blobs and the rim. { segs, hit(x, y), mask(w, h) } */
+export function stickHeap(width = 640, height = 480) {
+  const cx = width * 0.36; const cy = height * 0.3125; const L = width * 0.0625; const half = width * 0.0047;
+  const segs = Array.from({ length: 9 }, (_, i) => { const a = (i * 47 % 180) * Math.PI / 180; const ox = ((i * 37) % 7 - 3) * width * 0.008; const oy = ((i * 53) % 7 - 3) * height * 0.009;
+    return { x0: cx + ox - Math.cos(a) * L / 2, y0: cy + oy - Math.sin(a) * L / 2, x1: cx + ox + Math.cos(a) * L / 2, y1: cy + oy + Math.sin(a) * L / 2 }; });
+  const hit = (x, y) => segs.some((q) => { const dx = q.x1 - q.x0; const dy = q.y1 - q.y0; const t = Math.max(0, Math.min(1, ((x - q.x0) * dx + (y - q.y0) * dy) / (dx * dx + dy * dy))); return Math.hypot(x - q.x0 - t * dx, y - q.y0 - t * dy) <= half; });
+  const mask = (w, h) => { const d = new Uint8Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (hit((x + 0.5) * width / w - 0.5, (y + 0.5) * height / h - 0.5)) d[y * w + x] = 1; return { width: w, height: h, data: d }; };
+  return { segs, hit, mask };
 }
 /** RGBA sub-image around the 1-pixels of a mask (bounding box grown by `pad`, at least 32 x 32). -> { width, height, data } */
 export function cropRgba(img, mask, pad = 8) {
@@ -123,7 +137,14 @@ export async function runIntegration({ T, root = join(here, '..'), log = () => {
       timings: { encoder_ms: encoderMs, plate_decode_ms: t.plate_decode_ms, food_decode_ms: t.food_decode_ms, naming_ms: t.classify_ms, total_ms: encoderMs + t.total_ms },
       plate: r.plate ? { area_frac: Number(r.plate.area_frac.toFixed(3)), residual: Number(r.plate.residual.toFixed(3)), filled: r.plate.filled, via: r.plate.via, support: r.plate.support ?? null } : null,
       plate_cols: PLATE_COLS, plate_rows: (r.plate_candidates ?? []).map((c) => PLATE_COLS.map((k) => c[k])),
-      food_rows: (r.food_candidates ?? []).map((c) => [c.x, c.y, c.score, c.frac, c.verdict]), naming_rows: (r.naming_rows ?? []).map((n) => [n.pixels, ...n.top.flat(), ...n.nonfood]) };
+      food_rows: (r.food_candidates ?? []).map((c) => [c.x, c.y, c.score, c.frac, c.verdict]), naming_rows: (r.naming_rows ?? []).map((n) => [n.pixels, ...n.top.flat(), ...n.nonfood]),
+      heap_groups: r.heap_groups ?? [], heap_decodes: t.heap_decodes ?? 0 };
+    if (img.sticks) { // the synthetic stick heap: the share of its pixels inside one item (reported; a warning when under half)
+      const sm = img.sticks.mask(ms.w, ms.h); const n = sm.data.reduce((a, v) => a + v, 0);
+      const cover = Math.max(0, ...r.items.map((it) => { let k = 0; for (let i = 0; i < sm.data.length; i++) if (sm.data[i] && it.mask.data[i]) k++; return k / (n || 1); }));
+      out.stick_heap = { cover: Number(cover.toFixed(3)), item: r.items.find((it) => { let k = 0; for (let i = 0; i < sm.data.length; i++) if (sm.data[i] && it.mask.data[i]) k++; return k / (n || 1) === cover; })?.cls.id ?? null };
+      if (require === 'plate' && cover < 0.5) summary.warnings.push(`auto mode on ${label}: the stick heap was not found as one item (best cover ${cover.toFixed(2)}; see heap_groups and food_rows)`);
+    }
     try {
       assert.ok(['ok', 'no_plate', 'empty_plate'].includes(r.status), `auto status ${r.status}`); assert.ok(t.prompts >= params.plate_grid_n ** 2, 'the plate grid was decoded');
       for (const it of r.items) { assert.ok(ids.has(it.cls.id), 'auto item is a vocab class'); assert.equal(it.mask.width, ms.w); assert.ok(finite(it.score)); }

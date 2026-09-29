@@ -84,6 +84,13 @@ and a reload landed on `#/estimate/resume`, which re-ran the same analysis and S
   heap at predicted IoU 0.65-0.78 from 3 points, under food_min_pred_iou 0.8. Now the food grid keeps all three multimask outputs
   (`food_masks_per_point`) and a mask of middling confidence (>= `food_min_pred_iou_supported`) is kept when `food_support_min` distinct points
   agree on it (`markSupport`). The naming page tries the CPU q8 first, WebGPU second.
+- Heap step: on the owner's fries the Diagnóstico showed that SAM never returned the heap at all: each grid point on the fries got one fry (tiny)
+  or the plate well (verdict plate); the 0.7+ masks were the well, not the fries. The support rule above cannot fix that. Now grid points on the
+  plate that only found a small piece (best mask under `heap_fragment_max_frac` of the plate) and that no item covers are grouped by grid
+  neighbourhood; each group of at least `heap_min_points` is decoded ONCE with all its points as positives and the nearest items' centres as
+  negatives (`models.segmentGroup`; the decoder contract allows any number of points per prompt, checked in web/selftest.mjs). A food-sized,
+  confident output that covers half the points becomes an item. The CI test photo gained a heap of nine thin sticks; the summary reports how
+  much of it one item covers (`stick_heap`, a warning when under half) and the heap groups. The Diagnóstico lists the heap groups.
 - CI: the integration test runs auto mode in the same low-res mask space, checks low-res vs full-size masks of one tap (IoU >= 0.9),
   and requires >= 1 food on the pinned Commons photo (`tools/it-photo.json`); a stand-in plate there is a warning.
 

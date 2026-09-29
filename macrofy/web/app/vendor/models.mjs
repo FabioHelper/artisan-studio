@@ -455,8 +455,9 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
    * the image side from the cached embedding (or pixel_values when there is none). Masks of that point, best predicted IoU first.
    */
   async function samDecode(h, prep, point, cache, lowRes = null) {
-    const p = scaleSamPoint(point, prep.original_sizes[0], prep.reshaped_input_sizes[0]);
-    const prompt = Object.fromEntries(samPromptTensors([[p.x, p.y]], [1]).map((spec) => [spec.name, specToTensor(T, spec)]));
+    // one prompt group: a point { x, y }, or several ([{ x, y, label }], label 1 = on the object, 0 = not on it; the decoder takes any number)
+    const pts = (Array.isArray(point) ? point : [{ ...point, label: 1 }]).map((q) => ({ ...scaleSamPoint(q, prep.original_sizes[0], prep.reshaped_input_sizes[0]), label: q.label ?? 1 }));
+    const prompt = Object.fromEntries(samPromptTensors(pts.map((q) => [q.x, q.y]), pts.map((q) => q.label)).map((spec) => [spec.name, specToTensor(T, spec)]));
     const out = await h.model({ ...(cache && typeof h.model.get_image_embeddings === 'function' ? cache : { pixel_values: prep.pixel_values }), ...prompt });
     const readScores = (n) => { const d = out.iou_scores?.data; return d ? Array.from(d.slice(0, n), (v) => (d instanceof Uint16Array ? halfToFloat(v) : Number(v))) : new Array(n).fill(0); };
     const free = () => { for (const k of Object.keys(out)) try { out[k]?.dispose?.(); } catch { /* ignore */ } };
@@ -502,6 +503,19 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
       try { return await samDecode(s.handle, prepared, { x, y }, embeddings, lowRes); } catch (e) {
         if (!embeddings) throw e;
         embeddings = null; return samDecode(s.handle, prepared, { x, y }, null, lowRes); // cached embeddings not accepted by this model: recompute
+      }
+    },
+    /**
+     * Masks of ONE prompt made of several points (auto mode's heap step: all the points on a heap of small pieces as positives, the kept items'
+     * centres as negatives), best predicted IoU first. points: [{ x, y, label }] in photo pixels; `lowRes` as in segment.
+     */
+    async segmentGroup(points, lowRes = null) {
+      if (!image) throw new Error('nenhuma foto carregada');
+      if (!Array.isArray(points) || !points.length) throw new Error('grupo de pontos vazio');
+      const s = await ensureSeg();
+      try { return await samDecode(s.handle, prepared, points, embeddings, lowRes); } catch (e) {
+        if (!embeddings) throw e;
+        embeddings = null; return samDecode(s.handle, prepared, points, null, lowRes);
       }
     },
     /**

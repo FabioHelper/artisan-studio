@@ -304,6 +304,30 @@
       "assumption": true,
       "calibrate_from": "item recall and precision on the benchmark"
     },
+    "heap_min_points": {
+      "value": 3,
+      "rationale": "The heap step prompts SAM once with all the neighbouring grid points that only found a small piece (owner's fries: SAM gave single fries or the plate well, never the heap); a group needs at least this many points, fewer is one stray piece.",
+      "assumption": true,
+      "calibrate_from": "item recall on the benchmark"
+    },
+    "heap_fragment_max_frac": {
+      "value": 0.1,
+      "rationale": "A grid point counts as 'found only a piece' when its best mask is under this share of the plate; the bare plate surface comes back as a large region (0.3-0.9 of the plate) and is not a piece.",
+      "assumption": true,
+      "calibrate_from": "item recall on the benchmark"
+    },
+    "heap_max_points": {
+      "value": 12,
+      "rationale": "At most this many positive points per heap prompt (evenly taken from the group): enough to cover a heap, few enough to keep one decode cheap.",
+      "assumption": true,
+      "calibrate_from": "decode time on the phone"
+    },
+    "heap_max_negatives": {
+      "value": 4,
+      "rationale": "The centres of the nearest already found items are negative points of the heap prompt, so SAM does not swallow the rice next to the fries.",
+      "assumption": true,
+      "calibrate_from": "item precision on the benchmark"
+    },
     "non_food_margin": {
       "value": 3,
       "rationale": "A kept mask is thrown out as non-food only when its best non-food label scores at least this many times its best food name. With English vectors (CI, 2026-09-29) plain argmax threw out a chicken crop as cutlery (0.11 vs 0.071) and every flat coloured disc of the synthetic plate as an empty plate (0.38-0.59 vs 0.09-0.20); a real fork scores far above any food.",

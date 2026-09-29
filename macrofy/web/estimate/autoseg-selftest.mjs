@@ -382,6 +382,39 @@ const hr3 = await heapRun(heap3.map(({ support, ...m }) => m)); const hr1 = awai
 check('pipeline: a middling-confidence heap that 3 points agree on becomes an item (rice + heap); from one point it stays out (low_score)',
   hr3.items.length === 2 && hr1.items.length === 1 && hr1.food_candidates.some((r) => r.verdict === 'low_score') && P.food_support_min === 3 && P.food_min_pred_iou_supported === 0.6, JSON.stringify([hr3.food_candidates.map((r) => r.verdict), hr1.food_candidates.map((r) => r.verdict)]));
 check('priors: the naming page tries the CPU (q8) first, WebGPU second (owner runs: WebGPU died after the SAM page twice, CPU q8 named the foods)', JSON.stringify(P.naming_page_plans) === JSON.stringify([[['wasm', 'q8']], [['webgpu', 'q4f16']]]));
+// ---------------------------------------------------------------- T-017: the heap step (owner's fries: every grid point on the fries found ONE fry, or the plate well; never the heap)
+const heapShape = ell(100, 80, 26, 17, 0, 0.75);
+const heapModels = () => {
+  const calls = { groups: [], seg: 0 };
+  return { calls,
+    async segmentPoints(points, opts) {
+      calls.seg++;
+      if (calls.seg === 1) return { masks: scene.plateStage, decodes: points.length, ms: 1 };
+      const masks = points.map((q) => {
+        if (at(heapShape, Math.round(q.x), Math.round(q.y))) return { ...ell(q.x, q.y, 3, 1.5, 0.3, 0.8), point: q }; // one fry
+        if (at(S.rice, Math.round(q.x), Math.round(q.y))) return { ...S.rice, point: q };
+        return { ...draw((x, y) => at(S.plate, x, y) && !at(S.rice, x, y) && !at(heapShape, x, y), 0.7), point: q }; // bare plate surface: a large region
+      });
+      return { masks, decodes: points.length, ms: 1 };
+    },
+    async segmentGroup(prompt) { calls.groups.push(prompt); return [heapShape, { ...S.plate, score: 0.6 }]; },
+    classify: makeModels(scene).classify };
+};
+const hm = heapModels(); const hres = await detect(hm, { diagnostics: true });
+const heapItem = hres.items.find((it) => inter(it.mask, heapShape) > 0.9 * count(heapShape));
+check('heap step: the grid points that only found single fries are prompted TOGETHER once (positives), the rice centre as a negative; the heap becomes an item next to the rice',
+  hm.calls.groups.length === 1 && hm.calls.groups[0].filter((q) => q.label === 1).length >= P.heap_min_points && hm.calls.groups[0].some((q) => q.label === 0 && at(S.rice, Math.round(q.x), Math.round(q.y)))
+  && !!heapItem && hres.items.length === 2 && hres.heap_groups.length === 1 && hres.heap_groups[0].verdict === 'kept' && hres.timings.heap_decodes === 1,
+  JSON.stringify({ groups: hm.calls.groups.length, items: hres.items.length, rows: hres.heap_groups }));
+check('heap step: bare plate surface points (large region) are not pieces, so no group is formed without a heap', await (async () => {
+  const m2 = heapModels(); const seg2 = m2.segmentPoints; m2.segmentPoints = async (pts, o) => { const r = await seg2(pts, o); r.masks = r.masks.map((mk) => (at(heapShape, Math.round(mk.point?.x ?? -1), Math.round(mk.point?.y ?? -1)) ? { ...mk, ...draw((x, y) => at(S.plate, x, y) && !at(S.rice, x, y), 0.7), point: mk.point } : mk)); return r; };
+  const r = await detect(m2, { diagnostics: true }); return m2.calls.groups.length === 0 && r.items.length === 1;
+})());
+check('heap step: a group decode whose best output is the plate itself adds nothing (verdict plate)', await (async () => {
+  const m3 = heapModels(); m3.segmentGroup = async (pr) => { m3.calls.groups.push(pr); return [{ ...S.plate, score: 0.9 }]; };
+  const r = await detect(m3, { diagnostics: true }); return r.items.length === 1 && r.heap_groups[0].verdict === 'plate';
+})());
+check('priors: the heap step settings are assumptions', P.heap_min_points === 3 && P.heap_fragment_max_frac === 0.1 && P.heap_max_points === 12 && P.heap_max_negatives === 4);
 // ---------------------------------------------------------------- T-017: split (the iPhone: SAM in one page, the naming model alone in the next)
 // The owner's run died at "dando nome aos alimentos (0/4)": after SAM, loading the naming model in the same page killed the tab (the feasibility run
 // that worked loaded one model per page). detectAuto({ split }) stops before naming; finishAuto names what was kept, from a stored copy.

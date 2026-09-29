@@ -357,5 +357,20 @@ check('priors: mask_side and the crash-retry settings are assumptions', P.mask_s
 let missing = null; try { await detect({ classify: async () => [] }); } catch (e) { missing = e; }
 check('pipeline: a model layer without segmentPoints rejects', missing instanceof Error);
 
+// ---------------------------------------------------------------- T-017: split (the iPhone: SAM in one page, the naming model alone in the next)
+// The owner's run died at "dando nome aos alimentos (0/4)": after SAM, loading the naming model in the same page killed the tab (the feasibility run
+// that worked loaded one model per page). detectAuto({ split }) stops before naming; finishAuto names what was kept, from a stored copy.
+const store = (seg) => structuredClone({ width: seg.width, height: seg.height, plate_detected: seg.plate_detected, timings: seg.timings, plate_candidates: seg.plate_candidates,
+  plate: seg.plate ? { mask: { width: seg.plate.mask.width, height: seg.plate.mask.height, data: seg.plate.mask.data }, ellipse: seg.plate.ellipse, via: seg.plate.via, area_frac: seg.plate.area_frac, residual: seg.plate.residual, support: seg.plate.support } : null,
+  kept: seg.kept.map((m) => ({ width: m.width, height: m.height, data: m.data, score: m.score })) });
+const labelsOf = (r) => r.items.map((i) => `${i.cls.id}:${count(i.mask)}`).sort().join();
+for (const [name, sc] of [['plate found', scene], ['no plate', fbScene]]) {
+  const sm = makeModels(sc); const seg = await detect(sm, { split: true, diagnostics: true });
+  const whole = await detect(makeModels(sc), { diagnostics: true });
+  const fm = makeModels(sc); const fin = await A.finishAuto({ models: { classify: fm.classify }, params: P, classes, crop: async (m) => m, seg: store(seg) });
+  check(`split (${name}): the first half decodes both grids and names nothing (status segmented, kept masks, no classify call)`, seg.status === 'segmented' && sm.calls.classify === 0 && sm.calls.seg.length === 2 && seg.kept.length > 0 && !('items' in seg));
+  check(`split (${name}): finishAuto on a stored copy (only classify available) gives the same items, plate flag, note and rejections as one pass`, labelsOf(fin) === labelsOf(whole) && fin.plate_detected === whole.plate_detected && fin.note === whole.note && fin.rejected.length === whole.rejected.length && fin.status === whole.status && fm.calls.seg.length === 0);
+  check(`split (${name}): the plate carries its ellipse through storage; timings add the naming time; the plate table survives`, near(fin.plate.ellipse.a, whole.plate.ellipse.a, 0.01) && fin.timings.total_ms >= seg.timings.total_ms && fin.timings.prompts === seg.timings.prompts && fin.plate_candidates.length === seg.plate_candidates.length);
+}
 console.log(failures ? `autoseg-selftest: ${failures} check(s) FAILED` : 'autoseg-selftest: all checks passed');
 process.exit(failures ? 1 : 0);

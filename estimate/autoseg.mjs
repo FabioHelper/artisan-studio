@@ -419,14 +419,18 @@ export function autosegParams(priors) {
  * asks for a tap. The foods are looked for on a grid over the centre of the whole photo and the plate is a synthetic circle around them
  * (syntheticPlate: the food is assumed to span a typical plate); then plate_detected is false and `note` says "prato não detectado — escala aproximada".
  * status 'no_plate' remains only for a caller that passes fallback: false (it returns before any food is decoded).
+ * With `split` it stops before naming and returns { status: 'segmented', width, height, plate (null without one), plate_detected, kept, timings };
+ * finishAuto(seg) then does the naming (`crop` is not needed for the split half).
  */
-export async function detectAuto({ models, params, classes, width, height, photoWidth = width, photoHeight = height, crop, onStage = () => {}, now = () => Date.now(), diagnostics = false, fallback = true }) {
+export async function detectAuto({ models, params, classes, width, height, photoWidth = width, photoHeight = height, crop, onStage = () => {}, now = () => Date.now(), diagnostics = false, fallback = true, split = false }) {
   const t0 = now(); const p = params;
   // width x height is the MASK space the pipeline works in; with a smaller mask space than the photo (T-017: memory on the iPhone) the points go to
   // the model in photo pixels and the masks come back at width x height (models.segmentPoints lowRes)
   const low = photoWidth !== width || photoHeight !== height; const sx = photoWidth / width; const sy = photoHeight / height;
   const timings = { prompts: 0, decodes: 0, decode_ms: 0, classify_ms: 0, plate_decode_ms: 0, food_decode_ms: 0, total_ms: 0, timed_out: false, plate_grid_n: p.plate_grid_n, food_grid_n: p.food_grid_n };
-  const finish = (r) => { timings.total_ms = Math.round(now() - t0); return { ...r, timings }; };
+  const finish = (r) => { timings.total_ms = Math.round(now() - t0); return { ...r, timings: { ...timings } }; };
+  // split: stop before naming (the caller names the foods later, on the iPhone in a fresh page: finishAuto); otherwise name them now
+  const named = (seg) => (split ? seg : finishAuto({ models, params, classes, crop, seg, onStage, now }));
   const grid = async (points, stage, perPoint) => {
     const left = Math.max(0, p.time_budget_ms - (now() - t0));
     const r = await models.segmentPoints(low ? points.map((q) => ({ x: q.x * sx, y: q.y * sy })) : points, { batch: p.decode_batch, budgetMs: left, perPoint, ...(low ? { lowRes: { w: width, h: height } } : {}), onProgress: (e) => onStage({ stage, ...e }) });
@@ -434,26 +438,6 @@ export async function detectAuto({ models, params, classes, width, height, photo
     timings.prompts += r.done ?? points.length; timings.decodes += r.decodes ?? points.length; timings.decode_ms += r.ms ?? 0; timings[`${stage === 'plate' ? 'plate' : 'food'}_decode_ms`] += r.ms ?? 0; timings.timed_out ||= !!r.timed_out;
     return r.masks;
   };
-  /** Naming of the kept masks and rejection of the non-food ones (a plate rim, cutlery, the table). -> { merged, rejected } */
-  const nameFoods = async (kept) => {
-    onStage({ stage: 'naming', done: 0, total: kept.length });
-    const nfPrompts = nonFoodPrompts(p.non_food_labels); const prompts = [...namePrompts(classes), ...nfPrompts];
-    const tc = now(); const items = []; const scores = [];
-    for (const mask of kept) {
-      const blob = await crop(mask);
-      const s = await models.classify(blob, prompts);
-      items.push({ mask, score: mask.score ?? 0, blob, index: items.length }); scores.push(s);
-      onStage({ stage: 'naming', done: items.length, total: kept.length });
-    }
-    const { foods, rejected } = rejectNonFood(items, scores, nfPrompts);
-    const named = foods.map((it) => {
-      const top = topNames(scores[it.index], classes, 3);
-      return { ...it, top, cls: top[0]?.cls ?? null, label: top[0]?.cls?.id ?? null };
-    }).filter((it) => it.cls);
-    timings.classify_ms += Math.round(now() - tc);
-    return { merged: mergeSameLabel(named, p.merge_adjacency_px), rejected };
-  };
-
   onStage({ stage: 'plate', done: 0, total: p.plate_grid_n ** 2 });
   // the plate stage keeps every multimask output of a point (the whole plate is often not the best-scoring one), the food stage the best one
   const plateRaw = await grid(gridPoints(width, height, p.plate_grid_n), 'plate', p.plate_masks_per_point ?? p.masks_per_point);
@@ -478,9 +462,7 @@ export async function detectAuto({ models, params, classes, width, height, photo
     });
     const resolved = resolveOverlaps(cand).filter((m) => m.pixels / total >= (p.noplate_food_min_image_frac ?? 0.005));
     const kept = resolved.sort((a, b) => b.pixels - a.pixels).slice(0, p.max_food_items);
-    const { merged, rejected } = await nameFoods(kept);
-    const fake = syntheticPlate(merged.map((it) => it.mask), width, height, { spanFactor: p.noplate_span_factor, defaultFrac: p.noplate_default_plate_frac });
-    return finish({ status: merged.length ? 'ok' : 'empty_plate', plate: fake, plate_detected: false, note: NO_PLATE_NOTE, items: merged, rejected, ...debug });
+    return named(finish({ status: 'segmented', width, height, plate: null, plate_detected: false, kept, ...debug }));
   }
 
   const e = plate.ellipse; const inner = { ...e, a: e.a * p.food_grid_inset, b: e.b * p.food_grid_inset };
@@ -492,6 +474,38 @@ export async function detectAuto({ models, params, classes, width, height, photo
   const plateArea = stats(plate.mask).n;
   const resolved = resolveOverlaps(filtered).filter((m) => m.pixels / plateArea >= p.food_min_frac);
   const kept = resolved.sort((a, b) => b.pixels - a.pixels).slice(0, p.max_food_items);
-  const { merged, rejected } = await nameFoods(kept);
-  return finish({ status: merged.length ? 'ok' : 'empty_plate', plate, plate_detected: true, items: merged, rejected, ...debug });
+  return named(finish({ status: 'segmented', width, height, plate, plate_detected: true, kept, ...debug }));
+}
+
+/**
+ * Second half of auto mode: names the kept masks of a detectAuto({ split: true }) result (`seg`), drops the non-food ones and builds the final
+ * result (the no-plate stand-in circle is drawn around the named foods). It needs only models.classify, so on the iPhone it runs in a fresh page
+ * that loads the naming model alone (T-017: SAM and the naming model in one page killed the tab; the feasibility run proved one model per page).
+ * `seg` may come back from storage: only width, height, plate ({ mask, ellipse, ... } or null), plate_detected, kept (masks with score), timings and
+ * plate_candidates are read. Returns the same shape as detectAuto without split.
+ */
+export async function finishAuto({ models, params, classes, crop, seg, onStage = () => {}, now = () => Date.now() }) {
+  const p = params; const t1 = now(); const kept = seg.kept ?? [];
+  onStage({ stage: 'naming', done: 0, total: kept.length });
+  const nfPrompts = nonFoodPrompts(p.non_food_labels); const prompts = [...namePrompts(classes), ...nfPrompts];
+  const items = []; const scores = [];
+  for (const mask of kept) {
+    const blob = await crop(mask);
+    const sc = await models.classify(blob, prompts);
+    items.push({ mask, score: mask.score ?? 0, blob, index: items.length }); scores.push(sc);
+    onStage({ stage: 'naming', done: items.length, total: kept.length });
+  }
+  const { foods, rejected } = rejectNonFood(items, scores, nfPrompts);
+  const named = foods.map((it) => {
+    const top = topNames(scores[it.index], classes, 3);
+    return { ...it, top, cls: top[0]?.cls ?? null, label: top[0]?.cls?.id ?? null };
+  }).filter((it) => it.cls);
+  const merged = mergeSameLabel(named, p.merge_adjacency_px);
+  const ms = Math.round(now() - t1); const t = seg.timings ?? {};
+  const timings = { ...t, classify_ms: (t.classify_ms ?? 0) + ms, total_ms: (t.total_ms ?? 0) + ms };
+  const debug = seg.plate_candidates ? { plate_candidates: seg.plate_candidates } : {};
+  const status = merged.length ? 'ok' : 'empty_plate';
+  if (seg.plate_detected) return { status, plate: seg.plate, plate_detected: true, items: merged, rejected, ...debug, timings };
+  const fake = syntheticPlate(merged.map((it) => it.mask), seg.width, seg.height, { spanFactor: p.noplate_span_factor, defaultFrac: p.noplate_default_plate_frac });
+  return { status, plate: fake, plate_detected: false, note: NO_PLATE_NOTE, items: merged, rejected, ...debug, timings };
 }

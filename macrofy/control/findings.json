@@ -28,7 +28,16 @@
       "task": "T-001",
       "evidence": "macrofy-harness runs 20-21 failed: harness-hooks-selftest, D2 on SPEC-T-012 mentioning the Pages workflow; the orchestrator had run only the fast gate after merging",
       "expected_failing": [],
-      "resolution": "selftest-hooks copies .claude/ and .github/ whole (minus worktrees); full mc check now required after every merge (CLAUDE.md)"
+      "resolution": "selftest-hooks copies .claude/ and .github/ whole (minus worktrees); full mc check now required after every merge (CLAUDE.md); filter matches paths relative to the copied folder so it also works inside agent worktrees"
+    },
+    {
+      "id": "F-004",
+      "title": "55 of 73 densities are FNDDS chopped-pieces packing densities, which understate solid items (e.g. steak ~1.0-1.1 g/mL)",
+      "severity": "medium",
+      "status": "open",
+      "task": "T-013",
+      "evidence": "T-005 review (#50): kind flag present on all entries (55 pieces, 18 served); estimator must not apply pieces densities to solid outlines",
+      "expected_failing": []
     }
   ]
 }

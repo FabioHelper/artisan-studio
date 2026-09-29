@@ -96,6 +96,14 @@
         "web/selftest.mjs"
       ],
       "description": "Feasibility page files, pinned CDN version, candidate lists and verdict logic"
+    },
+    {
+      "id": "estimator-selftest",
+      "cmd": [
+        "node",
+        "web/estimate/selftest.mjs"
+      ],
+      "description": "Pure estimation core matches hand-computed fixtures; predictions export is accepted by the eval engine"
     }
   ]
 }

@@ -3,17 +3,17 @@
 
 **Mission** (approved): Point the phone camera at a food or meal and get the most likely real weight of each item plus protein, carbs, fat and kcal, with honest ranges and the lowest achievable error, starting with Brazilian meals and running on-device with no paid LLM on the critical path.
 
-**Next action:** continue T-005 "Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities" → make its acceptance checks pass, then `mc verify T-005`, review, `mc done T-005`
+**Next action:** start T-009 "Request a TBCA commercial license from USP/FoRC (draft by agent, sent by owner); fall back to free sources if refused" with `mc start T-009`
 
 ## Goals
 
 | Goal | Title | Measure | Tasks done |
 |---|---|---|---|
 | G-1 | Trustworthy delivery | mc check passes on every commit to main, and every done task carries verify evidence (plus an accepting review when required) in the journal | 2/2 |
-| G-2 | Low portion and macro error | On the locked weighed Brazilian benchmark, the upper 95% CI of per-meal kcal MAPE is <=30% (phase 1), <=20% (phase 2), <=15% (phase 3), with signed bias within +-10% | 2/9 |
-| G-3 | Zero marginal inference cost | The capture-to-result pipeline runs on-device with no network call; any optional cloud fallback is confidence-gated and costs <= US$0.001 per photo | 0/4 |
-| G-4 | Honest uncertainty | Shown 80% ranges contain the weighed truth for 75-85% of benchmark items | 2/3 |
-| G-5 | Effortless capture | Result in <= 2 s on a recent iPhone, with at most one confirmation tap for a typical plate | 0/4 |
+| G-2 | Low portion and macro error | On the locked weighed Brazilian benchmark, the upper 95% CI of per-meal kcal MAPE is <=30% (phase 1), <=20% (phase 2), <=15% (phase 3), with signed bias within +-10% | 3/10 |
+| G-3 | Zero marginal inference cost | The capture-to-result pipeline runs on-device with no network call; any optional cloud fallback is confidence-gated and costs <= US$0.001 per photo | 1/5 |
+| G-4 | Honest uncertainty | Shown 80% ranges contain the weighed truth for 75-85% of benchmark items | 2/4 |
+| G-5 | Effortless capture | Result in <= 2 s on a recent iPhone, with at most one confirmation tap for a typical plate | 0/5 |
 
 **Non-goals:** Estimating grams with an LLM/VLM; A native iOS app in phases 0-1 (no Mac or developer account; PWA first, see ADR 0004); Meal plans, coaching or social features in v1; Packaged-food barcode lookup in v1; Android in v1 (iPhone first; Android after the iPhone MVP passes its gate)
 
@@ -28,13 +28,13 @@
 | T-001 | Mission-control harness and documentation system | done | G-1 | — | optional | [spec](decisions/0001-agent-harness-architecture.md) |
 | T-002 | Define Macrofy's mission, goals, non-goals and first product milestone with the owner | done | G-1 | T-001 | required | — |
 
-### M1 — Phase 0: weighed Brazilian benchmark, evaluation engine and baselines (2/9 done)
+### M1 — Phase 0: weighed Brazilian benchmark, evaluation engine and baselines (3/9 done)
 
 | Task | Title | Status | Goals | Depends on | Review | Spec |
 |---|---|---|---|---|---|---|
 | T-003 | Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules | done | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-003-benchmark-tooling.md) |
 | T-004 | Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI | done | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-004-evaluation-engine.md) |
-| T-005 | Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities | active | G-2, G-3 | T-002 | required | [spec](specs/SPEC-T-005-nutrition-mapping.md) |
+| T-005 | Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities | done | G-2, G-3 | T-002 | required | [spec](specs/SPEC-T-005-nutrition-mapping.md) |
 | T-006 | Owner collects 300 weighed meals (150 calibration, 150 locked test) following the capture protocol, split by capture date | todo | G-2 | T-003, T-011 | required | — |
 | T-007 | Experiment: metric scale error from a registered plate (known diameter, rim ellipse fit) on the iPhone 16e at 25-40 cm | todo | G-2, G-5 | T-011 | required | — |
 | T-009 | Request a TBCA commercial license from USP/FoRC (draft by agent, sent by owner); fall back to free sources if refused | todo | G-2 | T-002 | required | — |
@@ -42,11 +42,12 @@
 | T-011 | Capture PWA: guided photo capture, plate registry, per-item weight entry, export in the benchmark manifest format | todo | G-2, G-5 | T-003 | required | — |
 | T-012 | Feasibility: load and run Depth Anything V2-Small, SAM 2.1-tiny and SigLIP 2 in Safari on the iPhone 16e (WebGPU/WASM) | blocked | G-3, G-5 | T-002 | required | [spec](specs/SPEC-T-012-browser-feasibility.md) |
 
-### M2 — Phase 1: on-device PWA MVP on the owner iPhone 16e passing the phase-1 accuracy gate (0/1 done)
+### M2 — Phase 1: on-device PWA MVP on the owner iPhone 16e passing the phase-1 accuracy gate (0/2 done)
 
 | Task | Title | Status | Goals | Depends on | Review | Spec |
 |---|---|---|---|---|---|---|
-| T-008 | On-device PWA MVP on the iPhone 16e (segment, name, depth, plate scale, volume, density, nutrients, one-tap confirm, conformal ranges) passes the phase-1 gate | todo | G-2, G-3, G-4, G-5 | T-004, T-005, T-006, T-007, T-010, T-011, T-012 | required | — |
+| T-008 | On-device PWA MVP on the iPhone 16e (segment, name, depth, plate scale, volume, density, nutrients, one-tap confirm, conformal ranges) passes the phase-1 gate | todo | G-2, G-3, G-4, G-5 | T-004, T-005, T-006, T-007, T-010, T-011, T-012, T-013 | required | — |
+| T-013 | Estimation prototype in the PWA: tap-to-outline (SAM), top-3 naming (SigLIP) over the vocab, plate-rim ellipse scale from a registered plate, grams = area x class thickness prior x solid-aware density, oil question, macros via nutrition lookup, uncalibrated ranges, predictions export | todo | G-2, G-3, G-4, G-5 | T-005, T-011 | required | — |
 
 ## Waiting on the owner
 
@@ -55,11 +56,12 @@
 ## Open findings
 
 - **F-001** [medium] Benchmark comes from a single household, so accuracy may not generalize to other cooks, plates and phones
+- **F-004** [medium] 55 of 73 densities are FNDDS chopped-pieces packing densities, which understate solid items (e.g. steak ~1.0-1.1 g/mL)
 
 ## Recent handoffs
 
+- #52 2026-09-29 (claude-code): done: T-005 nutrition vocab (73 classes, TACO+FNDDS, review accepted #50) / next: T-011 capture PWA via implementer, then T-013 estimation prototype (MVP), then owner runs T-012 / gotchas: F-004 pieces densities must not be used for solid outlines; hooks copy filter now path-relative (worked around worktree paths)
 - #49 2026-09-29 (implementer): done: T-005 built and verified (nutrition/: vocab.json 73 classes, sources.json, data/ TACO+FNDDS extracts, lookup.mjs with nutrientsFor/massFromVolume/truthNutrients, validate.mjs, tools/ for regeneration, SPEC-T-005, architecture section); nutrition-map-validate passes, check --fast green / next: reviewer runs 'mc review T-005' then 'mc done T-005'; wire nutrition/lookup.mjs truthNutrients into eval/run.mjs so the CLI stops reporting n/a for kcal/macros; owner questions (in the spec): are 'pieces' densities (a cup of diced meat, fish, egg, fruit) usable for solid items, and default oil for beans is 0 because no cited value exists / gotchas: fdc.nal.usda.gov and nepa.unicamp.br are unreachable, data came from public mirrors (URLs and hashes in nutrition/data/*_extract.json); FNDDS food_nutrient was fetched by byte range; class_spec.mjs holds no numbers: edit it, run tools/extract_sources.mjs on raw downloads to add rows, then tools/build_vocab.mjs; 19 densities are analog FNDDS foods, 18 foods are missing for lack of a density row; journal was re-run on top of main after merge
 - #46 2026-09-29 (claude-code): ops: macrofy-pages workflow now publishes macrofy/web to gh-pages via git subtree (contents: write), since Pages is served from gh-pages / next: owner runs feasibility page; T-005 in worktree / gotchas: none
 - #45 2026-09-29 (claude-code): fix: CI red (F-003): hooks selftest now copies .claude/ and .github/ whole; full check after merges. Pages enabled via gh-pages branch (GITHUB_TOKEN cannot enable Pages); site builds from gh-pages / next: T-005 in worktree (its journal will diverge from this note: keep main's, re-verify on merge) / gotchas: republish web/ with git subtree split --prefix macrofy/web -b gh-pages + push
 - #44 2026-09-29 (claude-code): T-012 feasibility page merged + Pages deploy triggered (https://fabiohelper.github.io/artisan-studio/feasibility/); blocked awaiting owner's phone results -> on results: unblock, start, verify, review, done / next: T-005 nutrition mapping via implementer sub-agent / gotchas: model ids unverified from sandbox; page falls back and logs failed_attempts
-- #42 2026-09-29 (implementer): done: T-012 feasibility page built (web/feasibility, pinned transformers.js 3.8.1), Pages workflow, owner runbook (pt-BR), web-selftest (A2). A1 is manual: needs owner's phone JSON, then mc verify. next: owner runs https://fabiohelper.github.io/artisan-studio/feasibility/ after merge to main + Pages deploy. gotchas: model ids and SAM2 support in transformers.js 3.8.1 unverified (fallbacks slimsam/Xenova ids; failed_attempts in JSON shows why); Pages must be enabled (workflow uses enablement: true)

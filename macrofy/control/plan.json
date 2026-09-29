@@ -122,7 +122,7 @@
         "G-2",
         "G-3"
       ],
-      "status": "active",
+      "status": "done",
       "review": "required",
       "depends_on": [
         "T-002"
@@ -204,7 +204,8 @@
         "T-007",
         "T-010",
         "T-011",
-        "T-012"
+        "T-012",
+        "T-013"
       ],
       "spec": null,
       "acceptance": [
@@ -314,6 +315,36 @@
           "id": "A2",
           "criterion": "Feasibility page files, pinned CDN version and verdict logic pass the web selftest",
           "check": "web-selftest"
+        }
+      ]
+    },
+    {
+      "id": "T-013",
+      "milestone": "M2",
+      "title": "Estimation prototype in the PWA: tap-to-outline (SAM), top-3 naming (SigLIP) over the vocab, plate-rim ellipse scale from a registered plate, grams = area x class thickness prior x solid-aware density, oil question, macros via nutrition lookup, uncalibrated ranges, predictions export",
+      "goals": [
+        "G-2",
+        "G-3",
+        "G-4",
+        "G-5"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-005",
+        "T-011"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "The pure estimation core (ellipse scale, area to volume to grams with solid-aware density, nutrients, ranges, predictions export) matches hand-computed fixtures, and its predictions export is accepted by the eval engine",
+          "check": "estimator-selftest"
+        },
+        {
+          "id": "A2",
+          "criterion": "Owner runs it on the iPhone 16e on one real plate end to end: items outlined and named, grams and macros shown with ranges, labelled uncalibrated",
+          "manual": true
         }
       ]
     }

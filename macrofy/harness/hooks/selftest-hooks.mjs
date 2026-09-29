@@ -13,7 +13,7 @@ fs.cpSync(SRC, M, { recursive: true, filter: (p) => !/[\\/](\.mc-cache|node_modu
 // Docs may name any repo-level harness file, so copy those folders whole rather than a list that rots.
 for (const dir of ['.claude', '.github']) {
   const from = path.resolve(SRC, '..', dir);
-  if (fs.existsSync(from)) fs.cpSync(from, path.join(repo, dir), { recursive: true, filter: (p) => !/[\\/]worktrees([\\/]|$)/.test(p) });
+  if (fs.existsSync(from)) fs.cpSync(from, path.join(repo, dir), { recursive: true, filter: (p) => !/(^|[\\/])worktrees([\\/]|$)/.test(path.relative(from, p)) });
 }
 
 const env = { ...process.env, MC_ROOT: M, MC_AGENT: 'hooks-selftest' };

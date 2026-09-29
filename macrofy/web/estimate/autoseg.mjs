@@ -250,7 +250,7 @@ export async function detectAuto({ models, params, classes, width, height, crop,
   const plate = selectPlate(plateCandidates, { minAreaFrac: p.plate_min_area_frac, maxAreaFrac: p.plate_max_area_frac, centerFrac: p.plate_center_frac, centerCoverMin: p.plate_center_cover_min, maxResidual: p.plate_max_residual });
   if (!plate) return finish({ status: 'no_plate', plate: null, items: [], rejected: [] });
 
-  const e = plate.ellipse; const inner = { ...e, a: e.a * 0.95, b: e.b * 0.95 };
+  const e = plate.ellipse; const inner = { ...e, a: e.a * p.food_grid_inset, b: e.b * p.food_grid_inset };
   const foodPoints = gridPoints(width, height, p.food_grid_n, { insideEllipse: inner });
   onStage({ stage: 'foods', done: 0, total: foodPoints.length });
   const raw = await grid(foodPoints, 'foods');

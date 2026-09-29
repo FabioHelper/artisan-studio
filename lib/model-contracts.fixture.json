@@ -1,0 +1,22 @@
+{
+ "schema": "macrofy.model-contracts/1",
+ "fixture": true,
+ "partial": true,
+ "note": "HAND-WRITTEN FIXTURE, not recorded from the ONNX files. It holds only what the owner's device error proves (F-008, 2026-09-29): SAM 2.1 tiny's prompt_encoder_mask_decoder refuses input_points with 4 in dimension 1 ('index: 1 Got: 4 Expected: 1'), so that dimension is fixed to 1; the rank 4 and the symbolic names are the layout transformers.js documents. web/selftest.mjs uses this file as the contract only while web/lib/model-contracts.json (written in CI by tools/probe-contracts.mjs) does not exist; the negative fixture (the F-008 shape) keeps using it afterwards.",
+ "transformers_js": "4.3.0",
+ "models": [
+  {
+   "id": "onnx-community/sam2.1-hiera-tiny-ONNX",
+   "kind": "segmentation",
+   "files": [
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_q4f16.onnx",
+     "inputs": [
+      { "name": "input_points", "type": "float32", "dims": ["batch_size", 1, "num_points", 2] }
+     ],
+     "outputs": []
+    }
+   ]
+  }
+ ]
+}

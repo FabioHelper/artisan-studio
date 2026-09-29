@@ -1,0 +1,1161 @@
+{
+ "schema": "macrofy.model-contracts/1",
+ "transformers_js": "4.3.0",
+ "models": [
+  {
+   "id": "Xenova/slimsam-77-uniform",
+   "kind": "segmentation",
+   "revision": "5850ab45f587c112167512ffef949107115e26a0",
+   "files": [
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_quantized.onnx",
+     "inputs": [
+      {
+       "name": "input_points",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "point_batch_size",
+        "nb_points_per_image",
+        2
+       ]
+      },
+      {
+       "name": "input_labels",
+       "type": "int64",
+       "dims": [
+        "batch_size",
+        "point_batch_size",
+        "nb_points_per_image"
+       ]
+      },
+      {
+       "name": "image_embeddings",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        256,
+        64,
+        64
+       ]
+      },
+      {
+       "name": "image_positional_embeddings",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        256,
+        64,
+        64
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "iou_scores",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "point_batch_size",
+        3
+       ]
+      },
+      {
+       "name": "pred_masks",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "point_batch_size",
+        3,
+        256,
+        256
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_encoder_quantized.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        3,
+        1024,
+        1024
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "image_embeddings",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        256,
+        64,
+        64
+       ]
+      },
+      {
+       "name": "image_positional_embeddings",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        256,
+        64,
+        64
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "onnx-community/sam2.1-hiera-tiny-ONNX",
+   "kind": "segmentation",
+   "revision": "814a066640debee5a91e70aa401fb8e17e030503",
+   "files": [
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_fp16.onnx",
+     "inputs": [
+      {
+       "name": "input_points",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        1,
+        "num_points_per_image",
+        2
+       ]
+      },
+      {
+       "name": "input_labels",
+       "type": "int64",
+       "dims": [
+        "batch_size",
+        1,
+        "num_points_per_image"
+       ]
+      },
+      {
+       "name": "input_boxes",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_per_image",
+        4
+       ]
+      },
+      {
+       "name": "image_embeddings.0",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        32,
+        256,
+        256
+       ]
+      },
+      {
+       "name": "image_embeddings.1",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        64,
+        128,
+        128
+       ]
+      },
+      {
+       "name": "image_embeddings.2",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        256,
+        64,
+        64
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "iou_scores",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_or_points",
+        3
+       ]
+      },
+      {
+       "name": "pred_masks",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_or_points",
+        "num_masks",
+        "Slicepred_masks_dim_3",
+        "Slicepred_masks_dim_4"
+       ]
+      },
+      {
+       "name": "object_score_logits",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_or_points",
+        1
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_q4f16.onnx",
+     "inputs": [
+      {
+       "name": "input_points",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        1,
+        "num_points_per_image",
+        2
+       ]
+      },
+      {
+       "name": "input_labels",
+       "type": "int64",
+       "dims": [
+        "batch_size",
+        1,
+        "num_points_per_image"
+       ]
+      },
+      {
+       "name": "input_boxes",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_per_image",
+        4
+       ]
+      },
+      {
+       "name": "image_embeddings.0",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        32,
+        256,
+        256
+       ]
+      },
+      {
+       "name": "image_embeddings.1",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        64,
+        128,
+        128
+       ]
+      },
+      {
+       "name": "image_embeddings.2",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        256,
+        64,
+        64
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "iou_scores",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_or_points",
+        3
+       ]
+      },
+      {
+       "name": "pred_masks",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_or_points",
+        "num_masks",
+        "Slicepred_masks_dim_3",
+        "Slicepred_masks_dim_4"
+       ]
+      },
+      {
+       "name": "object_score_logits",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_or_points",
+        1
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/prompt_encoder_mask_decoder_quantized.onnx",
+     "inputs": [
+      {
+       "name": "input_points",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        1,
+        "num_points_per_image",
+        2
+       ]
+      },
+      {
+       "name": "input_labels",
+       "type": "int64",
+       "dims": [
+        "batch_size",
+        1,
+        "num_points_per_image"
+       ]
+      },
+      {
+       "name": "input_boxes",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_per_image",
+        4
+       ]
+      },
+      {
+       "name": "image_embeddings.0",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        32,
+        256,
+        256
+       ]
+      },
+      {
+       "name": "image_embeddings.1",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        64,
+        128,
+        128
+       ]
+      },
+      {
+       "name": "image_embeddings.2",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        256,
+        64,
+        64
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "iou_scores",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_or_points",
+        3
+       ]
+      },
+      {
+       "name": "pred_masks",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_or_points",
+        "num_masks",
+        "Slicepred_masks_dim_3",
+        "Slicepred_masks_dim_4"
+       ]
+      },
+      {
+       "name": "object_score_logits",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_boxes_or_points",
+        1
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_encoder_fp16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        3,
+        1024,
+        1024
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "image_embeddings.0",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        32,
+        256,
+        256
+       ]
+      },
+      {
+       "name": "image_embeddings.1",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        64,
+        128,
+        128
+       ]
+      },
+      {
+       "name": "image_embeddings.2",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "Reshapeimage_embeddings.2_dim_1",
+        "Reshapeimage_embeddings.2_dim_2",
+        "Reshapeimage_embeddings.2_dim_3"
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_encoder_q4f16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        3,
+        1024,
+        1024
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "image_embeddings.0",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        32,
+        256,
+        256
+       ]
+      },
+      {
+       "name": "image_embeddings.1",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        64,
+        128,
+        128
+       ]
+      },
+      {
+       "name": "image_embeddings.2",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "Reshapeimage_embeddings.2_dim_1",
+        "Reshapeimage_embeddings.2_dim_2",
+        "Reshapeimage_embeddings.2_dim_3"
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_encoder_quantized.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        3,
+        1024,
+        1024
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "image_embeddings.0",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        32,
+        256,
+        256
+       ]
+      },
+      {
+       "name": "image_embeddings.1",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        64,
+        128,
+        128
+       ]
+      },
+      {
+       "name": "image_embeddings.2",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "Reshapeimage_embeddings.2_dim_1",
+        "Reshapeimage_embeddings.2_dim_2",
+        "Reshapeimage_embeddings.2_dim_3"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Xenova/clip-vit-base-patch32",
+   "kind": "naming",
+   "revision": "d15189d7028b43f1d3e65039190477f6af591c2a",
+   "files": [
+    {
+     "path": "onnx/vision_model_fp16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "image_embeds",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        512
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_model_q4.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "image_embeds",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        512
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_model_q4f16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "image_embeds",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        512
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_model_quantized.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "image_embeds",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        512
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Xenova/siglip-base-patch16-224",
+   "kind": "naming",
+   "revision": "4649052661e53c7000355844105f8a1792088239",
+   "files": [
+    {
+     "path": "onnx/vision_model_fp16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "last_hidden_state",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        196,
+        768
+       ]
+      },
+      {
+       "name": "pooler_output",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        768
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_model_q4.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "last_hidden_state",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        196,
+        768
+       ]
+      },
+      {
+       "name": "pooler_output",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        768
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_model_q4f16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "last_hidden_state",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        196,
+        768
+       ]
+      },
+      {
+       "name": "pooler_output",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        768
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_model_quantized.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "last_hidden_state",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        196,
+        768
+       ]
+      },
+      {
+       "name": "pooler_output",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        768
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "onnx-community/siglip2-base-patch16-224-ONNX",
+   "kind": "naming",
+   "revision": "ba1f3b0843f24bc5417d38e19c37b287d719b2f4",
+   "files": [
+    {
+     "path": "onnx/vision_model_fp16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "last_hidden_state",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        196,
+        768
+       ]
+      },
+      {
+       "name": "pooler_output",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        768
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_model_q4.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "last_hidden_state",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        196,
+        768
+       ]
+      },
+      {
+       "name": "pooler_output",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        768
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_model_q4f16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "last_hidden_state",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        196,
+        768
+       ]
+      },
+      {
+       "name": "pooler_output",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        768
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/vision_model_quantized.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "last_hidden_state",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        196,
+        768
+       ]
+      },
+      {
+       "name": "pooler_output",
+       "type": "float32",
+       "dims": [
+        "floor(batch_size*floor(height/16)*floor(width/16)/196)",
+        768
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "onnx-community/depth-anything-v2-small",
+   "kind": "depth",
+   "revision": "4472b7362082ad9968fee890ca0f1e5aca36b93d",
+   "files": [
+    {
+     "path": "onnx/model_fp16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        3,
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "predicted_depth",
+       "type": "float32",
+       "dims": [
+        "floor(1.0*batch_size)",
+        "14*floor(height/14)",
+        "14*floor(width/14)"
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/model_q4.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        3,
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "predicted_depth",
+       "type": "float32",
+       "dims": [
+        "floor(1.0*batch_size)",
+        "14*floor(height/14)",
+        "14*floor(width/14)"
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/model_q4f16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        3,
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "predicted_depth",
+       "type": "float32",
+       "dims": [
+        "floor(1.0*batch_size)",
+        "14*floor(height/14)",
+        "14*floor(width/14)"
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/model_quantized.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        3,
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "predicted_depth",
+       "type": "float32",
+       "dims": [
+        "floor(1.0*batch_size)",
+        "14*floor(height/14)",
+        "14*floor(width/14)"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Xenova/depth-anything-small-hf",
+   "kind": "depth",
+   "revision": "2e942621ab9f2371c1df9eb223291b5ac31475e6",
+   "files": [
+    {
+     "path": "onnx/model_fp16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "predicted_depth",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "height",
+        "width"
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/model_q4.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "predicted_depth",
+       "type": "float32",
+       "dims": [
+        "floor(1.0*batch_size)",
+        "14*floor(height/14)",
+        "14*floor(width/14)"
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/model_q4f16.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "predicted_depth",
+       "type": "float32",
+       "dims": [
+        "floor(1.0*batch_size)",
+        "14*floor(height/14)",
+        "14*floor(width/14)"
+       ]
+      }
+     ]
+    },
+    {
+     "path": "onnx/model_quantized.onnx",
+     "inputs": [
+      {
+       "name": "pixel_values",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "num_channels",
+        "height",
+        "width"
+       ]
+      }
+     ],
+     "outputs": [
+      {
+       "name": "predicted_depth",
+       "type": "float32",
+       "dims": [
+        "batch_size",
+        "height",
+        "width"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

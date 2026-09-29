@@ -433,6 +433,38 @@
           "manual": true
         }
       ]
+    },
+    {
+      "id": "T-017",
+      "milestone": "M2",
+      "title": "Real-model contract: fix SAM 2.1 prompt tensors (one prompt group per decode), record every ONNX input/output name and shape in CI, check our tensors against them locally, and run the real pipeline in CI on a test image",
+      "goals": [
+        "G-1",
+        "G-5"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-005"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Local contract test: the tensors built for single-tap and grid decodes (and naming) match the input names, ranks and fixed dimensions recorded from the real ONNX files; the F-008 shape (4 in a dim fixed to 1) is rejected by a negative fixture",
+          "check": "web-selftest"
+        },
+        {
+          "id": "A2",
+          "criterion": "A CI workflow run on the fixing commit loads the real SAM 2.1 tiny and CLIP B/32 with transformers.js 4.3.0 in Node, runs a single-tap decode, an auto-mode grid decode and naming on a test plate image, and passes (run URL recorded in a journal note)",
+          "manual": true
+        },
+        {
+          "id": "A3",
+          "criterion": "Owner: the app on the iPhone 16e produces a result for a real plate with no setup",
+          "manual": true
+        }
+      ]
     }
   ]
 }

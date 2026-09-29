@@ -68,6 +68,15 @@
       "evidence": "After T-015 done (#92), full mc check: R1 harness-hooks-selftest failing (stop-blocks and stop-releases cases). The orchestrator commit chain continued after the failing check and pushed cdf76ea",
       "expected_failing": [],
       "resolution": "The case now hand-marks the first not-done task; orchestrator runs the full check as a hard gate before committing (check && commit, not check ; commit)"
+    },
+    {
+      "id": "F-008",
+      "title": "SAM 2.1 decode sent 4 prompts in input_points dim 1 where the ONNX model expects 1: auto mode and the manual rim tap both fail on the owner iPhone",
+      "severity": "high",
+      "status": "open",
+      "task": "T-017",
+      "evidence": "Owner screenshot 2026-09-29 (app, Estimar, bread slice): failed to call OrtRun(). Got invalid dimensions for input: input_points index 1 Got 4 Expected 1. All tests used mocked models (sandbox cannot reach Hugging Face), so the real tensor contract was never exercised; the T-014 implementer and reviewer had flagged the batched prompt shape as unverified",
+      "expected_failing": []
     }
   ]
 }

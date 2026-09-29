@@ -9,11 +9,11 @@
 
 | Goal | Title | Measure | Tasks done |
 |---|---|---|---|
-| G-1 | Trustworthy delivery | mc check passes on every commit to main, and every done task carries verify evidence (plus an accepting review when required) in the journal | 2/2 |
+| G-1 | Trustworthy delivery | mc check passes on every commit to main, and every done task carries verify evidence (plus an accepting review when required) in the journal | 2/3 |
 | G-2 | Low portion and macro error | On the locked weighed Brazilian benchmark, the upper 95% CI of per-meal kcal MAPE is <=30% (phase 1), <=20% (phase 2), <=15% (phase 3), with signed bias within +-10% | 3/9 |
 | G-3 | Zero marginal inference cost | The capture-to-result pipeline runs on-device with no network call; any optional cloud fallback is confidence-gated and costs <= US$0.001 per photo | 3/7 |
 | G-4 | Honest uncertainty | Shown 80% ranges contain the weighed truth for 75-85% of benchmark items | 2/5 |
-| G-5 | Effortless capture | Result in <= 2 s on a recent iPhone, with at most one confirmation tap for a typical plate | 2/6 |
+| G-5 | Effortless capture | Result in <= 2 s on a recent iPhone, with at most one confirmation tap for a typical plate | 2/7 |
 
 **Non-goals:** Estimating grams with an LLM/VLM; A native iOS app in phases 0-1 (no Mac or developer account; PWA first, see ADR 0004); Meal plans, coaching or social features in v1; Packaged-food barcode lookup in v1; Android in v1 (iPhone first; Android after the iPhone MVP passes its gate)
 
@@ -43,7 +43,7 @@
 | T-012 | Feasibility: load and run Depth Anything V2-Small, SAM 2.1-tiny and SigLIP 2 in Safari on the iPhone 16e (WebGPU/WASM) | done | G-3, G-5 | T-002 | required | [spec](specs/SPEC-T-012-browser-feasibility.md) |
 | T-015 | Fit segmentation and naming in Safari on the iPhone 16e: per-backend crash resume, vision-only naming with text embeddings precomputed in CI, storage/quota diagnostics, lighter candidates | done | G-3, G-5 | T-012 | required | [spec](specs/SPEC-T-015-fit-models-in-safari.md) |
 
-### M2 — Phase 1: on-device PWA MVP on the owner iPhone 16e passing the phase-1 accuracy gate (0/4 done)
+### M2 — Phase 1: on-device PWA MVP on the owner iPhone 16e passing the phase-1 accuracy gate (0/5 done)
 
 | Task | Title | Status | Goals | Depends on | Review | Spec |
 |---|---|---|---|---|---|---|
@@ -51,6 +51,7 @@
 | T-013 | Estimation prototype in the PWA: tap-to-outline (SAM), top-3 naming (SigLIP) over the vocab, plate-rim ellipse scale from a registered plate, grams = area x class thickness prior x solid-aware density, oil question, macros via nutrition lookup, uncalibrated ranges, predictions export | blocked | G-2, G-3, G-4, G-5 | T-005 | required | [spec](specs/SPEC-T-013-estimation-mvp.md) |
 | T-014 | Automatic mode (ADR 0005): SAM2.1 point-grid masks, ellipse-fit plate selection, food/non-food filter with SigLIP, auto naming, one prefilled confirmation screen; tap mode kept for corrections | blocked | G-2, G-3, G-5 | T-005 | required | [spec](specs/SPEC-T-014-auto-mode.md) |
 | T-016 | Zero setup + scale checks (ADR 0006): no plate registration or ruler anywhere in the default flow (typical-plate prior); "Conferir com balança" after an estimate stores truth grams (and an optional other-app kcal for comparison); learned per-user correction and conformal ranges from checks; accuracy screen with 95% CI via the eval engine | blocked | G-2, G-4, G-5 | T-005 | required | [spec](specs/SPEC-T-016-zero-setup-scale-checks.md) |
+| T-017 | Real-model contract: fix SAM 2.1 prompt tensors (one prompt group per decode), record every ONNX input/output name and shape in CI, check our tensors against them locally, and run the real pipeline in CI on a test image | todo | G-1, G-5 | T-005 | required | — |
 
 ## Waiting on the owner
 
@@ -62,11 +63,12 @@
 
 - **F-001** [medium] Benchmark comes from a single household, so accuracy may not generalize to other cooks, plates and phones
 - **F-004** [medium] 55 of 73 densities are FNDDS chopped-pieces packing densities, which understate solid items (e.g. steak ~1.0-1.1 g/mL)
+- **F-008** [high] SAM 2.1 decode sent 4 prompts in input_points dim 1 where the ONNX model expects 1: auto mode and the manual rim tap both fail on the owner iPhone
 
 ## Recent handoffs
 
+- #106 2026-09-29 (claude-code): Owner device test of T-016: SAM 2.1 decode failed (F-008: input_points dim 1 got 4 expected 1; mocks hid the real tensor contract). T-017 planned: fix + CI real-model contract recording + local contract test + CI pipeline run / next: T-017 via implementer
 - #105 2026-09-29 (claude-code): T-016 reviewed/accepted (#103: shrunk factor + conformal recomputed, no calibration leak, zero-setup smoke OK); blocked on owner A3 / next: owner tries /app/ 'Apontar para o prato'; his feedback drives the next fixes / gotchas: residuals within one plate are correlated (conformal caveat)
 - #102 2026-09-29 (implementer): T-016 built, verify A1+A2 pass, A3 (owner iPhone) pending, review required, not done. Done: home is 'Apontar para o prato' (camera -> auto mode -> result), no plate/ruler/tap in the default path (typical-plate prior + wider ranges); plate picker, taps, oil, weighed-meal link and Pesar refeicao moved under 'Ajustes / Corrigir'; 'Conferir com balanca' on the result stores checks (IndexedDB store checks, other_app_kcal comparison only); web/estimate/calibration.mjs learns a shrunk global factor, per-group factors (N) and split-conformal ranges (M) from checks, priors.calibration k/N/M=5/5/10 are assumptions; 'Precisao' screen scores checks with a vendored copy of eval/metrics.mjs and exports checks.json; web/estimate/smoke.mjs (manual, needs playwright) walks zero-setup, auto corrections and manual flows. Next: independent review (docs/runbooks/review.md), then the owner A3 run. Gotchas: core.estimateItem now returns raw_grams (learning target); learned factors replace calibration.json once one check exists; a photo checked twice counts once in the bench; total-only checks feed the global factor and kcal but not item mass; web/selftest.mjs home assertions were updated for the new home.
 - #99 2026-09-29 (claude-code): T-016 now depends only on T-005: it builds on T-014's merged code, not on T-014's pending device run (A2)
 - #98 2026-09-29 (claude-code): Owner correction (2026-09-29): point the camera, get details+macros, zero setup; only optional scale/other-app comparison afterwards. ADR 0006 accepted; T-006/T-007/T-011 dropped; T-016 zero-setup + scale-check calibration planned; T-008 gate now on >=30 scale-checked meals; mission constraints updated / next: T-016 via implementer / gotchas: weighing-protocol runbook is now obsolete for the owner (T-016 rewrites it)
-- #94 2026-09-29 (claude-code): fix: F-007 hooks selftest negative case picked the last task, which is now done; pushed red once (cdf76ea) because my chain used ';' after the check - now gating with '&&' / next: owner app tests

@@ -384,7 +384,7 @@
         "G-3",
         "G-5"
       ],
-      "status": "active",
+      "status": "done",
       "review": "required",
       "depends_on": [
         "T-012"

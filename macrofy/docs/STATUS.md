@@ -3,7 +3,7 @@
 
 **Mission** (approved): Point the phone camera at a food or meal and get the most likely real weight of each item plus protein, carbs, fat and kcal, with honest ranges and the lowest achievable error, starting with Brazilian meals and running on-device with no paid LLM on the critical path.
 
-**Next action:** continue T-016 "Zero setup + scale checks (ADR 0006): no plate registration or ruler anywhere in the default flow (typical-plate prior); "Conferir com balança" after an estimate stores truth grams (and an optional other-app kcal for comparison); learned per-user correction and conformal ranges from checks; accuracy screen with 95% CI via the eval engine" → make its acceptance checks pass, then `mc verify T-016`, review, `mc done T-016`
+**Next action:** start T-009 "Request a TBCA commercial license from USP/FoRC (draft by agent, sent by owner); fall back to free sources if refused" with `mc start T-009`
 
 ## Goals
 
@@ -50,12 +50,13 @@
 | T-008 | On-device PWA MVP on the iPhone 16e (segment, name, depth, plate scale, volume, density, nutrients, one-tap confirm, conformal ranges) passes the phase-1 gate | todo | G-2, G-3, G-4, G-5 | T-004, T-005, T-010, T-012, T-013, T-014, T-016 | required | — |
 | T-013 | Estimation prototype in the PWA: tap-to-outline (SAM), top-3 naming (SigLIP) over the vocab, plate-rim ellipse scale from a registered plate, grams = area x class thickness prior x solid-aware density, oil question, macros via nutrition lookup, uncalibrated ranges, predictions export | blocked | G-2, G-3, G-4, G-5 | T-005 | required | [spec](specs/SPEC-T-013-estimation-mvp.md) |
 | T-014 | Automatic mode (ADR 0005): SAM2.1 point-grid masks, ellipse-fit plate selection, food/non-food filter with SigLIP, auto naming, one prefilled confirmation screen; tap mode kept for corrections | blocked | G-2, G-3, G-5 | T-005 | required | [spec](specs/SPEC-T-014-auto-mode.md) |
-| T-016 | Zero setup + scale checks (ADR 0006): no plate registration or ruler anywhere in the default flow (typical-plate prior); "Conferir com balança" after an estimate stores truth grams (and an optional other-app kcal for comparison); learned per-user correction and conformal ranges from checks; accuracy screen with 95% CI via the eval engine | active | G-2, G-4, G-5 | T-005 | required | [spec](specs/SPEC-T-016-zero-setup-scale-checks.md) |
+| T-016 | Zero setup + scale checks (ADR 0006): no plate registration or ruler anywhere in the default flow (typical-plate prior); "Conferir com balança" after an estimate stores truth grams (and an optional other-app kcal for comparison); learned per-user correction and conformal ranges from checks; accuracy screen with 95% CI via the eval engine | blocked | G-2, G-4, G-5 | T-005 | required | [spec](specs/SPEC-T-016-zero-setup-scale-checks.md) |
 
 ## Waiting on the owner
 
 - **T-013** — Code done and independently reviewed (#65, A1 accepted); waiting for the owner to run one real plate on the iPhone 16e (A2)
 - **T-014** — Code done and independently reviewed (#72, A1 accepted); waiting for the owner's 10-plate run on the iPhone 16e (A2), after the feasibility re-run confirms SAM fits in memory
+- **T-016** — Code done and independently reviewed (#103, A1+A2 accepted); waiting for the owner to use it on the iPhone 16e with no setup and record one scale check (A3)
 
 ## Open findings
 
@@ -64,8 +65,8 @@
 
 ## Recent handoffs
 
+- #105 2026-09-29 (claude-code): T-016 reviewed/accepted (#103: shrunk factor + conformal recomputed, no calibration leak, zero-setup smoke OK); blocked on owner A3 / next: owner tries /app/ 'Apontar para o prato'; his feedback drives the next fixes / gotchas: residuals within one plate are correlated (conformal caveat)
 - #102 2026-09-29 (implementer): T-016 built, verify A1+A2 pass, A3 (owner iPhone) pending, review required, not done. Done: home is 'Apontar para o prato' (camera -> auto mode -> result), no plate/ruler/tap in the default path (typical-plate prior + wider ranges); plate picker, taps, oil, weighed-meal link and Pesar refeicao moved under 'Ajustes / Corrigir'; 'Conferir com balanca' on the result stores checks (IndexedDB store checks, other_app_kcal comparison only); web/estimate/calibration.mjs learns a shrunk global factor, per-group factors (N) and split-conformal ranges (M) from checks, priors.calibration k/N/M=5/5/10 are assumptions; 'Precisao' screen scores checks with a vendored copy of eval/metrics.mjs and exports checks.json; web/estimate/smoke.mjs (manual, needs playwright) walks zero-setup, auto corrections and manual flows. Next: independent review (docs/runbooks/review.md), then the owner A3 run. Gotchas: core.estimateItem now returns raw_grams (learning target); learned factors replace calibration.json once one check exists; a photo checked twice counts once in the bench; total-only checks feed the global factor and kcal but not item mass; web/selftest.mjs home assertions were updated for the new home.
 - #99 2026-09-29 (claude-code): T-016 now depends only on T-005: it builds on T-014's merged code, not on T-014's pending device run (A2)
 - #98 2026-09-29 (claude-code): Owner correction (2026-09-29): point the camera, get details+macros, zero setup; only optional scale/other-app comparison afterwards. ADR 0006 accepted; T-006/T-007/T-011 dropped; T-016 zero-setup + scale-check calibration planned; T-008 gate now on >=30 scale-checked meals; mission constraints updated / next: T-016 via implementer / gotchas: weighing-protocol runbook is now obsolete for the owner (T-016 rewrites it)
 - #94 2026-09-29 (claude-code): fix: F-007 hooks selftest negative case picked the last task, which is now done; pushed red once (cdf76ea) because my chain used ';' after the check - now gating with '&&' / next: owner app tests
-- #93 2026-09-29 (claude-code): done: T-015 (owner run 3 GO, re-review #91) / next: owner tests the app: Estimar (auto mode, T-014 A2 records timings), one tap-mode estimate (T-013 A2), one weighed meal (T-011 A2) / gotchas: SAM encoder 1.6 s + auto-mode decodes may exceed 2 s

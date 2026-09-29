@@ -54,3 +54,20 @@ The weighed benchmark is the only judge of accuracy. Procedure: [weighing protoc
 Invariants: photos are never in git (a manifest references each by sha256 and perceptual hash);
 the test split (its meals and the plates they reference) is frozen by the hash of its canonical
 JSON, required for a complete benchmark, and never edited without an explicit, recorded relock; a date belongs to one split only; a rule with no failing fixture fails the run.
+
+## Evaluation (`eval/`)
+
+The one place accuracy numbers are computed; every phase gate reads its report. Spec:
+[SPEC-T-004](specs/SPEC-T-004-evaluation-engine.md).
+
+| Module | Responsibility |
+|---|---|
+| `eval/metrics.mjs` | Pure functions: prediction-file validation, per-meal item matching, per-sample metrics (MAPE, median APE, signed bias, within bands, MAE, Bland-Altman, 80% interval coverage), `bootstrapCI`, and `evaluate`, which returns the JSON report including the CI upper bounds the gates use |
+| `eval/run.mjs` | CLI: manifest and predictions in, compact summary out, full JSON report with `--out` |
+| `eval/selftest.mjs` | The check `eval-selftest`: hand-computed fixtures, seeded and by-day bootstrap proofs, perturbation checks that the assertions bite, the CLI end to end |
+
+Invariants: errors are per sample, never pooled; the bootstrap resamples capture days (the date of
+captured_at as written, the same notion of a day the split-by-date rule uses), seeded, so a report is
+reproducible; items under 10 g are scored in grams only; ground-truth nutrients arrive through a
+callback (the nutrition module, T-005), and kcal or macro metrics are null rather than zero without
+it; the manifest is validated (and the test lock verified when given) before anything is scored.

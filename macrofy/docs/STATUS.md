@@ -3,7 +3,7 @@
 
 **Mission** (approved): Point the phone camera at a food or meal and get the most likely real weight of each item plus protein, carbs, fat and kcal, with honest ranges and the lowest achievable error, starting with Brazilian meals and running on-device with no paid LLM on the critical path.
 
-**Next action:** start T-004 "Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI" with `mc start T-004`
+**Next action:** continue T-004 "Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI" → make its acceptance checks pass, then `mc verify T-004`, review, `mc done T-004`
 
 ## Goals
 
@@ -33,7 +33,7 @@
 | Task | Title | Status | Goals | Depends on | Review | Spec |
 |---|---|---|---|---|---|---|
 | T-003 | Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules | done | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-003-benchmark-tooling.md) |
-| T-004 | Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI | todo | G-2, G-4 | T-002 | required | — |
+| T-004 | Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI | active | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-004-evaluation-engine.md) |
 | T-005 | Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities | todo | G-2, G-3 | T-002 | required | — |
 | T-006 | Owner collects 300 weighed meals (150 calibration, 150 locked test) following the capture protocol, split by capture date | todo | G-2 | T-003, T-011 | required | — |
 | T-007 | Experiment: metric scale error from a registered plate (known diameter, rim ellipse fit) on the iPhone 16e at 25-40 cm | todo | G-2, G-5 | T-011 | required | — |
@@ -58,8 +58,8 @@
 
 ## Recent handoffs
 
+- #36 2026-09-29 (implementer): done: T-004 evaluation engine built and verified (eval/metrics.mjs pure metrics + day-cluster bootstrapCI, eval/run.mjs CLI, eval/selftest.mjs with hand-computed fixtures, SPEC-T-004, architecture section); eval-selftest passes, check --fast green, 13 mutations of metrics.mjs all caught by the selftest / next: reviewer runs 'mc review T-004' then 'mc done T-004'; T-005 must pass truthNutrients(item, meal) to evaluate() to enable kcal/macro metrics (CLI reports n/a until wired); T-010 and phase gates read report.gates / gotchas: \|bias\| upper bound = 97.5th percentile of resampled \|bias\| (both meal-kcal and item-mass variants reported, owner/reviewer to pick which the gate uses); meals without a prediction entry count as all omissions; a meal is kcal-scored only if every true item has truth nutrients and every predicted item has kcal; verify #34 was run without MC_AGENT (attributed claude-code), #35 is the implementer verify; evaluate() validates the manifest, so synthetic manifests need valid photos/plates
 - #32 2026-09-28 (claude-code): done: T-003 benchmark tooling (review round 2 accepted #30) / next: T-004 evaluation engine via implementer sub-agent in worktree / gotchas: worktree journal rule added to CLAUDE.md
 - #29 2026-09-28 (claude-code): T-003 review fixes merged (lock covers referenced plates; completeness mode fails without a lock); verify re-run on merged main because the branch journal diverged from main / next: re-review T-003 / gotchas: while a worktree sub-agent holds a task, avoid appending to main's journal; if unavoidable, keep main's journal on merge and re-run verify
 - #27 2026-09-28 (claude-code): T-003 active: implementation merged, independent review REJECTED (#26): completeness mode must fail without a test lock; lock must also hash plates referenced by test meals. Implementer fixing in its worktree / next: merge fix, re-review, done, then T-004
 - #25 2026-09-28 (implementer): done: T-003 bench tooling built and verified (bench/schema.mjs 9 named rules, lock.mjs, validate.mjs, fixtures.mjs, weighing-protocol runbook, SPEC-T-003, architecture section); bench-validate passes, check --fast green; awaiting independent review / next: reviewer runs 'mc review T-003' then 'mc done T-003'; then T-004 / gotchas: captured_at must carry a UTC offset (date-as-written decides split); lock hashes test meals only, not plates; bench-complete does not require a lock (WARN only) - both listed in SPEC-T-003 open questions; bench/fixtures.mjs goodManifest() is reusable by T-011 capture-selftest
-- #22 2026-09-28 (claude-code): done: ADR 0004 (owner has iPhone 16e, no Mac/dev account: PWA-first, on-device WebGPU, scale from registered plates; native deferred), mission non-goal/constraint updated, T-011 capture PWA + T-012 browser feasibility added, T-006->bench-complete check / next: T-003 bench tooling via implementer subagent in worktree, then review, then T-004 / gotchas: mission edit made under owner's 'do your best' delegation - owner may veto

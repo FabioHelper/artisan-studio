@@ -139,9 +139,9 @@ check('range: zero sigma collapses to the point estimate', core.range80(100, 0).
 check('range: lo80 <= grams <= hi80 for every fixture item', items3.every((i) => i.lo80 <= i.grams && i.grams <= i.hi80));
 
 // ---------------------------------------------------------------- oil mapping
-check('oil levels: Sem óleo / Pouco / Normal / Muito = 0 / 0.5 / 1 / 2', JSON.stringify(core.OIL_LEVELS.map((o) => [o.label, o.factor])) === JSON.stringify([['Sem óleo', 0], ['Pouco', 0.5], ['Normal', 1], ['Muito', 2]]));
+check('oil levels: Sem óleo / Pouco / Normal / Muito = 0 / 0.5 / 1 / 2', JSON.stringify(priors.oil_levels.map((o) => [o.label, o.factor])) === JSON.stringify([['Sem óleo', 0], ['Pouco', 0.5], ['Normal', 1], ['Muito', 2]]));
 // Rice, 141.07275 g, default 2.84 g per 100 g: base oil 2.84 x 1.4107275 = 4.006463 g; x0 = 0, x0.5 = 2.003232, x2 = 8.012926.
-const riceOil = Object.fromEntries(core.OIL_LEVELS.map((o) => [o.id, core.estimateItem({ cls: cls('arroz-branco-cozido'), pixels: 20000, scale, oil: o.id, priors, lookup })]));
+const riceOil = Object.fromEntries(priors.oil_levels.map((o) => [o.id, core.estimateItem({ cls: cls('arroz-branco-cozido'), pixels: 20000, scale, oil: o.id, priors, lookup })]));
 closeTo('oil: none = 0 g', riceOil.none.oil_g, 0, 1e-9); closeTo('oil: little = 2.0032 g', riceOil.little.oil_g, 2.003232, 0.006);
 closeTo('oil: normal = 4.0065 g', riceOil.normal.oil_g, 4.006463, 0.006); closeTo('oil: lots = 8.0129 g', riceOil.lots.oil_g, 8.012926, 0.006);
 // kcal without oil = 128 x 1.4107275 = 180.57; each gram of oil adds 9 kcal and 1 g fat.

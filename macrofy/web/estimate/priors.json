@@ -13,6 +13,45 @@
     "assumption": true,
     "calibrate_from": "weighed meals"
   },
+  "oil_levels": [
+    { "id": "none", "label": "Sem óleo", "factor": 0, "rationale": "The cook used no added oil: none of the class default is added.", "assumption": true, "calibrate_from": "weighed meals" },
+    { "id": "little", "label": "Pouco", "factor": 0.5, "rationale": "Half of the class default oil (default_oil_g_per_100g); a guess at what a light hand means.", "assumption": true, "calibrate_from": "weighed meals" },
+    { "id": "normal", "label": "Normal", "factor": 1, "rationale": "The class default oil per 100 g of food, as in the nutrition table entry.", "assumption": true, "calibrate_from": "weighed meals" },
+    { "id": "lots", "label": "Muito", "factor": 2, "rationale": "Double the class default oil; a guess at what a heavy hand means.", "assumption": true, "calibrate_from": "weighed meals" }
+  ],
+  "typical_plate": {
+    "diameter_mm": 260,
+    "rationale": "Used when the plate is not a registered one: a common flat dinner plate is about 26 cm across.",
+    "assumption": true,
+    "calibrate_from": "the owner's plates and the benchmark"
+  },
+  "typical_plate_scale_uncertainty": {
+    "value": 0.12,
+    "rationale": "Plate diameters in homes range roughly 22 to 30 cm, so an unknown plate is a wider scale error than a measured one; replaces scale_uncertainty in the range (counted twice, as for a known plate).",
+    "assumption": true,
+    "calibrate_from": "the owner's plates and the benchmark"
+  },
+  "autoseg": {
+    "note": "Thresholds of the automatic plate and food detection (web/estimate/autoseg.mjs). All are guesses to be tuned on the owner's phone and on the benchmark with tap-mode outlines as the oracle.",
+    "plate_grid_n": { "value": 5, "rationale": "A 5 x 5 grid of point prompts (25 decodes) is coarse on purpose: the plate is large, so few points hit it.", "assumption": true, "calibrate_from": "phone timing" },
+    "food_grid_n": { "value": 8, "rationale": "An 8 x 8 grid (about 40 points fall inside a plate ellipse) trades decode time for recall of small foods.", "assumption": true, "calibrate_from": "phone timing and recall on the benchmark" },
+    "decode_batch": { "value": 4, "rationale": "Point prompts decoded per model call; larger batches cost memory on the phone, smaller ones cost call overhead.", "assumption": true, "calibrate_from": "phone timing" },
+    "time_budget_ms": { "value": 12000, "rationale": "Total decode time allowed per photo before the grid stops early and uses the masks found so far.", "assumption": true, "calibrate_from": "phone timing" },
+    "masks_per_point": { "value": 1, "rationale": "Keep only the best-scoring of the three masks SAM returns for each point; dedupe handles the rest.", "assumption": true, "calibrate_from": "recall on the benchmark" },
+    "dedupe_iou": { "value": 0.7, "rationale": "From ADR 0005: two masks overlapping more than this are the same object and the lower predicted IoU is dropped.", "assumption": true, "calibrate_from": "the benchmark" },
+    "plate_min_area_frac": { "value": 0.12, "rationale": "A plate photographed inside the frame covers at least about an eighth of the photo.", "assumption": true, "calibrate_from": "the owner's photos" },
+    "plate_max_area_frac": { "value": 0.9, "rationale": "A mask covering nearly the whole photo is the table or the background, not a plate.", "assumption": true, "calibrate_from": "the owner's photos" },
+    "plate_center_frac": { "value": 0.3, "rationale": "Side of the central box of the photo (as a fraction of width and height) that the plate must cover.", "assumption": true, "calibrate_from": "the owner's photos" },
+    "plate_center_cover_min": { "value": 0.5, "rationale": "At least half of the central box must lie inside the plate mask, so a plate off to the side or a napkin in the centre is not chosen.", "assumption": true, "calibrate_from": "the owner's photos" },
+    "plate_max_residual": { "value": 0.12, "rationale": "1 minus the IoU between the mask and its moment-fitted ellipse: SAM plate masks fit an ellipse to within about 10 percent; a table or a rectangle fits worse.", "assumption": true, "calibrate_from": "the owner's photos" },
+    "food_min_frac": { "value": 0.005, "rationale": "From ADR 0005: a food smaller than 0.5% of the plate area is noise or a crumb.", "assumption": true, "calibrate_from": "the benchmark" },
+    "food_max_frac": { "value": 0.85, "rationale": "From ADR 0005: a mask covering more than 85% of the plate is the plate itself, not a food.", "assumption": true, "calibrate_from": "the benchmark" },
+    "food_min_pred_iou": { "value": 0.8, "rationale": "SAM's own predicted IoU below this means an unstable mask (a part of a food or a smear).", "assumption": true, "calibrate_from": "recall on the benchmark" },
+    "food_min_inside_frac": { "value": 0.8, "rationale": "At least this share of a food mask must lie on the plate; the rest is a table, a hand or a glass.", "assumption": true, "calibrate_from": "the benchmark" },
+    "merge_adjacency_px": { "value": 6, "rationale": "Fragments of one food with the same name closer than this many pixels (Chebyshev, working photo) are merged into one item.", "assumption": true, "calibrate_from": "the benchmark" },
+    "max_food_items": { "value": 8, "rationale": "A plate rarely holds more than 8 distinct foods; more is over-segmentation, and the smallest are dropped.", "assumption": true, "calibrate_from": "the owner's photos" },
+    "non_food_labels": { "value": ["prato vazio", "talher", "guardanapo", "copo", "mesa"], "rationale": "From ADR 0005: what a mask that is not food is called; a mask whose best SigLIP label is one of these is dropped.", "assumption": true, "calibrate_from": "the owner's photos" }
+  },
   "groups": {
     "rice_pasta": {
       "thickness_mm": 20,

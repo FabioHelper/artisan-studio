@@ -10,14 +10,6 @@ export const PIPELINE = { name: 'macrofy-estimator', version: '0.1.0-uncalibrate
 export const Z80 = 1.2816;
 export const NAME_PROMPT = (pt) => `uma foto de ${pt}`;
 
-/** The plate-wide oil question (pt-BR) and its multiplier on each item's default_oil_g_per_100g. */
-export const OIL_LEVELS = [
-  { id: 'none', label: 'Sem óleo', factor: 0 },
-  { id: 'little', label: 'Pouco', factor: 0.5 },
-  { id: 'normal', label: 'Normal', factor: 1 },
-  { id: 'lots', label: 'Muito', factor: 2 },
-];
-
 const isNum = (x) => typeof x === 'number' && Number.isFinite(x);
 const r1 = (x) => Math.round(x * 10) / 10;
 const r2 = (x) => Math.round(x * 100) / 100;
@@ -135,16 +127,18 @@ export const rangeSigma = (cv, s) => Math.sqrt(thicknessSigma(cv) ** 2 + scaleSi
 export const range80 = (grams, sigma) => ({ lo80: grams * Math.exp(-Z80 * sigma), hi80: grams * Math.exp(Z80 * sigma) });
 
 // ---------------------------------------------------------------- oil and nutrients
-export const oilLevel = (id) => OIL_LEVELS.find((o) => o.id === id) ?? null;
+/** The plate-wide oil question (pt-BR) and its multiplier on each item's default_oil_g_per_100g: priors.oil_levels (assumptions). */
+export const oilLevels = (priors) => priors.oil_levels ?? [];
+export const oilLevel = (priors, id) => oilLevels(priors).find((o) => o.id === id) ?? null;
 /** Grams of cooking oil for an item: factor x default_oil_g_per_100g x grams / 100. */
 export const oilGrams = (cls, grams, factor) => factor * (cls.default_oil_g_per_100g ?? 0) * grams / 100;
 
 /**
  * One item. `cls` is the vocab class, `pixels` its mask area in image pixels (after exclusiveCounts), `scale` from
- * scaleFromPlateMask, `oil` an OIL_LEVELS id, `lookup` a createLookup result (nutrition/lookup-core.mjs).
+ * scaleFromPlateMask, `oil` a priors.oil_levels id, `lookup` a createLookup result (nutrition/lookup-core.mjs).
  */
 export function estimateItem({ cls, pixels, scale, oil = 'normal', priors, calibration = null, lookup }) {
-  const level = oilLevel(oil); if (!level) throw new Error(`nível de óleo desconhecido: ${oil}`);
+  const level = oilLevel(priors, oil); if (!level) throw new Error(`nível de óleo desconhecido: ${oil}`);
   const group = groupOf(cls.id, priors); const prior = priors.groups[group];
   const { density, basis } = densityFor(cls, priors);
   const area = areaMm2(pixels, scale);

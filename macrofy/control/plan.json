@@ -357,12 +357,12 @@
         "G-3",
         "G-5"
       ],
-      "status": "todo",
+      "status": "active",
       "review": "required",
       "depends_on": [
         "T-005"
       ],
-      "spec": null,
+      "spec": "docs/specs/SPEC-T-014-auto-mode.md",
       "acceptance": [
         {
           "id": "A1",

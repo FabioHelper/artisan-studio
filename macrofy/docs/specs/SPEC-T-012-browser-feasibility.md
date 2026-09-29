@@ -11,7 +11,8 @@ Safari exposes no JS memory API, so we record download size and whether the tab 
 ## Outcome
 
 The owner opens one hosted URL on the phone, taps one button, waits, taps "Copiar resultados" and
-pastes a JSON into the chat. From it we read a go/no-go against at most 2 s summed median inference.
+pastes a JSON into the chat. From it we read a go/no-go: segmentation and naming loaded, at most 2 s summed median
+inference. Depth is reported but informational (the estimator does not use it).
 
 ## Scope
 
@@ -23,7 +24,9 @@ pastes a JSON into the chat. From it we read a go/no-go against at most 2 s summ
 ## Design
 
 - `web/feasibility/candidates.mjs`: pinned transformers.js URL, stages, candidate ids, labels.
-- `web/feasibility/verdict.mjs`: pure `computeVerdict` / `buildResults` (schema name macrofy.feasibility, version 1).
+- `web/feasibility/verdict.mjs`: pure `computeVerdict` / `buildResults` (schema name macrofy.feasibility, version 1) and the crash-recovery helpers.
+- Memory (F-005): each stage runs in its own page load (the page reloads between stages). A tab killed mid-attempt is recorded as a
+  crashed candidate and the same stage resumes with its next candidate. Segmentation candidates run smallest first, never fp32.
 - `web/feasibility/run.mjs` + `web/feasibility/index.html`: the browser runner and UI.
 - `.github/workflows/macrofy-pages.yml`: publishes `macrofy/web`; URL
   https://fabiohelper.github.io/artisan-studio/feasibility/

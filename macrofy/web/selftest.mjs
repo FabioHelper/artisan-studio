@@ -236,7 +236,10 @@ const fakeLib = () => {
 await t('importTransformers: 4.3.0 first; 3.8.1 only when that import fails; both failing is an error', async () => {
   const seen = []; const fake = fakeLib();
   let r = await models.importTransformers({ importer: async (u) => { seen.push(u); return fake.T; } });
-  assert.equal(r.version, '4.3.0'); assert.equal(seen.length, 1); assert.equal(fake.T.env.allowLocalModels, false); assert.equal(fake.T.env.useBrowserCache, true);
+  assert.equal(r.version, '4.3.0'); assert.equal(seen.length, 1); assert.equal(fake.T.env.allowLocalModels, false);
+  assert.equal(fake.T.env.useBrowserCache, false); // Node has no Cache Storage (the CI real-pipeline run failed on this)
+  globalThis.caches = {}; const fb = fakeLib();
+  try { await models.importTransformers({ importer: async () => fb.T }); assert.equal(fb.T.env.useBrowserCache, true); } finally { delete globalThis.caches; } // browsers cache models
   seen.length = 0;
   r = await models.importTransformers({ importer: async (u) => { seen.push(u); if (u.endsWith('@4.3.0')) throw new Error('404'); return fake.T; } });
   assert.equal(r.version, '3.8.1'); assert.deepEqual(seen.map((u) => u.split('@').pop()), ['4.3.0', '3.8.1']); assert.match(r.errors[0], /^4\.3\.0: 404/);

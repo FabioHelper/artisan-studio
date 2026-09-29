@@ -89,7 +89,7 @@ and a reload landed on `#/estimate/resume`, which re-ran the same analysis and S
   plate that only found a small piece (best mask under `heap_fragment_max_frac` of the plate) and that no item covers are grouped by grid
   neighbourhood; each group of at least `heap_min_points` is decoded ONCE with all its points as positives and the nearest items' centres as
   negatives (`models.segmentGroup`; the decoder contract allows any number of points per prompt, checked in web/selftest.mjs). A food-sized,
-  confident output that covers half the points becomes an item. The CI test photo gained a heap of nine thin sticks; the summary reports how
+  confident output that covers half the points becomes an item. The CI test photo gained a heap of thin sticks (three food-grid points on it); the summary reports how
   much of it one item covers (`stick_heap`, a warning when under half) and the heap groups. The Diagnóstico lists the heap groups.
 - CI: the integration test runs auto mode in the same low-res mask space, checks low-res vs full-size masks of one tap (IoU >= 0.9),
   and requires >= 1 food on the pinned Commons photo (`tools/it-photo.json`); a stand-in plate there is a warning.

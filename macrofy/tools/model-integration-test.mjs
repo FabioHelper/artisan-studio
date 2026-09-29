@@ -27,7 +27,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------- pure helpers (exercised by web/selftest.mjs against a fake library)
 /**
- * The test photo: RGBA pixels of a light elliptical plate on a dark table with three coloured blobs and a heap of nine thin fry-coloured sticks
+ * The test photo: RGBA pixels of a light elliptical plate on a dark table with three coloured blobs and a heap of thin fry-coloured sticks
  * (T-017: the owner's french fries were never found; each stick alone is under the food minimum, only the heap is an item). Deterministic.
  */
 export const PLATE_AREA_FRAC = Math.PI * 0.38 * 0.36; // the drawn plate's share of the test photo
@@ -50,13 +50,18 @@ export function makePlateImage(width = 640, height = 480) {
   }
   return { width, height, data, plate, blobs, sticks };
 }
-/** Nine thin sticks (fries) crossing each other in a heap left of the plate's top, clear of the blobs and the rim. { segs, hit(x, y), mask(w, h) } */
+/**
+ * A heap of thin sticks (fries) left of the plate's top, clear of the blobs and the rim, large enough that three food-grid points fall on sticks
+ * (photo pixels (200,150), (280,150), (280,210); the owner's fries covered ~10 grid points): the heap step needs >= heap_min_points of them.
+ * { segs, hit(x, y), mask(w, h) }
+ */
 export function stickHeap(width = 640, height = 480) {
-  const cx = width * 0.36; const cy = height * 0.3125; const L = width * 0.0625; const half = width * 0.0047;
-  const segs = Array.from({ length: 9 }, (_, i) => { const a = (i * 47 % 180) * Math.PI / 180; const ox = ((i * 37) % 7 - 3) * width * 0.008; const oy = ((i * 53) % 7 - 3) * height * 0.009;
-    return { x0: cx + ox - Math.cos(a) * L / 2, y0: cy + oy - Math.sin(a) * L / 2, x1: cx + ox + Math.cos(a) * L / 2, y1: cy + oy + Math.sin(a) * L / 2 }; });
-  const hit = (x, y) => segs.some((q) => { const dx = q.x1 - q.x0; const dy = q.y1 - q.y0; const t = Math.max(0, Math.min(1, ((x - q.x0) * dx + (y - q.y0) * dy) / (dx * dx + dy * dy))); return Math.hypot(x - q.x0 - t * dx, y - q.y0 - t * dy) <= half; });
-  const mask = (w, h) => { const d = new Uint8Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (hit((x + 0.5) * width / w - 0.5, (y + 0.5) * height / h - 0.5)) d[y * w + x] = 1; return { width: w, height: h, data: d }; };
+  const k = width / 640; const kh = height / 480; const L = 44 * k; const half = 3 * k;
+  const anchors = [[200, 150], [280, 150], [280, 210], [240, 130], [240, 180], [205, 185], [265, 235], [300, 180], [220, 120], [290, 125]].map(([x, y]) => [x * k, y * kh]);
+  const segs = anchors.flatMap(([x, y], i) => [0, 1].map((j) => { const a = ((i * 47 + j * 83) % 180) * Math.PI / 180; return { x0: x - Math.cos(a) * L / 2, y0: y - Math.sin(a) * L / 2, x1: x + Math.cos(a) * L / 2, y1: y + Math.sin(a) * L / 2 }; }));
+  const tomato = { x: 224 * k, y: 250 * kh, r: 60 * k }; // keep off the tomato blob
+  const hit = (x, y) => Math.hypot(x - tomato.x, y - tomato.y) > tomato.r && segs.some((q) => { const dx = q.x1 - q.x0; const dy = q.y1 - q.y0; const t = Math.max(0, Math.min(1, ((x - q.x0) * dx + (y - q.y0) * dy) / (dx * dx + dy * dy))); return Math.hypot(x - q.x0 - t * dx, y - q.y0 - t * dy) <= half; });
+  const mask = (w, h) => { const d = new Uint8Array(w * h); for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) if (hit((xx + 0.5) * width / w - 0.5, (yy + 0.5) * height / h - 0.5)) d[yy * w + xx] = 1; return { width: w, height: h, data: d }; };
   return { segs, hit, mask };
 }
 /** RGBA sub-image around the 1-pixels of a mask (bounding box grown by `pad`, at least 32 x 32). -> { width, height, data } */

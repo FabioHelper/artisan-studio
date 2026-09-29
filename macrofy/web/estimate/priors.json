@@ -136,6 +136,12 @@
       "assumption": true,
       "calibrate_from": "iPhone crash reports (Diagnóstico)"
     },
+    "naming_page_plans": {
+      "value": [[["wasm", "q4"], ["wasm", "q8"]], [["webgpu", "q4f16"]]],
+      "rationale": "Backends for the naming model in auto mode's naming page on the iPhone, one plan per attempt (a death in that page moves the retry to the next plan). The owner's third run died loading the naming model on WebGPU in the fresh naming page right after the SAM page (GPU memory likely not yet given back), so the CPU (CLIP image tower 64 MB q4, 89 MB q8; 224 px input, small activations) is tried first; WebGPU q4f16 ran on the 16e when alone (feasibility run 3).",
+      "assumption": true,
+      "calibrate_from": "owner device runs (Diagnóstico last_crash)"
+    },
     "plate_support_iou": {
       "value": 0.85,
       "rationale": "Among the masks that pass as a plate, the plate is the one most others agree with (bounding-box IoU and area ratio at least this): SAM returns the real plate from many grid prompts, while a table band or placemat around it passes the ring test from one or two. Largest on a tie. The first real-model run chose a 0.88-of-photo band over a 0.43 plate seen by ~30 prompts when the largest candidate won.",

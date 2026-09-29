@@ -183,6 +183,20 @@ export async function runIntegration({ T, root = join(here, '..'), log = () => {
     await models.dispose();
   }
 
+  { // the iPhone naming page (T-017): only the naming model, loaded with the first plan of priors naming_page_plans (the CPU, q4 first). Required.
+    const plan = params.naming_page_plans[0]; const entry = { id: clip.id, plan: plan.map((x) => x.join('/')).join(', ') }; summary.naming_page = entry;
+    const models = make({ segmentCandidates: [cpuCandidate(SEGMENT_CANDIDATES[0])], namingCandidates: [clip], sequential: true });
+    const crop = blobOf(cropRgba(photo, blobMask(photo, photo.blobs[1])));
+    const bucket = {}; await stage(bucket, 'naming_page', async () => {
+      const info = await models.loadNaming(() => {}, { backends: plan });
+      assert.equal(info.segmenter, null, 'the naming page loads no segmentation model');
+      if (info.namer_backend !== plan[0].join('/')) summary.warnings.push(`naming page: ${plan[0].join('/')} did not load, fell back to ${info.namer_backend} (${info.warnings.slice(-2).join(' | ')})`);
+      return { backend: info.namer_backend, top3: await nameOf(models, crop) };
+    });
+    Object.assign(entry, bucket.naming_page);
+    try { await models.dispose(); } catch { /* ignore */ }
+  }
+
   for (const c of NAMING_CANDIDATES.filter((x) => x.id !== clip.id)) { // the fallbacks: reported, not required
     const entry = { id: c.id }; summary.naming.push(entry);
     if (!(await loadEmbeddings(c.id))) { entry.skipped = 'no committed text embeddings'; continue; }

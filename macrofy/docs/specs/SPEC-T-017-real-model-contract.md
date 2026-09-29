@@ -66,6 +66,11 @@ and a reload landed on `#/estimate/resume`, which re-ran the same analysis and S
   sequential models (iOS) `detectAuto({ split: true })` stops before naming, the app stores the plate and kept masks (mask_side) in the draft and
   reloads into `#/estimate/name`, where `finishAuto` names them with only the naming model loaded (`models.loadNaming`). A death in the naming page
   offers to name again without re-running SAM; a correction tap loads SAM only then. Desktop keeps the one-page flow.
+- Naming page on the CPU first: the owner's third run got through the SAM page and the reload, then died loading the naming model on WebGPU in
+  the fresh page (GPU memory from the SAM page likely not yet given back). The naming page now follows priors `naming_page_plans`, one backend plan
+  per attempt: the CPU (CLIP image tower q4, then q8; 224 px input) first, WebGPU q4f16 on the retry. The retry reloads into a fresh naming page
+  (the crash-card page may hold SAM, warmed up by the home screen), and the crash card names the backends that died. CI loads the naming page's
+  first plan (`naming_page` stage).
 - CI: the integration test runs auto mode in the same low-res mask space, checks low-res vs full-size masks of one tap (IoU >= 0.9),
   and requires >= 1 food on the pinned Commons photo (`tools/it-photo.json`); a stand-in plate there is a warning.
 

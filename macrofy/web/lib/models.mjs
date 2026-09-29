@@ -370,7 +370,7 @@ const toMask = (data, width, height, score) => { const m = new Uint8Array(width 
  * pt names; default: the vocab.json next to the data folder), `embeddingsBase` (URL of the text-emb folder), `loadEmbeddings(modelId)`
  * (tests), `probe` (the CI probe object; default: loadProbe()) which orders the candidates by real size, `segmentCandidates`, `namingCandidates` (default: the lists above; the CI integration test narrows them to one model and a CPU dtype).
  *   load(onProgress)            -> { version, backend, segmenter, namer, sequential, warnings }   loads SAM (and the namer unless sequential); progress { stage, label, fraction }
- *   loadNaming(onProgress)      -> the same info; loads ONLY the naming model (auto mode's second page on the iPhone)
+ *   loadNaming(onProgress, { backends }) -> the same info; loads ONLY the naming model (auto mode's second page on the iPhone), optionally on the given backends
  *   setImage(blob)              -> { encoder_ms }                           the working photo the taps refer to; the image encoder runs once here
  *   segment(x, y)               -> [{ width, height, data, score }]         SAM masks for a point tap (image px), best score first
  *   segmentPoints(points, opts) -> { masks, decodes, done, total, ms, timed_out }   T-014: one prompt per point {x, y}, ONE decoder run per point (T-017: SAM 2.1 takes a single prompt group per run) on the
@@ -404,10 +404,13 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
     if (!sequential) await ensureNaming(); // on the phone the naming model loads on first use, after the segmentation model is freed
     return info;
   }
-  /** Only the naming model (the second page of auto mode on the iPhone: SAM is never loaded in that page). */
-  async function loadNaming(onProgress = () => {}) {
+  /**
+   * Only the naming model (the second page of auto mode on the iPhone: SAM is never loaded in that page). `backends` ([[device, dtype], ...])
+   * replaces every naming candidate's backend list for this load (the app tries the CPU first there, see priors naming_page_plans).
+   */
+  async function loadNaming(onProgress = () => {}, { backends = null } = {}) {
     await init(onProgress);
-    await ensureNaming();
+    await ensureNaming(backends);
     return info;
   }
 
@@ -428,12 +431,12 @@ export function createModels({ importer, versions, sequential = isIOS(), labels,
       return seg;
     })().finally(() => { segP = null; }));
   }
-  function ensureNaming() {
+  function ensureNaming(backends = null) {
     if (name) return Promise.resolve(name);
     return (nameP ??= (async () => {
       if (sequential) await releaseSeg();
       const probe = await makeProbeImage();
-      const r = await loadFirst(T, nameCands, {
+      const r = await loadFirst(T, backends ? nameCands.map((c) => ({ ...c, backends })) : nameCands, {
         hasGpu, progress: progressTracker((e) => progressCb(e), 'naming', 'Modelo de nomes (codificador de imagem)'), prepare,
         warm: (h) => embedImage(h, probe),
       });

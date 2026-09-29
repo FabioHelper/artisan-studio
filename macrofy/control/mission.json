@@ -41,8 +41,9 @@
     "The harness stays dependency-free (Node 18+ built-ins only) so any agent or CI can run it",
     "No paid LLM API on the critical path; any fallback is optional and gated",
     "Only commercially usable licenses for models and data (no non-commercial or AGPL components shipped)",
-    "No accuracy claim without the locked weighed benchmark",
+    "No accuracy claim without scale-check evidence (owner weighs occasionally; 95% CI shown; ADR 0006)",
     "Nutrition data: free sources first (TACO + USDA FDC/FNDDS); TBCA only if a commercial license is granted",
-    "Zero spending until the phase-1 gate passes: no Mac, no Apple Developer Program, free hosting only"
+    "Zero spending until the phase-1 gate passes: no Mac, no Apple Developer Program, free hosting only",
+    "Zero setup for the user: no ruler, plate registration or protocol is ever required (ADR 0006)"
   ]
 }

@@ -143,7 +143,7 @@
       "goals": [
         "G-2"
       ],
-      "status": "todo",
+      "status": "dropped",
       "review": "required",
       "depends_on": [
         "T-003",
@@ -171,7 +171,7 @@
         "G-2",
         "G-5"
       ],
-      "status": "todo",
+      "status": "dropped",
       "review": "required",
       "depends_on": [
         "T-011"
@@ -200,19 +200,17 @@
       "depends_on": [
         "T-004",
         "T-005",
-        "T-006",
-        "T-007",
         "T-010",
-        "T-011",
         "T-012",
         "T-013",
-        "T-014"
+        "T-014",
+        "T-016"
       ],
       "spec": null,
       "acceptance": [
         {
           "id": "A1",
-          "criterion": "Locked test set: upper 95% CI of meal kcal MAPE <=30%, item mass MAPE <=35%, |bias| <=10%, 80% ranges cover 75-85%",
+          "criterion": "On at least 30 scale-checked meals: upper 95% CI of meal kcal MAPE <=30%, item mass MAPE <=35%, |bias| <=10%, 80% ranges cover 75-85%",
           "check": "eval-gate-phase1"
         },
         {
@@ -273,7 +271,7 @@
         "G-2",
         "G-5"
       ],
-      "status": "blocked",
+      "status": "dropped",
       "review": "required",
       "depends_on": [
         "T-003"
@@ -399,6 +397,39 @@
         {
           "id": "A2",
           "criterion": "Owner re-runs the feasibility page on the iPhone 16e: segmentation (SAM on some backend, or a documented no-SAM fallback) and naming both load, combined inference recorded; go/no-go against <=2 s",
+          "manual": true
+        }
+      ]
+    },
+    {
+      "id": "T-016",
+      "milestone": "M2",
+      "title": "Zero setup + scale checks (ADR 0006): no plate registration or ruler anywhere in the default flow (typical-plate prior); \"Conferir com balança\" after an estimate stores truth grams (and an optional other-app kcal for comparison); learned per-user correction and conformal ranges from checks; accuracy screen with 95% CI via the eval engine",
+      "goals": [
+        "G-2",
+        "G-4",
+        "G-5"
+      ],
+      "status": "todo",
+      "review": "required",
+      "depends_on": [
+        "T-014"
+      ],
+      "spec": null,
+      "acceptance": [
+        {
+          "id": "A1",
+          "criterion": "Pure calibration core: correction factor and conformal quantiles learned from scale-check fixtures match hand-computed values; with zero checks the typical-plate prior and its wider ranges apply; the checks export is scored by the eval engine",
+          "check": "calibration-selftest"
+        },
+        {
+          "id": "A2",
+          "criterion": "Headless smoke: photo -> result with no plate registration and no required taps; the scale-check entry updates the correction",
+          "check": "estimator-selftest"
+        },
+        {
+          "id": "A3",
+          "criterion": "Owner uses it on the iPhone 16e: points the camera, gets a result with no setup, and records at least one scale check",
           "manual": true
         }
       ]

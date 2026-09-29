@@ -10,14 +10,14 @@
 | Goal | Title | Measure | Tasks done |
 |---|---|---|---|
 | G-1 | Trustworthy delivery | mc check passes on every commit to main, and every done task carries verify evidence (plus an accepting review when required) in the journal | 2/2 |
-| G-2 | Low portion and macro error | On the locked weighed Brazilian benchmark, the upper 95% CI of per-meal kcal MAPE is <=30% (phase 1), <=20% (phase 2), <=15% (phase 3), with signed bias within +-10% | 3/11 |
+| G-2 | Low portion and macro error | On the locked weighed Brazilian benchmark, the upper 95% CI of per-meal kcal MAPE is <=30% (phase 1), <=20% (phase 2), <=15% (phase 3), with signed bias within +-10% | 3/9 |
 | G-3 | Zero marginal inference cost | The capture-to-result pipeline runs on-device with no network call; any optional cloud fallback is confidence-gated and costs <= US$0.001 per photo | 3/7 |
-| G-4 | Honest uncertainty | Shown 80% ranges contain the weighed truth for 75-85% of benchmark items | 2/4 |
-| G-5 | Effortless capture | Result in <= 2 s on a recent iPhone, with at most one confirmation tap for a typical plate | 2/7 |
+| G-4 | Honest uncertainty | Shown 80% ranges contain the weighed truth for 75-85% of benchmark items | 2/5 |
+| G-5 | Effortless capture | Result in <= 2 s on a recent iPhone, with at most one confirmation tap for a typical plate | 2/6 |
 
 **Non-goals:** Estimating grams with an LLM/VLM; A native iOS app in phases 0-1 (no Mac or developer account; PWA first, see ADR 0004); Meal plans, coaching or social features in v1; Packaged-food barcode lookup in v1; Android in v1 (iPhone first; Android after the iPhone MVP passes its gate)
 
-**Constraints:** Isolated from Artisan Studio: no shared dependencies, build config or source files; The harness stays dependency-free (Node 18+ built-ins only) so any agent or CI can run it; No paid LLM API on the critical path; any fallback is optional and gated; Only commercially usable licenses for models and data (no non-commercial or AGPL components shipped); No accuracy claim without the locked weighed benchmark; Nutrition data: free sources first (TACO + USDA FDC/FNDDS); TBCA only if a commercial license is granted; Zero spending until the phase-1 gate passes: no Mac, no Apple Developer Program, free hosting only
+**Constraints:** Isolated from Artisan Studio: no shared dependencies, build config or source files; The harness stays dependency-free (Node 18+ built-ins only) so any agent or CI can run it; No paid LLM API on the critical path; any fallback is optional and gated; Only commercially usable licenses for models and data (no non-commercial or AGPL components shipped); No accuracy claim without scale-check evidence (owner weighs occasionally; 95% CI shown; ADR 0006); Nutrition data: free sources first (TACO + USDA FDC/FNDDS); TBCA only if a commercial license is granted; Zero spending until the phase-1 gate passes: no Mac, no Apple Developer Program, free hosting only; Zero setup for the user: no ruler, plate registration or protocol is ever required (ADR 0006)
 
 ## Milestones
 
@@ -28,32 +28,32 @@
 | T-001 | Mission-control harness and documentation system | done | G-1 | — | optional | [spec](decisions/0001-agent-harness-architecture.md) |
 | T-002 | Define Macrofy's mission, goals, non-goals and first product milestone with the owner | done | G-1 | T-001 | required | — |
 
-### M1 — Phase 0: weighed Brazilian benchmark, evaluation engine and baselines (5/10 done)
+### M1 — Phase 0: weighed Brazilian benchmark, evaluation engine and baselines (5/7 done)
 
 | Task | Title | Status | Goals | Depends on | Review | Spec |
 |---|---|---|---|---|---|---|
 | T-003 | Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules | done | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-003-benchmark-tooling.md) |
 | T-004 | Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI | done | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-004-evaluation-engine.md) |
 | T-005 | Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities | done | G-2, G-3 | T-002 | required | [spec](specs/SPEC-T-005-nutrition-mapping.md) |
-| T-006 | Owner collects 300 weighed meals (150 calibration, 150 locked test) following the capture protocol, split by capture date | todo | G-2 | T-003, T-011 | required | — |
-| T-007 | Experiment: metric scale error from a registered plate (known diameter, rim ellipse fit) on the iPhone 16e at 25-40 cm | todo | G-2, G-5 | T-011 | required | — |
+| T-006 | Owner collects 300 weighed meals (150 calibration, 150 locked test) following the capture protocol, split by capture date | dropped | G-2 | T-003, T-011 | required | — |
+| T-007 | Experiment: metric scale error from a registered plate (known diameter, rim ellipse fit) on the iPhone 16e at 25-40 cm | dropped | G-2, G-5 | T-011 | required | — |
 | T-009 | Request a TBCA commercial license from USP/FoRC (draft by agent, sent by owner); fall back to free sources if refused | todo | G-2 | T-002 | required | — |
 | T-010 | Measure zero-training food naming (SigLIP 2 zero-shot + k-NN gallery from calibration photos) on Brazilian dishes | todo | G-2, G-3 | T-004 | required | — |
-| T-011 | Capture PWA: guided photo capture, plate registry, per-item weight entry, export in the benchmark manifest format | blocked | G-2, G-5 | T-003 | required | [spec](specs/SPEC-T-011-capture-app.md) |
+| T-011 | Capture PWA: guided photo capture, plate registry, per-item weight entry, export in the benchmark manifest format | dropped | G-2, G-5 | T-003 | required | [spec](specs/SPEC-T-011-capture-app.md) |
 | T-012 | Feasibility: load and run Depth Anything V2-Small, SAM 2.1-tiny and SigLIP 2 in Safari on the iPhone 16e (WebGPU/WASM) | done | G-3, G-5 | T-002 | required | [spec](specs/SPEC-T-012-browser-feasibility.md) |
 | T-015 | Fit segmentation and naming in Safari on the iPhone 16e: per-backend crash resume, vision-only naming with text embeddings precomputed in CI, storage/quota diagnostics, lighter candidates | done | G-3, G-5 | T-012 | required | [spec](specs/SPEC-T-015-fit-models-in-safari.md) |
 
-### M2 — Phase 1: on-device PWA MVP on the owner iPhone 16e passing the phase-1 accuracy gate (0/3 done)
+### M2 — Phase 1: on-device PWA MVP on the owner iPhone 16e passing the phase-1 accuracy gate (0/4 done)
 
 | Task | Title | Status | Goals | Depends on | Review | Spec |
 |---|---|---|---|---|---|---|
-| T-008 | On-device PWA MVP on the iPhone 16e (segment, name, depth, plate scale, volume, density, nutrients, one-tap confirm, conformal ranges) passes the phase-1 gate | todo | G-2, G-3, G-4, G-5 | T-004, T-005, T-006, T-007, T-010, T-011, T-012, T-013, T-014 | required | — |
+| T-008 | On-device PWA MVP on the iPhone 16e (segment, name, depth, plate scale, volume, density, nutrients, one-tap confirm, conformal ranges) passes the phase-1 gate | todo | G-2, G-3, G-4, G-5 | T-004, T-005, T-010, T-012, T-013, T-014, T-016 | required | — |
 | T-013 | Estimation prototype in the PWA: tap-to-outline (SAM), top-3 naming (SigLIP) over the vocab, plate-rim ellipse scale from a registered plate, grams = area x class thickness prior x solid-aware density, oil question, macros via nutrition lookup, uncalibrated ranges, predictions export | blocked | G-2, G-3, G-4, G-5 | T-005 | required | [spec](specs/SPEC-T-013-estimation-mvp.md) |
 | T-014 | Automatic mode (ADR 0005): SAM2.1 point-grid masks, ellipse-fit plate selection, food/non-food filter with SigLIP, auto naming, one prefilled confirmation screen; tap mode kept for corrections | blocked | G-2, G-3, G-5 | T-005 | required | [spec](specs/SPEC-T-014-auto-mode.md) |
+| T-016 | Zero setup + scale checks (ADR 0006): no plate registration or ruler anywhere in the default flow (typical-plate prior); "Conferir com balança" after an estimate stores truth grams (and an optional other-app kcal for comparison); learned per-user correction and conformal ranges from checks; accuracy screen with 95% CI via the eval engine | todo | G-2, G-4, G-5 | T-014 | required | — |
 
 ## Waiting on the owner
 
-- **T-011** — Code done and independently reviewed (#56, A1 accepted); waiting for the owner to capture one real weighed meal on the iPhone 16e (A2)
 - **T-013** — Code done and independently reviewed (#65, A1 accepted); waiting for the owner to run one real plate on the iPhone 16e (A2)
 - **T-014** — Code done and independently reviewed (#72, A1 accepted); waiting for the owner's 10-plate run on the iPhone 16e (A2), after the feasibility re-run confirms SAM fits in memory
 
@@ -64,8 +64,8 @@
 
 ## Recent handoffs
 
+- #98 2026-09-29 (claude-code): Owner correction (2026-09-29): point the camera, get details+macros, zero setup; only optional scale/other-app comparison afterwards. ADR 0006 accepted; T-006/T-007/T-011 dropped; T-016 zero-setup + scale-check calibration planned; T-008 gate now on >=30 scale-checked meals; mission constraints updated / next: T-016 via implementer / gotchas: weighing-protocol runbook is now obsolete for the owner (T-016 rewrites it)
 - #94 2026-09-29 (claude-code): fix: F-007 hooks selftest negative case picked the last task, which is now done; pushed red once (cdf76ea) because my chain used ';' after the check - now gating with '&&' / next: owner app tests
 - #93 2026-09-29 (claude-code): done: T-015 (owner run 3 GO, re-review #91) / next: owner tests the app: Estimar (auto mode, T-014 A2 records timings), one tap-mode estimate (T-013 A2), one weighed meal (T-011 A2) / gotchas: SAM encoder 1.6 s + auto-mode decodes may exceed 2 s
 - #90 2026-09-29 (claude-code): T-015 owner run 3 = GO (SAM2.1-tiny webgpu/q4f16 1.6 s + CLIP B/32 webgpu/q4f16 0.12 s = 1.72 s); evidence appended to research/device-runs; F-005/F-006 closed; app loader now tries PROVEN_ATTEMPTS first (58 web checks pass) / next: re-review T-015 (A2 evidence + changes since #86), done; then owner tests Estimar (auto) on the app / gotchas: SAM encoder alone is 1.6 s, so auto mode's extra decodes may exceed the 2 s G-5 target: T-014 A2 records timings
 - #88 2026-09-29 (claude-code): T-015: after the CI model probe (4-bit image towers 53-58 MB; SlimSAM is only 9 MB yet crashed on WebGPU = activation memory), naming now tries webgpu/q4f16 then wasm/q4 first, SAM tries WASM first; web selftest updated (57 pass), smoke + estimator pass; re-verified. Changed after review #86 -> needs a re-review together with the owner's A2 run / next: owner re-runs feasibility (clear saved results first)
-- #85 2026-09-29 (implementer): done: T-015 code (per-attempt crash resume, vision-only naming vs committed text embeddings, CI probe+embedding workflow, storage/error/file diagnostics), A1 web-selftest passes, full mc check passes, smoke passes / next: owner triggers workflow macrofy-models (workflow_dispatch) so the probe and text-emb files exist, then clear saved results and re-run the feasibility page on the phone (A2); independent review still required / gotchas: until the workflow runs the naming stage fails fast with 'embeddings missing/stale' (no download); transformers.js class names (CLIPVisionModelWithProjection, SiglipVisionModel, Siglip2VisionModel) and vision_model file names are unverified offline; no-SAM fallback NOT built; F-005/F-006 stay open until A2

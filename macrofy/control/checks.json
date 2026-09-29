@@ -112,6 +112,14 @@
         "web/estimate/autoseg-selftest.mjs"
       ],
       "description": "Automatic plate/food mask post-processing matches synthetic-scene fixtures"
+    },
+    {
+      "id": "calibration-selftest",
+      "cmd": [
+        "node",
+        "web/estimate/calibration-selftest.mjs"
+      ],
+      "description": "Learned correction and conformal ranges from scale checks match hand-computed fixtures"
     }
   ]
 }

@@ -176,6 +176,11 @@ const nfRule = (impl) => { const r = impl(nfItems, nfScores, nf); return r.foods
 check('non-food: best label talher or mesa is rejected; a non-food label that is only second best is not', nfRule(A.rejectNonFood));
 check('non-food: the best label is attached to every item', A.rejectNonFood(nfItems, nfScores, nf).foods[1].best_label === core.NAME_PROMPT('bife grelhado'));
 throws('non-food: scores must be one list per item', () => A.rejectNonFood(nfItems, nfScores.slice(1), nf), /pontuações/);
+// CI with English vectors, Commons photo: a chicken crop scored "cutlery" 0.11 vs chicken 0.071 and plain argmax threw the chicken out
+const close = [[{ label: core.NAME_PROMPT('frango grelhado'), score: 0.071 }, { label: core.NAME_PROMPT('talher'), score: 0.11 }]];
+check('non-food margin (priors non_food_margin 3): a narrow non-food win keeps the food (named by its best food label); a clear one (fork 0.8 vs 0.1) is still rejected',
+  P.non_food_margin === 3 && A.rejectNonFood([item('x', S.meat)], close, nf).rejected.length === 1 && (() => { const r = A.rejectNonFood([item('x', S.meat)], close, nf, P.non_food_margin); return r.foods.length === 1 && r.foods[0].best_label === core.NAME_PROMPT('frango grelhado'); })()
+  && nfRule((it, s, n) => A.rejectNonFood(it, s, n, P.non_food_margin)));
 
 // ---------------------------------------------------------------- plate scale prior
 const known = A.plateSetup(priors, { id: 'raso', name: 'Prato raso', diameter_mm: 240 });

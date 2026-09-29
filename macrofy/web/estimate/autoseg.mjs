@@ -355,15 +355,21 @@ export function mergeSameLabel(items, adjacencyPx) {
 export const nonFoodPrompts = (labels) => labels.map((l) => NAME_PROMPT(l));
 
 /**
- * scores[i] = [{ label: prompt, score }] for items[i] over the food prompts and the non-food prompts. An item whose best-scoring
- * prompt is a non-food prompt is rejected. Returns { foods, rejected }, each item copied with best_label and best_score.
+ * scores[i] = [{ label: prompt, score }] for items[i] over the food prompts and the non-food prompts. An item is rejected when its best non-food
+ * prompt scores at least `margin` times its best food prompt (margin 1: the best prompt overall is a non-food one). A margin above 1 keeps a real
+ * food that only narrowly looks like cutlery or a plate (CI, Commons photo: a chicken crop, "cutlery" 0.11 vs chicken 0.071).
+ * Returns { foods, rejected }, each item copied with best_label and best_score.
  */
-export function rejectNonFood(items, scores, nonFoodLabelPrompts) {
+export function rejectNonFood(items, scores, nonFoodLabelPrompts, margin = 1) {
   if (scores.length !== items.length) throw new Error('uma lista de pontuações por item');
   const bad = new Set(nonFoodLabelPrompts); const foods = []; const rejected = [];
+  const none = { label: null, score: -Infinity };
   items.forEach((it, i) => {
-    const best = scores[i].reduce((p, q) => (q.score > p.score ? q : p), { label: null, score: -Infinity });
-    (bad.has(best.label) ? rejected : foods).push({ ...it, best_label: best.label, best_score: best.score });
+    const best = scores[i].reduce((p, q) => (q.score > p.score ? q : p), none);
+    const nf = scores[i].filter((q) => bad.has(q.label)).reduce((p, q) => (q.score > p.score ? q : p), none);
+    const food = scores[i].filter((q) => !bad.has(q.label)).reduce((p, q) => (q.score > p.score ? q : p), none);
+    const isNonFood = nf.label !== null && (food.label === null || nf.score >= margin * food.score);
+    (isNonFood ? rejected : foods).push({ ...it, best_label: isNonFood ? nf.label : food.label ?? best.label, best_score: isNonFood ? nf.score : food.score });
   });
   return { foods, rejected };
 }
@@ -516,7 +522,7 @@ export async function finishAuto({ models, params, classes, crop, seg, onStage =
     items.push({ mask, score: mask.score ?? 0, blob, index: items.length }); scores.push(sc);
     onStage({ stage: 'naming', done: items.length, total: kept.length });
   }
-  const { foods, rejected } = rejectNonFood(items, scores, nfPrompts);
+  const { foods, rejected } = rejectNonFood(items, scores, nfPrompts, p.non_food_margin ?? 1);
   const named = foods.map((it) => {
     const top = topNames(scores[it.index], classes, 3);
     return { ...it, top, cls: top[0]?.cls ?? null, label: top[0]?.cls?.id ?? null };

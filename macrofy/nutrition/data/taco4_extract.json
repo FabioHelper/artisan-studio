@@ -1,0 +1,701 @@
+{
+ "_meta": {
+  "source_id": "TACO",
+  "name": "Tabela Brasileira de Composição de Alimentos (TACO), 4ª edição revisada e ampliada",
+  "citation": "NEPA – Núcleo de Estudos e Pesquisas em Alimentação, UNICAMP. Tabela Brasileira de Composição de Alimentos – TACO. 4. ed. rev. e ampl. Campinas: NEPA-UNICAMP, 2011.",
+  "origin_url": "https://nepa.unicamp.br/publicacoes/tabela-taco-pdf/",
+  "license": "Reprodução parcial ou total permitida, desde que citada a fonte (stated in the TACO document)",
+  "retrieval_date": "2026-09-29",
+  "machine_readable_copy": {
+   "url": "https://raw.githubusercontent.com/IgorFZ/taco-br/main/data/taco4.json",
+   "note": "JSON extraction of the official PDF by IgorFZ (MIT code; data attributed to TACO/NEPA-UNICAMP); branch main as of the retrieval date",
+   "sha256": "70def4a4fa899ebe45f7f25db82a0af2a7936b6c7098e6b67d6bd05cf53f1ddc"
+  },
+  "cross_check": {
+   "url": "https://raw.githubusercontent.com/brolesi/taco/main/data/processed/taco/taco_composicao.csv",
+   "note": "independent extraction from the official Excel file (brolesi/taco, MIT); all 597 foods x (kcal, protein, lipids, carbohydrate) agree with the JSON after rounding (0 differences)",
+   "sha256": "7dee98c4562c4faecc713712d5ae9f909a2a43a8fa4f10c81d3d52fc5cad6058"
+  },
+  "basis": "100 g of edible portion. Qualifiers: TRACO (Tr) = between 0 and the quantification limit and NAO_APLICAVEL (NA) = not applicable are read as 0 by build_vocab.mjs and recorded in the class as trace.",
+  "rows_bundled": 66
+ },
+ "foods": {
+  "1": {
+   "id": 1,
+   "descricao": "Arroz, integral, cozido",
+   "grupo": "Cereais e derivados",
+   "energia_kcal": 124,
+   "proteina_g": 2.6,
+   "lipideos_g": 1,
+   "carboidrato_g": 25.8,
+   "qualificadores": {}
+  },
+  "3": {
+   "id": 3,
+   "descricao": "Arroz, tipo 1, cozido",
+   "grupo": "Cereais e derivados",
+   "energia_kcal": 128,
+   "proteina_g": 2.5,
+   "lipideos_g": 0.2,
+   "carboidrato_g": 28.1,
+   "qualificadores": {}
+  },
+  "62": {
+   "id": 62,
+   "descricao": "Polenta, pré-cozida",
+   "grupo": "Cereais e derivados",
+   "energia_kcal": 103,
+   "proteina_g": 2.3,
+   "lipideos_g": 0.3,
+   "carboidrato_g": 23.3,
+   "qualificadores": {}
+  },
+  "64": {
+   "id": 64,
+   "descricao": "Abóbora, cabotian, cozida",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 48,
+   "proteina_g": 1.4,
+   "lipideos_g": 0.7,
+   "carboidrato_g": 10.8,
+   "qualificadores": {}
+  },
+  "72": {
+   "id": 72,
+   "descricao": "Abobrinha, italiana, refogada",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 24,
+   "proteina_g": 1.1,
+   "lipideos_g": 0.8,
+   "carboidrato_g": 4.2,
+   "qualificadores": {}
+  },
+  "78": {
+   "id": 78,
+   "descricao": "Alface, crespa, crua",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 11,
+   "proteina_g": 1.3,
+   "lipideos_g": 0.2,
+   "carboidrato_g": 1.7,
+   "qualificadores": {}
+  },
+  "88": {
+   "id": 88,
+   "descricao": "Batata, doce, cozida",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 77,
+   "proteina_g": 0.6,
+   "lipideos_g": 0.1,
+   "carboidrato_g": 18.4,
+   "qualificadores": {}
+  },
+  "91": {
+   "id": 91,
+   "descricao": "Batata, inglesa, cozida",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 52,
+   "proteina_g": 1.2,
+   "lipideos_g": null,
+   "carboidrato_g": 11.9,
+   "qualificadores": {
+    "lipideos_g": "TRACO"
+   }
+  },
+  "93": {
+   "id": 93,
+   "descricao": "Batata, inglesa, frita",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 267,
+   "proteina_g": 5,
+   "lipideos_g": 13.1,
+   "carboidrato_g": 35.6,
+   "qualificadores": {}
+  },
+  "97": {
+   "id": 97,
+   "descricao": "Beterraba, cozida",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 32,
+   "proteina_g": 1.3,
+   "lipideos_g": 0.1,
+   "carboidrato_g": 7.2,
+   "qualificadores": {}
+  },
+  "100": {
+   "id": 100,
+   "descricao": "Brócolis, cozido",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 25,
+   "proteina_g": 2.1,
+   "lipideos_g": 0.5,
+   "carboidrato_g": 4.4,
+   "qualificadores": {}
+  },
+  "107": {
+   "id": 107,
+   "descricao": "Cebola, crua",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 39,
+   "proteina_g": 1.7,
+   "lipideos_g": 0.1,
+   "carboidrato_g": 8.9,
+   "qualificadores": {}
+  },
+  "109": {
+   "id": 109,
+   "descricao": "Cenoura, cozida",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 30,
+   "proteina_g": 0.8,
+   "lipideos_g": 0.2,
+   "carboidrato_g": 6.7,
+   "qualificadores": {}
+  },
+  "110": {
+   "id": 110,
+   "descricao": "Cenoura, crua",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 34,
+   "proteina_g": 1.3,
+   "lipideos_g": 0.2,
+   "carboidrato_g": 7.7,
+   "qualificadores": {}
+  },
+  "112": {
+   "id": 112,
+   "descricao": "Chuchu, cozido",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 19,
+   "proteina_g": 0.4,
+   "lipideos_g": null,
+   "carboidrato_g": 4.8,
+   "qualificadores": {
+    "lipideos_g": "TRACO"
+   }
+  },
+  "116": {
+   "id": 116,
+   "descricao": "Couve, manteiga, refogada",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 90,
+   "proteina_g": 1.7,
+   "lipideos_g": 6.6,
+   "carboidrato_g": 8.7,
+   "qualificadores": {}
+  },
+  "118": {
+   "id": 118,
+   "descricao": "Couve-flor, cozida",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 19,
+   "proteina_g": 1.2,
+   "lipideos_g": 0.3,
+   "carboidrato_g": 3.9,
+   "qualificadores": {}
+  },
+  "120": {
+   "id": 120,
+   "descricao": "Espinafre, Nova Zelândia, refogado",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 67,
+   "proteina_g": 2.7,
+   "lipideos_g": 5.4,
+   "carboidrato_g": 4.2,
+   "qualificadores": {}
+  },
+  "129": {
+   "id": 129,
+   "descricao": "Mandioca, cozida",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 125,
+   "proteina_g": 0.6,
+   "lipideos_g": 0.3,
+   "carboidrato_g": 30.1,
+   "qualificadores": {}
+  },
+  "136": {
+   "id": 136,
+   "descricao": "Nhoque, batata, cozido",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 181,
+   "proteina_g": 5.9,
+   "lipideos_g": 1.9,
+   "carboidrato_g": 36.8,
+   "qualificadores": {}
+  },
+  "142": {
+   "id": 142,
+   "descricao": "Pepino, cru",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 10,
+   "proteina_g": 0.9,
+   "lipideos_g": null,
+   "carboidrato_g": 2,
+   "qualificadores": {
+    "lipideos_g": "TRACO"
+   }
+  },
+  "149": {
+   "id": 149,
+   "descricao": "Repolho, branco, cru",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 17,
+   "proteina_g": 0.9,
+   "lipideos_g": 0.1,
+   "carboidrato_g": 3.9,
+   "qualificadores": {}
+  },
+  "161": {
+   "id": 161,
+   "descricao": "Tomate, salada",
+   "grupo": "Verduras, hortaliças e derivados",
+   "energia_kcal": 21,
+   "proteina_g": 0.8,
+   "lipideos_g": null,
+   "carboidrato_g": 5.1,
+   "qualificadores": {
+    "lipideos_g": "TRACO"
+   }
+  },
+  "163": {
+   "id": 163,
+   "descricao": "Abacate, cru",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 96,
+   "proteina_g": 1.2,
+   "lipideos_g": 8.4,
+   "carboidrato_g": 6,
+   "qualificadores": {}
+  },
+  "164": {
+   "id": 164,
+   "descricao": "Abacaxi, cru",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 48,
+   "proteina_g": 0.9,
+   "lipideos_g": 0.1,
+   "carboidrato_g": 12.3,
+   "qualificadores": {}
+  },
+  "182": {
+   "id": 182,
+   "descricao": "Banana, prata, crua",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 98,
+   "proteina_g": 1.3,
+   "lipideos_g": 0.1,
+   "carboidrato_g": 26,
+   "qualificadores": {}
+  },
+  "214": {
+   "id": 214,
+   "descricao": "Laranja, pêra, crua",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 37,
+   "proteina_g": 1,
+   "lipideos_g": 0.1,
+   "carboidrato_g": 8.9,
+   "qualificadores": {}
+  },
+  "222": {
+   "id": 222,
+   "descricao": "Maçã, Fuji, com casca, crua",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 56,
+   "proteina_g": 0.3,
+   "lipideos_g": null,
+   "carboidrato_g": 15.2,
+   "qualificadores": {
+    "lipideos_g": "TRACO"
+   }
+  },
+  "225": {
+   "id": 225,
+   "descricao": "Mamão, Formosa, cru",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 45,
+   "proteina_g": 0.8,
+   "lipideos_g": 0.1,
+   "carboidrato_g": 11.6,
+   "qualificadores": {}
+  },
+  "229": {
+   "id": 229,
+   "descricao": "Manga, Palmer, crua",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 72,
+   "proteina_g": 0.4,
+   "lipideos_g": 0.2,
+   "carboidrato_g": 19.4,
+   "qualificadores": {}
+  },
+  "235": {
+   "id": 235,
+   "descricao": "Melancia, crua",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 33,
+   "proteina_g": 0.9,
+   "lipideos_g": null,
+   "carboidrato_g": 8.1,
+   "qualificadores": {
+    "lipideos_g": "TRACO"
+   }
+  },
+  "236": {
+   "id": 236,
+   "descricao": "Melão, cru",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 29,
+   "proteina_g": 0.7,
+   "lipideos_g": null,
+   "carboidrato_g": 7.5,
+   "qualificadores": {
+    "lipideos_g": "TRACO"
+   }
+  },
+  "239": {
+   "id": 239,
+   "descricao": "Morango, cru",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 30,
+   "proteina_g": 0.9,
+   "lipideos_g": 0.3,
+   "carboidrato_g": 6.8,
+   "qualificadores": {}
+  },
+  "243": {
+   "id": 243,
+   "descricao": "Pêra, Williams, crua",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 53,
+   "proteina_g": 0.6,
+   "lipideos_g": 0.1,
+   "carboidrato_g": 14,
+   "qualificadores": {}
+  },
+  "256": {
+   "id": 256,
+   "descricao": "Uva, Itália, crua",
+   "grupo": "Frutas e derivados",
+   "energia_kcal": 53,
+   "proteina_g": 0.7,
+   "lipideos_g": 0.2,
+   "carboidrato_g": 13.6,
+   "qualificadores": {}
+  },
+  "272": {
+   "id": 272,
+   "descricao": "Óleo, de soja",
+   "grupo": "Gorduras e óleos",
+   "energia_kcal": 884,
+   "proteina_g": null,
+   "lipideos_g": 100,
+   "carboidrato_g": null,
+   "qualificadores": {
+    "proteina_g": "NAO_APLICAVEL",
+    "carboidrato_g": "NAO_APLICAVEL"
+   }
+  },
+  "284": {
+   "id": 284,
+   "descricao": "Camarão, Rio Grande, grande, cozido",
+   "grupo": "Pescados e frutos do mar",
+   "energia_kcal": 90,
+   "proteina_g": 19,
+   "lipideos_g": 1,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "303": {
+   "id": 303,
+   "descricao": "Merluza, filé, frito",
+   "grupo": "Pescados e frutos do mar",
+   "energia_kcal": 192,
+   "proteina_g": 26.9,
+   "lipideos_g": 8.5,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "313": {
+   "id": 313,
+   "descricao": "Pintado, grelhado",
+   "grupo": "Pescados e frutos do mar",
+   "energia_kcal": 152,
+   "proteina_g": 30.8,
+   "lipideos_g": 2.3,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "317": {
+   "id": 317,
+   "descricao": "Salmão, sem pele, fresco, grelhado",
+   "grupo": "Pescados e frutos do mar",
+   "energia_kcal": 243,
+   "proteina_g": 26.1,
+   "lipideos_g": 14.5,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "326": {
+   "id": 326,
+   "descricao": "Carne, bovina, acém, moído, cozido",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 212,
+   "proteina_g": 26.7,
+   "lipideos_g": 10.9,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "346": {
+   "id": 346,
+   "descricao": "Carne, bovina, contra-filé, sem gordura, grelhado",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 194,
+   "proteina_g": 35.9,
+   "lipideos_g": 4.5,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "358": {
+   "id": 358,
+   "descricao": "Carne, bovina, filé mingnon, sem gordura, grelhado",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 220,
+   "proteina_g": 32.8,
+   "lipideos_g": 8.8,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "370": {
+   "id": 370,
+   "descricao": "Carne, bovina, miolo de alcatra, sem gordura, grelhado",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 241,
+   "proteina_g": 31.9,
+   "lipideos_g": 11.6,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "371": {
+   "id": 371,
+   "descricao": "Carne, bovina, músculo, sem gordura, cozido",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 194,
+   "proteina_g": 31.2,
+   "lipideos_g": 6.7,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "383": {
+   "id": 383,
+   "descricao": "Carne, bovina, picanha, sem gordura, grelhada",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 238,
+   "proteina_g": 31.9,
+   "lipideos_g": 11.3,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "396": {
+   "id": 396,
+   "descricao": "Frango, coxa, com pele, assada",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 215,
+   "proteina_g": 28.5,
+   "lipideos_g": 10.4,
+   "carboidrato_g": 0.1,
+   "qualificadores": {}
+  },
+  "401": {
+   "id": 401,
+   "descricao": "Frango, filé, à milanesa",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 221,
+   "proteina_g": 28.5,
+   "lipideos_g": 7.8,
+   "carboidrato_g": 7.5,
+   "qualificadores": {}
+  },
+  "410": {
+   "id": 410,
+   "descricao": "Frango, peito, sem pele, grelhado",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 159,
+   "proteina_g": 32,
+   "lipideos_g": 2.5,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "417": {
+   "id": 417,
+   "descricao": "Hambúrguer, bovino, grelhado",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 210,
+   "proteina_g": 13.2,
+   "lipideos_g": 12.4,
+   "carboidrato_g": 11.3,
+   "qualificadores": {}
+  },
+  "423": {
+   "id": 423,
+   "descricao": "Lingüiça, porco, grelhada",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 296,
+   "proteina_g": 23.2,
+   "lipideos_g": 21.9,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "429": {
+   "id": 429,
+   "descricao": "Porco, bisteca, grelhada",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 280,
+   "proteina_g": 28.9,
+   "lipideos_g": 17.4,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "432": {
+   "id": 432,
+   "descricao": "Porco, lombo, assado",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 210,
+   "proteina_g": 35.7,
+   "lipideos_g": 6.4,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "435": {
+   "id": 435,
+   "descricao": "Porco, pernil, assado",
+   "grupo": "Carnes e derivados",
+   "energia_kcal": 262,
+   "proteina_g": 32.1,
+   "lipideos_g": 13.9,
+   "carboidrato_g": 0,
+   "qualificadores": {}
+  },
+  "448": {
+   "id": 448,
+   "descricao": "Iogurte, natural",
+   "grupo": "Leite e derivados",
+   "energia_kcal": 51,
+   "proteina_g": 4.1,
+   "lipideos_g": 3,
+   "carboidrato_g": 1.9,
+   "qualificadores": {}
+  },
+  "463": {
+   "id": 463,
+   "descricao": "Queijo, mozarela",
+   "grupo": "Leite e derivados",
+   "energia_kcal": 330,
+   "proteina_g": 22.6,
+   "lipideos_g": 25.2,
+   "carboidrato_g": 3,
+   "qualificadores": {}
+  },
+  "488": {
+   "id": 488,
+   "descricao": "Ovo, de galinha, inteiro, cozido/10minutos",
+   "grupo": "Ovos e derivados",
+   "energia_kcal": 146,
+   "proteina_g": 13.3,
+   "lipideos_g": 9.5,
+   "carboidrato_g": 0.6,
+   "qualificadores": {}
+  },
+  "490": {
+   "id": 490,
+   "descricao": "Ovo, de galinha, inteiro, frito",
+   "grupo": "Ovos e derivados",
+   "energia_kcal": 240,
+   "proteina_g": 15.6,
+   "lipideos_g": 18.6,
+   "carboidrato_g": 1.2,
+   "qualificadores": {}
+  },
+  "524": {
+   "id": 524,
+   "descricao": "Maionese, tradicional com ovos",
+   "grupo": "Outros alimentos industrializados",
+   "energia_kcal": 302,
+   "proteina_g": 0.6,
+   "lipideos_g": 30.5,
+   "carboidrato_g": 7.9,
+   "qualificadores": {}
+  },
+  "537": {
+   "id": 537,
+   "descricao": "Estrogonofe de carne",
+   "grupo": "Alimentos preparados",
+   "energia_kcal": 173,
+   "proteina_g": 15,
+   "lipideos_g": 10.8,
+   "carboidrato_g": 3,
+   "qualificadores": {}
+  },
+  "538": {
+   "id": 538,
+   "descricao": "Estrogonofe de frango",
+   "grupo": "Alimentos preparados",
+   "energia_kcal": 157,
+   "proteina_g": 17.6,
+   "lipideos_g": 8,
+   "carboidrato_g": 2.6,
+   "qualificadores": {}
+  },
+  "540": {
+   "id": 540,
+   "descricao": "Feijoada",
+   "grupo": "Alimentos preparados",
+   "energia_kcal": 117,
+   "proteina_g": 8.7,
+   "lipideos_g": 6.5,
+   "carboidrato_g": 11.6,
+   "qualificadores": {}
+  },
+  "542": {
+   "id": 542,
+   "descricao": "Macarrão, molho bolognesa",
+   "grupo": "Alimentos preparados",
+   "energia_kcal": 120,
+   "proteina_g": 4.9,
+   "lipideos_g": 0.9,
+   "carboidrato_g": 22.5,
+   "qualificadores": {}
+  },
+  "561": {
+   "id": 561,
+   "descricao": "Feijão, carioca, cozido",
+   "grupo": "Leguminosas e derivados",
+   "energia_kcal": 76,
+   "proteina_g": 4.8,
+   "lipideos_g": 0.5,
+   "carboidrato_g": 13.6,
+   "qualificadores": {}
+  },
+  "567": {
+   "id": 567,
+   "descricao": "Feijão, preto, cozido",
+   "grupo": "Leguminosas e derivados",
+   "energia_kcal": 77,
+   "proteina_g": 4.5,
+   "lipideos_g": 0.5,
+   "carboidrato_g": 14,
+   "qualificadores": {}
+  },
+  "577": {
+   "id": 577,
+   "descricao": "Lentilha, cozida",
+   "grupo": "Leguminosas e derivados",
+   "energia_kcal": 93,
+   "proteina_g": 6.3,
+   "lipideos_g": 0.5,
+   "carboidrato_g": 16.3,
+   "qualificadores": {}
+  }
+ }
+}

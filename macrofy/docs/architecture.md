@@ -72,6 +72,27 @@ reproducible; items under 10 g are scored in grams only; ground-truth nutrients 
 callback (the nutrition module, T-005), and kcal or macro metrics are null rather than zero without
 it; the manifest is validated (and the test lock verified when given) before anything is scored.
 
+## Nutrition (`nutrition/`)
+
+Turns a food label and grams into kcal and macros, and millilitres into grams. Spec:
+[SPEC-T-005](specs/SPEC-T-005-nutrition-mapping.md).
+
+| Module | Responsibility |
+|---|---|
+| `nutrition/vocab.json` | The food classes (schema macrofy.vocab/1): pt and en names, facets state, method and default oil, nutrients per 100 g with their source row, density with its FNDDS portion. Generated, never edited by hand |
+| `nutrition/sources.json` | Every bundled data source with version, URL, retrieval date, license, attribution and commercial-use flag |
+| `nutrition/data/` | Only the TACO and FNDDS rows the classes use, each extract with origin, hashes and license in its metadata |
+| `nutrition/tools/class_spec.mjs` | The human-authored class-to-row mapping; contains no nutrient or density numbers |
+| `nutrition/tools/build_vocab.mjs` | Reads the spec and the extracts, writes the vocab and sources files; `nutrition/tools/extract_sources.mjs` rebuilds the extracts from raw downloads |
+| `nutrition/lookup.mjs` | `nutrientsFor`, `massFromVolume` and the `truthNutrients` adapter for `evaluate()` in `eval/metrics.mjs` |
+| `nutrition/validate.mjs` | The check `nutrition-map-validate`: negative fixtures per rule, lookup arithmetic, then the real vocab and sources |
+
+Invariants: every nutrient and density is copied or derived from a bundled source row (the validator
+compares them to the extracts), never typed; every bundled source is commercially usable (true or
+with-citation), which excludes TBCA; nutrients of a recipe are computed from its ingredient classes;
+a density is an FNDDS cup portion in grams divided by 236.6 mL and states whether the FNDDS food is
+the same (`exact`) or the closest available (`analog`); a rule with no failing fixture fails the run.
+
 ## Web (`web/`)
 
 Static site published to GitHub Pages by the workflow `macrofy-pages.yml`; no build step, plain ES

@@ -3,7 +3,7 @@
 
 **Mission** (approved): Point the phone camera at a food or meal and get the most likely real weight of each item plus protein, carbs, fat and kcal, with honest ranges and the lowest achievable error, starting with Brazilian meals and running on-device with no paid LLM on the critical path.
 
-**Next action:** start T-005 "Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities" with `mc start T-005`
+**Next action:** continue T-005 "Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities" → make its acceptance checks pass, then `mc verify T-005`, review, `mc done T-005`
 
 ## Goals
 
@@ -34,7 +34,7 @@
 |---|---|---|---|---|---|---|
 | T-003 | Benchmark tooling: meal manifest schema, capture protocol, validator with frozen test split and leakage rules | done | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-003-benchmark-tooling.md) |
 | T-004 | Evaluation engine: per-sample MAPE, signed bias, within-±10/20/30%, Bland-Altman, interval coverage, cluster-bootstrap 95% CI | done | G-2, G-4 | T-002 | required | [spec](specs/SPEC-T-004-evaluation-engine.md) |
-| T-005 | Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities | todo | G-2, G-3 | T-002 | required | — |
+| T-005 | Food vocabulary and nutrient mapping v0 from free sources (TACO + FNDDS; recipes computed from ingredients with Brazilian default oil), with state, method and default-oil facets and FNDDS-derived densities | active | G-2, G-3 | T-002 | required | [spec](specs/SPEC-T-005-nutrition-mapping.md) |
 | T-006 | Owner collects 300 weighed meals (150 calibration, 150 locked test) following the capture protocol, split by capture date | todo | G-2 | T-003, T-011 | required | — |
 | T-007 | Experiment: metric scale error from a registered plate (known diameter, rim ellipse fit) on the iPhone 16e at 25-40 cm | todo | G-2, G-5 | T-011 | required | — |
 | T-009 | Request a TBCA commercial license from USP/FoRC (draft by agent, sent by owner); fall back to free sources if refused | todo | G-2 | T-002 | required | — |
@@ -58,8 +58,8 @@
 
 ## Recent handoffs
 
+- #49 2026-09-29 (implementer): done: T-005 built and verified (nutrition/: vocab.json 73 classes, sources.json, data/ TACO+FNDDS extracts, lookup.mjs with nutrientsFor/massFromVolume/truthNutrients, validate.mjs, tools/ for regeneration, SPEC-T-005, architecture section); nutrition-map-validate passes, check --fast green / next: reviewer runs 'mc review T-005' then 'mc done T-005'; wire nutrition/lookup.mjs truthNutrients into eval/run.mjs so the CLI stops reporting n/a for kcal/macros; owner questions (in the spec): are 'pieces' densities (a cup of diced meat, fish, egg, fruit) usable for solid items, and default oil for beans is 0 because no cited value exists / gotchas: fdc.nal.usda.gov and nepa.unicamp.br are unreachable, data came from public mirrors (URLs and hashes in nutrition/data/*_extract.json); FNDDS food_nutrient was fetched by byte range; class_spec.mjs holds no numbers: edit it, run tools/extract_sources.mjs on raw downloads to add rows, then tools/build_vocab.mjs; 19 densities are analog FNDDS foods, 18 foods are missing for lack of a density row; journal was re-run on top of main after merge
 - #46 2026-09-29 (claude-code): ops: macrofy-pages workflow now publishes macrofy/web to gh-pages via git subtree (contents: write), since Pages is served from gh-pages / next: owner runs feasibility page; T-005 in worktree / gotchas: none
 - #45 2026-09-29 (claude-code): fix: CI red (F-003): hooks selftest now copies .claude/ and .github/ whole; full check after merges. Pages enabled via gh-pages branch (GITHUB_TOKEN cannot enable Pages); site builds from gh-pages / next: T-005 in worktree (its journal will diverge from this note: keep main's, re-verify on merge) / gotchas: republish web/ with git subtree split --prefix macrofy/web -b gh-pages + push
 - #44 2026-09-29 (claude-code): T-012 feasibility page merged + Pages deploy triggered (https://fabiohelper.github.io/artisan-studio/feasibility/); blocked awaiting owner's phone results -> on results: unblock, start, verify, review, done / next: T-005 nutrition mapping via implementer sub-agent / gotchas: model ids unverified from sandbox; page falls back and logs failed_attempts
 - #42 2026-09-29 (implementer): done: T-012 feasibility page built (web/feasibility, pinned transformers.js 3.8.1), Pages workflow, owner runbook (pt-BR), web-selftest (A2). A1 is manual: needs owner's phone JSON, then mc verify. next: owner runs https://fabiohelper.github.io/artisan-studio/feasibility/ after merge to main + Pages deploy. gotchas: model ids and SAM2 support in transformers.js 3.8.1 unverified (fallbacks slimsam/Xenova ids; failed_attempts in JSON shows why); Pages must be enabled (workflow uses enablement: true)
-- #40 2026-09-29 (claude-code): done: T-004 eval engine (review accepted after classifier outage retry) / next: T-012 browser feasibility page on GitHub Pages (repo is public) via implementer sub-agent / gotchas: Safari exposes no JS memory API, so T-012 records download size + tab survival instead of peak memory

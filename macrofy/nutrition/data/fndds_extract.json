@@ -1,0 +1,3744 @@
+{
+ "_meta": {
+  "source_id": "FNDDS",
+  "name": "USDA FoodData Central, Survey (FNDDS 2019-2020)",
+  "citation": "U.S. Department of Agriculture, Agricultural Research Service. FoodData Central, Survey Foods (FNDDS 2019-2020), 2022-10-28 release. fdc.nal.usda.gov",
+  "origin_url": "https://fdc.nal.usda.gov/download-datasets",
+  "license": "CC0 1.0 Universal (public domain), per the FoodData Central API guide",
+  "retrieval_date": "2026-09-29",
+  "machine_readable_copy": {
+   "note": "A verbatim copy of the FoodData Central CSV tables, vendored in a public repository (tjchhajed/FoodBall, MIT for its own code) at a pinned commit; fdc.nal.usda.gov itself is unreachable from the build sandbox. The FNDDS rows (5624 foods, publication_date 2022-10-28, food codes) match the FDC survey release.",
+   "commit": "748cdb3d9aa66c7f400eaab321a12b621b205b90",
+   "files": {
+    "food.csv": {
+     "url": "https://media.githubusercontent.com/media/tjchhajed/FoodBall/748cdb3d9aa66c7f400eaab321a12b621b205b90/usda-data/extracted/food.csv",
+     "sha256": "6ba7f0ee736cd85658c1d6ace1987d2b93b435e0d7d0547c8aab417ac6fde23b"
+    },
+    "survey_fndds_food.csv": {
+     "url": "https://media.githubusercontent.com/media/tjchhajed/FoodBall/748cdb3d9aa66c7f400eaab321a12b621b205b90/usda-data/extracted/survey_fndds_food.csv",
+     "sha256": "b81eb8dd2656bb7fd94b8fe2ed4f5ad090e94b0296192eb76fc32409c859461a"
+    },
+    "food_portion.csv": {
+     "url": "https://media.githubusercontent.com/media/tjchhajed/FoodBall/748cdb3d9aa66c7f400eaab321a12b621b205b90/usda-data/extracted/food_portion.csv",
+     "sha256": "06d857fc08ce9fae84fcbae25af3a2aa9a0995f73e66950d7b3d452dc1e4dbbd"
+    },
+    "food_nutrient.csv": {
+     "url": "https://media.githubusercontent.com/media/tjchhajed/FoodBall/748cdb3d9aa66c7f400eaab321a12b621b205b90/usda-data/extracted/food_nutrient.csv",
+     "byte_range": "1305000000-1333000000",
+     "sha256_of_range": "bae59e6a4b036879338c486914a841591d9489220e8b06ebd13376c81c78e275",
+     "note": "the full file is 1.5 GB (all FDC data types); only the byte range holding the FNDDS fdc_ids 2340760-2346383 was fetched"
+    }
+   }
+  },
+  "basis": "nutrients per 100 g as eaten (FDC nutrient ids 1008 energy kcal, 1003 protein, 1004 total lipid, 1005 carbohydrate by difference); portion gram_weight is grams for the described portion",
+  "rows_bundled": 71
+ },
+ "foods": {
+  "11400000": {
+   "food_code": "11400000",
+   "fdc_id": 2340795,
+   "description": "Yogurt, NFS",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 5.25,
+    "kcal": 63,
+    "carbs_g": 7.04,
+    "fat_g": 1.55
+   },
+   "nutrient_rows": {
+    "protein_g": 28542799,
+    "kcal": 28542802,
+    "carbs_g": 28542801,
+    "fat_g": 28542800
+   },
+   "portions": [
+    {
+     "portion_id": "267965",
+     "seq_num": 1,
+     "description": "1 4 oz container",
+     "gram_weight": 113
+    },
+    {
+     "portion_id": "267966",
+     "seq_num": 2,
+     "description": "1 6 oz container",
+     "gram_weight": 170
+    },
+    {
+     "portion_id": "267967",
+     "seq_num": 3,
+     "description": "1 container, NFS",
+     "gram_weight": 170
+    },
+    {
+     "portion_id": "267968",
+     "seq_num": 4,
+     "description": "1 cup",
+     "gram_weight": 245
+    },
+    {
+     "portion_id": "267969",
+     "seq_num": 5,
+     "description": "Quantity not specified",
+     "gram_weight": 170
+    }
+   ]
+  },
+  "14107010": {
+   "food_code": "14107010",
+   "fdc_id": 2341125,
+   "description": "Cheese, Mozzarella, NFS",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 23.7,
+    "kcal": 296,
+    "fat_g": 20.4,
+    "carbs_g": 4.44
+   },
+   "nutrient_rows": {
+    "protein_g": 28564249,
+    "kcal": 28564252,
+    "fat_g": 28564250,
+    "carbs_g": 28564251
+   },
+   "portions": [
+    {
+     "portion_id": "269037",
+     "seq_num": 1,
+     "description": "1 cracker-size slice",
+     "gram_weight": 9
+    },
+    {
+     "portion_id": "269038",
+     "seq_num": 2,
+     "description": "1 slice",
+     "gram_weight": 21
+    },
+    {
+     "portion_id": "269039",
+     "seq_num": 3,
+     "description": "1 stick",
+     "gram_weight": 28.35
+    },
+    {
+     "portion_id": "269040",
+     "seq_num": 4,
+     "description": "1 cheese curd",
+     "gram_weight": 4
+    },
+    {
+     "portion_id": "269041",
+     "seq_num": 5,
+     "description": "1 cup, shredded",
+     "gram_weight": 113
+    },
+    {
+     "portion_id": "269042",
+     "seq_num": 6,
+     "description": "1 cup, diced",
+     "gram_weight": 132
+    },
+    {
+     "portion_id": "269043",
+     "seq_num": 7,
+     "description": "1 cup, NFS",
+     "gram_weight": 113
+    },
+    {
+     "portion_id": "269044",
+     "seq_num": 8,
+     "description": "1 cup, melted",
+     "gram_weight": 244
+    },
+    {
+     "portion_id": "269045",
+     "seq_num": 9,
+     "description": "1 cubic inch",
+     "gram_weight": 18
+    },
+    {
+     "portion_id": "269046",
+     "seq_num": 10,
+     "description": "Quantity not specified",
+     "gram_weight": 21
+    }
+   ]
+  },
+  "21102150": {
+   "food_code": "21102150",
+   "fdc_id": 2341237,
+   "description": "Beef, steak, sirloin, NS as to fat eaten",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 27.14,
+    "carbs_g": 0,
+    "fat_g": 13.98,
+    "kcal": 239
+   },
+   "nutrient_rows": {
+    "protein_g": 28571529,
+    "carbs_g": 28571531,
+    "fat_g": 28571530,
+    "kcal": 28571532
+   },
+   "portions": [
+    {
+     "portion_id": "269518",
+     "seq_num": 1,
+     "description": "1 piece/slice, any size",
+     "gram_weight": 30
+    },
+    {
+     "portion_id": "269519",
+     "seq_num": 2,
+     "description": "1 thin",
+     "gram_weight": 120
+    },
+    {
+     "portion_id": "269520",
+     "seq_num": 3,
+     "description": "1 regular",
+     "gram_weight": 160
+    },
+    {
+     "portion_id": "269521",
+     "seq_num": 4,
+     "description": "1 thick",
+     "gram_weight": 240
+    },
+    {
+     "portion_id": "269522",
+     "seq_num": 5,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "269523",
+     "seq_num": 6,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "269524",
+     "seq_num": 7,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "269525",
+     "seq_num": 8,
+     "description": "Quantity not specified",
+     "gram_weight": 160
+    }
+   ]
+  },
+  "21102180": {
+   "food_code": "21102180",
+   "fdc_id": 2341240,
+   "description": "Beef, steak, strip, NS as to fat eaten",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 27.14,
+    "fat_g": 13.98,
+    "carbs_g": 0,
+    "kcal": 239
+   },
+   "nutrient_rows": {
+    "protein_g": 28571724,
+    "fat_g": 28571725,
+    "carbs_g": 28571726,
+    "kcal": 28571727
+   },
+   "portions": [
+    {
+     "portion_id": "269542",
+     "seq_num": 1,
+     "description": "1 piece/slice, any size",
+     "gram_weight": 30
+    },
+    {
+     "portion_id": "269543",
+     "seq_num": 2,
+     "description": "1 thin",
+     "gram_weight": 180
+    },
+    {
+     "portion_id": "269544",
+     "seq_num": 3,
+     "description": "1 regular",
+     "gram_weight": 240
+    },
+    {
+     "portion_id": "269545",
+     "seq_num": 4,
+     "description": "1 thick",
+     "gram_weight": 360
+    },
+    {
+     "portion_id": "269546",
+     "seq_num": 5,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "269547",
+     "seq_num": 6,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "269548",
+     "seq_num": 7,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "269549",
+     "seq_num": 8,
+     "description": "Quantity not specified",
+     "gram_weight": 240
+    }
+   ]
+  },
+  "21103180": {
+   "food_code": "21103180",
+   "fdc_id": 2341246,
+   "description": "Beef, steak, tenderloin",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 8.25,
+    "carbs_g": 0,
+    "kcal": 196,
+    "protein_g": 30.46
+   },
+   "nutrient_rows": {
+    "fat_g": 28572115,
+    "carbs_g": 28572116,
+    "kcal": 28572117,
+    "protein_g": 28572114
+   },
+   "portions": [
+    {
+     "portion_id": "269590",
+     "seq_num": 1,
+     "description": "1 piece/slice, any size",
+     "gram_weight": 30
+    },
+    {
+     "portion_id": "269591",
+     "seq_num": 2,
+     "description": "1 thin",
+     "gram_weight": 120
+    },
+    {
+     "portion_id": "269592",
+     "seq_num": 3,
+     "description": "1 regular",
+     "gram_weight": 160
+    },
+    {
+     "portion_id": "269593",
+     "seq_num": 4,
+     "description": "1 thick",
+     "gram_weight": 240
+    },
+    {
+     "portion_id": "269594",
+     "seq_num": 5,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "269595",
+     "seq_num": 6,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "269596",
+     "seq_num": 7,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "269597",
+     "seq_num": 8,
+     "description": "Quantity not specified",
+     "gram_weight": 160
+    }
+   ]
+  },
+  "21410000": {
+   "food_code": "21410000",
+   "fdc_id": 2341254,
+   "description": "Beef, stew meat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 15.35,
+    "protein_g": 28.39,
+    "carbs_g": 0,
+    "kcal": 251
+   },
+   "nutrient_rows": {
+    "fat_g": 28572635,
+    "protein_g": 28572634,
+    "carbs_g": 28572636,
+    "kcal": 28572637
+   },
+   "portions": [
+    {
+     "portion_id": "269635",
+     "seq_num": 1,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "269636",
+     "seq_num": 2,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "269637",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "269638",
+     "seq_num": 4,
+     "description": "Quantity not specified",
+     "gram_weight": 135
+    }
+   ]
+  },
+  "21500100": {
+   "food_code": "21500100",
+   "fdc_id": 2341259,
+   "description": "Beef, ground",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 261,
+    "carbs_g": 0,
+    "protein_g": 25.55,
+    "fat_g": 16.82
+   },
+   "nutrient_rows": {
+    "kcal": 28572962,
+    "carbs_g": 28572961,
+    "protein_g": 28572959,
+    "fat_g": 28572960
+   },
+   "portions": [
+    {
+     "portion_id": "269657",
+     "seq_num": 1,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "269658",
+     "seq_num": 2,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "269659",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 125
+    },
+    {
+     "portion_id": "269660",
+     "seq_num": 4,
+     "description": "Quantity not specified",
+     "gram_weight": 85
+    }
+   ]
+  },
+  "21500310": {
+   "food_code": "21500310",
+   "fdc_id": 2341260,
+   "description": "Beef, ground, patty",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 25.45,
+    "fat_g": 18.18,
+    "kcal": 272,
+    "carbs_g": 0
+   },
+   "nutrient_rows": {
+    "protein_g": 28573024,
+    "fat_g": 28573025,
+    "kcal": 28573027,
+    "carbs_g": 28573026
+   },
+   "portions": [
+    {
+     "portion_id": "269661",
+     "seq_num": 1,
+     "description": "1 miniature patty",
+     "gram_weight": 30
+    },
+    {
+     "portion_id": "269662",
+     "seq_num": 2,
+     "description": "1 small patty",
+     "gram_weight": 65
+    },
+    {
+     "portion_id": "269663",
+     "seq_num": 3,
+     "description": "1 medium patty",
+     "gram_weight": 85
+    },
+    {
+     "portion_id": "269664",
+     "seq_num": 4,
+     "description": "1 quarter lb patty",
+     "gram_weight": 85
+    },
+    {
+     "portion_id": "269665",
+     "seq_num": 5,
+     "description": "1 large patty",
+     "gram_weight": 120
+    },
+    {
+     "portion_id": "269666",
+     "seq_num": 6,
+     "description": "1 patty, NFS",
+     "gram_weight": 85
+    },
+    {
+     "portion_id": "269667",
+     "seq_num": 7,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "269668",
+     "seq_num": 8,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "269669",
+     "seq_num": 9,
+     "description": "1 cup",
+     "gram_weight": 125
+    },
+    {
+     "portion_id": "269670",
+     "seq_num": 10,
+     "description": "Quantity not specified",
+     "gram_weight": 85
+    }
+   ]
+  },
+  "22101000": {
+   "food_code": "22101000",
+   "fdc_id": 2341271,
+   "description": "Pork, chop, NS as to fat eaten",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 0,
+    "kcal": 183,
+    "fat_g": 7.55,
+    "protein_g": 27.5
+   },
+   "nutrient_rows": {
+    "carbs_g": 28573741,
+    "kcal": 28573742,
+    "fat_g": 28573740,
+    "protein_g": 28573739
+   },
+   "portions": [
+    {
+     "portion_id": "269721",
+     "seq_num": 1,
+     "description": "1 thin",
+     "gram_weight": 90
+    },
+    {
+     "portion_id": "269722",
+     "seq_num": 2,
+     "description": "1 regular",
+     "gram_weight": 120
+    },
+    {
+     "portion_id": "269723",
+     "seq_num": 3,
+     "description": "1 thick",
+     "gram_weight": 180
+    },
+    {
+     "portion_id": "269724",
+     "seq_num": 4,
+     "description": "1 slice, any size",
+     "gram_weight": 30
+    },
+    {
+     "portion_id": "269725",
+     "seq_num": 5,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "269726",
+     "seq_num": 6,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "269727",
+     "seq_num": 7,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "269728",
+     "seq_num": 8,
+     "description": "Quantity not specified",
+     "gram_weight": 120
+    }
+   ]
+  },
+  "22400100": {
+   "food_code": "22400100",
+   "fdc_id": 2341287,
+   "description": "Pork, roast",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 7.49,
+    "protein_g": 26.63,
+    "carbs_g": 0,
+    "kcal": 181
+   },
+   "nutrient_rows": {
+    "fat_g": 28574780,
+    "protein_g": 28574779,
+    "carbs_g": 28574781,
+    "kcal": 28574782
+   },
+   "portions": [
+    {
+     "portion_id": "269825",
+     "seq_num": 1,
+     "description": "1 regular/thin slice",
+     "gram_weight": 60
+    },
+    {
+     "portion_id": "269826",
+     "seq_num": 2,
+     "description": "1 thick slice",
+     "gram_weight": 90
+    },
+    {
+     "portion_id": "269827",
+     "seq_num": 3,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "269828",
+     "seq_num": 4,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "269829",
+     "seq_num": 5,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "269830",
+     "seq_num": 6,
+     "description": "Quantity not specified",
+     "gram_weight": 60
+    }
+   ]
+  },
+  "24123301": {
+   "food_code": "24123301",
+   "fdc_id": 2341374,
+   "description": "Chicken breast, grilled without sauce, skin not eaten",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 29.62,
+    "kcal": 176,
+    "fat_g": 5.45,
+    "carbs_g": 0
+   },
+   "nutrient_rows": {
+    "protein_g": 28580434,
+    "kcal": 28580437,
+    "fat_g": 28580435,
+    "carbs_g": 28580436
+   },
+   "portions": [
+    {
+     "portion_id": "270279",
+     "seq_num": 1,
+     "description": "1 cup, cooked, diced",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "270280",
+     "seq_num": 2,
+     "description": "1 small breast",
+     "gram_weight": 105
+    },
+    {
+     "portion_id": "270281",
+     "seq_num": 3,
+     "description": "1 medium breast",
+     "gram_weight": 120
+    },
+    {
+     "portion_id": "270282",
+     "seq_num": 4,
+     "description": "1 large breast",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "270283",
+     "seq_num": 5,
+     "description": "1 small or thin slice",
+     "gram_weight": 30
+    },
+    {
+     "portion_id": "270284",
+     "seq_num": 6,
+     "description": "1 medium slice",
+     "gram_weight": 60
+    },
+    {
+     "portion_id": "270285",
+     "seq_num": 7,
+     "description": "1 large or thick slice",
+     "gram_weight": 85
+    },
+    {
+     "portion_id": "270286",
+     "seq_num": 8,
+     "description": "1 oz, cooked",
+     "gram_weight": 28.35
+    },
+    {
+     "portion_id": "270287",
+     "seq_num": 9,
+     "description": "1 breast quarter (yield after cooking, bone removed)",
+     "gram_weight": 155
+    },
+    {
+     "portion_id": "270288",
+     "seq_num": 10,
+     "description": "Quantity not specified",
+     "gram_weight": 120
+    }
+   ]
+  },
+  "24127202": {
+   "food_code": "24127202",
+   "fdc_id": 2341381,
+   "description": "Chicken breast, fried, coated, prepared skinless, coating eaten, from raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 219,
+    "fat_g": 9.99,
+    "protein_g": 24.56,
+    "carbs_g": 6.01
+   },
+   "nutrient_rows": {
+    "kcal": 28580892,
+    "fat_g": 28580890,
+    "protein_g": 28580889,
+    "carbs_g": 28580891
+   },
+   "portions": [
+    {
+     "portion_id": "270351",
+     "seq_num": 1,
+     "description": "1 cup, cooked, diced",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "270352",
+     "seq_num": 2,
+     "description": "1 small breast",
+     "gram_weight": 140
+    },
+    {
+     "portion_id": "270353",
+     "seq_num": 3,
+     "description": "1 medium breast",
+     "gram_weight": 165
+    },
+    {
+     "portion_id": "270354",
+     "seq_num": 4,
+     "description": "1 large breast",
+     "gram_weight": 185
+    },
+    {
+     "portion_id": "270355",
+     "seq_num": 5,
+     "description": "1 small or thin slice",
+     "gram_weight": 30
+    },
+    {
+     "portion_id": "270356",
+     "seq_num": 6,
+     "description": "1 medium slice",
+     "gram_weight": 60
+    },
+    {
+     "portion_id": "270357",
+     "seq_num": 7,
+     "description": "1 large or thick slice",
+     "gram_weight": 85
+    },
+    {
+     "portion_id": "270358",
+     "seq_num": 8,
+     "description": "1 oz, cooked",
+     "gram_weight": 28.35
+    },
+    {
+     "portion_id": "270359",
+     "seq_num": 9,
+     "description": "1 breast quarter (yield after cooking, bone removed)",
+     "gram_weight": 155
+    },
+    {
+     "portion_id": "270360",
+     "seq_num": 10,
+     "description": "Quantity not specified",
+     "gram_weight": 165
+    }
+   ]
+  },
+  "24142300": {
+   "food_code": "24142300",
+   "fdc_id": 2341408,
+   "description": "Chicken drumstick, baked, broiled, or roasted, skin eaten, from raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 0,
+    "protein_g": 23.21,
+    "kcal": 190,
+    "fat_g": 10.09
+   },
+   "nutrient_rows": {
+    "carbs_g": 28582646,
+    "protein_g": 28582644,
+    "kcal": 28582647,
+    "fat_g": 28582645
+   },
+   "portions": [
+    {
+     "portion_id": "270555",
+     "seq_num": 1,
+     "description": "1 cup, cooked, diced",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "270556",
+     "seq_num": 2,
+     "description": "1 small drumstick",
+     "gram_weight": 45
+    },
+    {
+     "portion_id": "270557",
+     "seq_num": 3,
+     "description": "1 medium drumstick",
+     "gram_weight": 60
+    },
+    {
+     "portion_id": "270558",
+     "seq_num": 4,
+     "description": "1 large drumstick",
+     "gram_weight": 80
+    },
+    {
+     "portion_id": "270559",
+     "seq_num": 5,
+     "description": "1 oz, cooked",
+     "gram_weight": 28.35
+    },
+    {
+     "portion_id": "270560",
+     "seq_num": 6,
+     "description": "Quantity not specified",
+     "gram_weight": 60
+    }
+   ]
+  },
+  "25221405": {
+   "food_code": "25221405",
+   "fdc_id": 2341603,
+   "description": "Pork sausage",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 325,
+    "protein_g": 18.53,
+    "fat_g": 27.25,
+    "carbs_g": 1.42
+   },
+   "nutrient_rows": {
+    "kcal": 28595322,
+    "protein_g": 28595319,
+    "fat_g": 28595320,
+    "carbs_g": 28595321
+   },
+   "portions": [
+    {
+     "portion_id": "271500",
+     "seq_num": 1,
+     "description": "1 patty",
+     "gram_weight": 35
+    },
+    {
+     "portion_id": "271501",
+     "seq_num": 2,
+     "description": "1 cocktail or miniature link",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "271502",
+     "seq_num": 3,
+     "description": "1 breakfast size link",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "271503",
+     "seq_num": 4,
+     "description": "1 bun-size or griller link",
+     "gram_weight": 75
+    },
+    {
+     "portion_id": "271504",
+     "seq_num": 5,
+     "description": "1 half smoke sausage",
+     "gram_weight": 112
+    },
+    {
+     "portion_id": "271505",
+     "seq_num": 6,
+     "description": "1 slice",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "271506",
+     "seq_num": 7,
+     "description": "1 piece",
+     "gram_weight": 75
+    },
+    {
+     "portion_id": "271507",
+     "seq_num": 8,
+     "description": "1 cup, NFS",
+     "gram_weight": 138
+    },
+    {
+     "portion_id": "271508",
+     "seq_num": 9,
+     "description": "1 oz, cooked",
+     "gram_weight": 28.35
+    },
+    {
+     "portion_id": "271509",
+     "seq_num": 10,
+     "description": "1 cubic inch",
+     "gram_weight": 18
+    },
+    {
+     "portion_id": "271510",
+     "seq_num": 11,
+     "description": "Quantity not specified",
+     "gram_weight": 60
+    }
+   ]
+  },
+  "26100120": {
+   "food_code": "26100120",
+   "fdc_id": 2341640,
+   "description": "Fish, NS as to type, baked or broiled",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 208,
+    "carbs_g": 0.01,
+    "fat_g": 12.39,
+    "protein_g": 23
+   },
+   "nutrient_rows": {
+    "kcal": 28597727,
+    "carbs_g": 28597726,
+    "fat_g": 28597725,
+    "protein_g": 28597724
+   },
+   "portions": [
+    {
+     "portion_id": "271723",
+     "seq_num": 1,
+     "description": "1 small/regular fillet",
+     "gram_weight": 90
+    },
+    {
+     "portion_id": "271724",
+     "seq_num": 2,
+     "description": "1 large fillet",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "271725",
+     "seq_num": 3,
+     "description": "1 whole fish, any size",
+     "gram_weight": 270
+    },
+    {
+     "portion_id": "271726",
+     "seq_num": 4,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "271727",
+     "seq_num": 5,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "271728",
+     "seq_num": 6,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "271729",
+     "seq_num": 7,
+     "description": "Quantity not specified",
+     "gram_weight": 90
+    }
+   ]
+  },
+  "26100140": {
+   "food_code": "26100140",
+   "fdc_id": 2341642,
+   "description": "Fish, NS as to type, fried",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 17.23,
+    "protein_g": 16.05,
+    "kcal": 269,
+    "carbs_g": 11.72
+   },
+   "nutrient_rows": {
+    "fat_g": 28597855,
+    "protein_g": 28597854,
+    "kcal": 28597857,
+    "carbs_g": 28597856
+   },
+   "portions": [
+    {
+     "portion_id": "271737",
+     "seq_num": 1,
+     "description": "1 small/regular fillet",
+     "gram_weight": 90
+    },
+    {
+     "portion_id": "271738",
+     "seq_num": 2,
+     "description": "1 large fillet",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "271739",
+     "seq_num": 3,
+     "description": "1 whole fish, any size",
+     "gram_weight": 270
+    },
+    {
+     "portion_id": "271740",
+     "seq_num": 4,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "271741",
+     "seq_num": 5,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "271742",
+     "seq_num": 6,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "271743",
+     "seq_num": 7,
+     "description": "Quantity not specified",
+     "gram_weight": 90
+    }
+   ]
+  },
+  "26137123": {
+   "food_code": "26137123",
+   "fdc_id": 2341702,
+   "description": "Fish, salmon, grilled",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 25.92,
+    "fat_g": 16.48,
+    "kcal": 259,
+    "carbs_g": 0
+   },
+   "nutrient_rows": {
+    "protein_g": 28601754,
+    "fat_g": 28601755,
+    "kcal": 28601757,
+    "carbs_g": 28601756
+   },
+   "portions": [
+    {
+     "portion_id": "272131",
+     "seq_num": 1,
+     "description": "1 small/regular fillet",
+     "gram_weight": 140
+    },
+    {
+     "portion_id": "272132",
+     "seq_num": 2,
+     "description": "1 large fillet",
+     "gram_weight": 210
+    },
+    {
+     "portion_id": "272133",
+     "seq_num": 3,
+     "description": "1 steak",
+     "gram_weight": 210
+    },
+    {
+     "portion_id": "272134",
+     "seq_num": 4,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "272135",
+     "seq_num": 5,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "272136",
+     "seq_num": 6,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "272137",
+     "seq_num": 7,
+     "description": "Quantity not specified",
+     "gram_weight": 140
+    }
+   ]
+  },
+  "26158013": {
+   "food_code": "26158013",
+   "fdc_id": 2341735,
+   "description": "Fish, tilapia, grilled",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 142,
+    "carbs_g": 0,
+    "fat_g": 4.42,
+    "protein_g": 25.46
+   },
+   "nutrient_rows": {
+    "kcal": 28603902,
+    "carbs_g": 28603901,
+    "fat_g": 28603900,
+    "protein_g": 28603899
+   },
+   "portions": [
+    {
+     "portion_id": "272339",
+     "seq_num": 1,
+     "description": "1 small/regular fillet",
+     "gram_weight": 90
+    },
+    {
+     "portion_id": "272340",
+     "seq_num": 2,
+     "description": "1 large fillet",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "272341",
+     "seq_num": 3,
+     "description": "1 whole fish, any size",
+     "gram_weight": 270
+    },
+    {
+     "portion_id": "272342",
+     "seq_num": 4,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "272343",
+     "seq_num": 5,
+     "description": "1 oz yields",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "272344",
+     "seq_num": 6,
+     "description": "1 cubic inch",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "272345",
+     "seq_num": 7,
+     "description": "Quantity not specified",
+     "gram_weight": 90
+    }
+   ]
+  },
+  "26319130": {
+   "food_code": "26319130",
+   "fdc_id": 2341778,
+   "description": "Shrimp, steamed or boiled",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 1.28,
+    "kcal": 90,
+    "protein_g": 17.19,
+    "carbs_g": 1.15
+   },
+   "nutrient_rows": {
+    "fat_g": 28606695,
+    "kcal": 28606697,
+    "protein_g": 28606694,
+    "carbs_g": 28606696
+   },
+   "portions": [
+    {
+     "portion_id": "272523",
+     "seq_num": 1,
+     "description": "1 tiny shrimp",
+     "gram_weight": 5
+    },
+    {
+     "portion_id": "272524",
+     "seq_num": 2,
+     "description": "1 small/medium shrimp",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "272525",
+     "seq_num": 3,
+     "description": "1 large/jumbo shrimp",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "272526",
+     "seq_num": 4,
+     "description": "1 prawn",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "272527",
+     "seq_num": 5,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "272528",
+     "seq_num": 6,
+     "description": "Quantity not specified",
+     "gram_weight": 85
+    }
+   ]
+  },
+  "27113100": {
+   "food_code": "27113100",
+   "fdc_id": 2341801,
+   "description": "Beef stroganoff",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 9.93,
+    "carbs_g": 6.02,
+    "fat_g": 9.61,
+    "kcal": 150
+   },
+   "nutrient_rows": {
+    "protein_g": 28608189,
+    "carbs_g": 28608191,
+    "fat_g": 28608190,
+    "kcal": 28608192
+   },
+   "portions": [
+    {
+     "portion_id": "272595",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 256
+    },
+    {
+     "portion_id": "272596",
+     "seq_num": 2,
+     "description": "Quantity not specified",
+     "gram_weight": 192
+    }
+   ]
+  },
+  "31103010": {
+   "food_code": "31103010",
+   "fdc_id": 2342629,
+   "description": "Egg, whole, boiled or poached",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 12.4,
+    "fat_g": 9.96,
+    "carbs_g": 0.96,
+    "kcal": 143
+   },
+   "nutrient_rows": {
+    "protein_g": 28662009,
+    "fat_g": 28662010,
+    "carbs_g": 28662011,
+    "kcal": 28662012
+   },
+   "portions": [
+    {
+     "portion_id": "274869",
+     "seq_num": 1,
+     "description": "1 egg",
+     "gram_weight": 50
+    },
+    {
+     "portion_id": "274870",
+     "seq_num": 2,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "274871",
+     "seq_num": 3,
+     "description": "1 slice",
+     "gram_weight": 5
+    },
+    {
+     "portion_id": "274872",
+     "seq_num": 4,
+     "description": "Quantity not specified",
+     "gram_weight": 50
+    }
+   ]
+  },
+  "31105030": {
+   "food_code": "31105030",
+   "fdc_id": 2342633,
+   "description": "Egg, whole, fried with oil",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 15.81,
+    "protein_g": 11.56,
+    "kcal": 192,
+    "carbs_g": 0.9
+   },
+   "nutrient_rows": {
+    "fat_g": 28662270,
+    "protein_g": 28662269,
+    "kcal": 28662272,
+    "carbs_g": 28662271
+   },
+   "portions": [
+    {
+     "portion_id": "274882",
+     "seq_num": 1,
+     "description": "1 egg",
+     "gram_weight": 55
+    },
+    {
+     "portion_id": "274883",
+     "seq_num": 2,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "274884",
+     "seq_num": 3,
+     "description": "Quantity not specified",
+     "gram_weight": 55
+    }
+   ]
+  },
+  "41102020": {
+   "food_code": "41102020",
+   "fdc_id": 2342836,
+   "description": "Black beans, from dried, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 23.57,
+    "protein_g": 8.81,
+    "fat_g": 0.54,
+    "kcal": 131
+   },
+   "nutrient_rows": {
+    "carbs_g": 28675466,
+    "protein_g": 28675464,
+    "fat_g": 28675465,
+    "kcal": 28675467
+   },
+   "portions": [
+    {
+     "portion_id": "275528",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 180
+    },
+    {
+     "portion_id": "275529",
+     "seq_num": 2,
+     "description": "1 oz dry, yield after cooking",
+     "gram_weight": 70
+    },
+    {
+     "portion_id": "275530",
+     "seq_num": 3,
+     "description": "Quantity not specified",
+     "gram_weight": 90
+    }
+   ]
+  },
+  "41102170": {
+   "food_code": "41102170",
+   "fdc_id": 2342841,
+   "description": "Black beans with meat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 19.06,
+    "protein_g": 10.61,
+    "fat_g": 6.81,
+    "kcal": 177
+   },
+   "nutrient_rows": {
+    "carbs_g": 28675791,
+    "protein_g": 28675789,
+    "fat_g": 28675790,
+    "kcal": 28675792
+   },
+   "portions": [
+    {
+     "portion_id": "275539",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 260
+    },
+    {
+     "portion_id": "275540",
+     "seq_num": 2,
+     "description": "Quantity not specified",
+     "gram_weight": 130
+    }
+   ]
+  },
+  "41104020": {
+   "food_code": "41104020",
+   "fdc_id": 2342848,
+   "description": "Pinto beans, from dried, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 8.96,
+    "carbs_g": 26.06,
+    "fat_g": 0.65,
+    "kcal": 142
+   },
+   "nutrient_rows": {
+    "protein_g": 28676244,
+    "carbs_g": 28676246,
+    "fat_g": 28676245,
+    "kcal": 28676247
+   },
+   "portions": [
+    {
+     "portion_id": "275557",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 180
+    },
+    {
+     "portion_id": "275558",
+     "seq_num": 2,
+     "description": "1 oz dry, yield after cooking",
+     "gram_weight": 70
+    },
+    {
+     "portion_id": "275559",
+     "seq_num": 3,
+     "description": "Quantity not specified",
+     "gram_weight": 90
+    }
+   ]
+  },
+  "41302020": {
+   "food_code": "41302020",
+   "fdc_id": 2342891,
+   "description": "Chickpeas, from dried, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 8.81,
+    "fat_g": 2.58,
+    "kcal": 163,
+    "carbs_g": 27.26
+   },
+   "nutrient_rows": {
+    "protein_g": 28679039,
+    "fat_g": 28679040,
+    "kcal": 28679042,
+    "carbs_g": 28679041
+   },
+   "portions": [
+    {
+     "portion_id": "275657",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 180
+    },
+    {
+     "portion_id": "275658",
+     "seq_num": 2,
+     "description": "1 oz dry, yield after cooking",
+     "gram_weight": 70
+    },
+    {
+     "portion_id": "275659",
+     "seq_num": 3,
+     "description": "1 pea",
+     "gram_weight": 2
+    },
+    {
+     "portion_id": "275660",
+     "seq_num": 4,
+     "description": "Quantity not specified",
+     "gram_weight": 90
+    }
+   ]
+  },
+  "41305000": {
+   "food_code": "41305000",
+   "fdc_id": 2342900,
+   "description": "Lentils, from dried, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 115,
+    "carbs_g": 20.01,
+    "protein_g": 8.97,
+    "fat_g": 0.38
+   },
+   "nutrient_rows": {
+    "kcal": 28679627,
+    "carbs_g": 28679626,
+    "protein_g": 28679624,
+    "fat_g": 28679625
+   },
+   "portions": [
+    {
+     "portion_id": "275683",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 180
+    },
+    {
+     "portion_id": "275684",
+     "seq_num": 2,
+     "description": "1 oz dry, yield after cooking",
+     "gram_weight": 70
+    },
+    {
+     "portion_id": "275685",
+     "seq_num": 3,
+     "description": "Quantity not specified",
+     "gram_weight": 90
+    }
+   ]
+  },
+  "56130000": {
+   "food_code": "56130000",
+   "fdc_id": 2343841,
+   "description": "Pasta, cooked",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 157,
+    "protein_g": 5.76,
+    "fat_g": 0.92,
+    "carbs_g": 30.68
+   },
+   "nutrient_rows": {
+    "kcal": 28740792,
+    "protein_g": 28740789,
+    "fat_g": 28740790,
+    "carbs_g": 28740791
+   },
+   "portions": [
+    {
+     "portion_id": "280296",
+     "seq_num": 1,
+     "description": "1 cup, cooked",
+     "gram_weight": 140
+    },
+    {
+     "portion_id": "280297",
+     "seq_num": 2,
+     "description": "1 oz, dry, yields",
+     "gram_weight": 80
+    },
+    {
+     "portion_id": "280298",
+     "seq_num": 3,
+     "description": "Quantity not specified",
+     "gram_weight": 140
+    }
+   ]
+  },
+  "56201516": {
+   "food_code": "56201516",
+   "fdc_id": 2343858,
+   "description": "Cornmeal mush, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 0.28,
+    "kcal": 58,
+    "carbs_g": 12.47,
+    "protein_g": 1.12
+   },
+   "nutrient_rows": {
+    "fat_g": 28741895,
+    "kcal": 28741897,
+    "carbs_g": 28741896,
+    "protein_g": 28741894
+   },
+   "portions": [
+    {
+     "portion_id": "280360",
+     "seq_num": 1,
+     "description": "1 cup, cooked",
+     "gram_weight": 240
+    },
+    {
+     "portion_id": "280361",
+     "seq_num": 2,
+     "description": "1 cup, dry, yields",
+     "gram_weight": 955
+    },
+    {
+     "portion_id": "280362",
+     "seq_num": 3,
+     "description": "1 strip or slice",
+     "gram_weight": 50
+    },
+    {
+     "portion_id": "280363",
+     "seq_num": 4,
+     "description": "1 oz, dry, yields",
+     "gram_weight": 190
+    },
+    {
+     "portion_id": "280364",
+     "seq_num": 5,
+     "description": "Quantity not specified",
+     "gram_weight": 240
+    }
+   ]
+  },
+  "56205002": {
+   "food_code": "56205002",
+   "fdc_id": 2343888,
+   "description": "Rice, white, cooked, made with oil",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 3.12,
+    "kcal": 151,
+    "carbs_g": 27.19,
+    "protein_g": 2.6
+   },
+   "nutrient_rows": {
+    "fat_g": 28743845,
+    "kcal": 28743847,
+    "carbs_g": 28743846,
+    "protein_g": 28743844
+   },
+   "portions": [
+    {
+     "portion_id": "280510",
+     "seq_num": 1,
+     "description": "1 cup, cooked",
+     "gram_weight": 163
+    },
+    {
+     "portion_id": "280511",
+     "seq_num": 24,
+     "description": "Quantity not specified",
+     "gram_weight": 122
+    }
+   ]
+  },
+  "56205008": {
+   "food_code": "56205008",
+   "fdc_id": 2343892,
+   "description": "Rice, white, cooked, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 2.67,
+    "fat_g": 0.28,
+    "kcal": 129,
+    "carbs_g": 27.99
+   },
+   "nutrient_rows": {
+    "protein_g": 28744104,
+    "fat_g": 28744105,
+    "kcal": 28744107,
+    "carbs_g": 28744106
+   },
+   "portions": [
+    {
+     "portion_id": "280518",
+     "seq_num": 1,
+     "description": "1 cup, cooked",
+     "gram_weight": 158
+    },
+    {
+     "portion_id": "280519",
+     "seq_num": 2,
+     "description": "Quantity not specified",
+     "gram_weight": 118
+    }
+   ]
+  },
+  "56205012": {
+   "food_code": "56205012",
+   "fdc_id": 2343894,
+   "description": "Rice, brown, cooked, fat added, made with oil",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 2.66,
+    "kcal": 140,
+    "fat_g": 3.27,
+    "carbs_g": 24.86
+   },
+   "nutrient_rows": {
+    "protein_g": 28744234,
+    "kcal": 28744237,
+    "fat_g": 28744235,
+    "carbs_g": 28744236
+   },
+   "portions": [
+    {
+     "portion_id": "280522",
+     "seq_num": 1,
+     "description": "1 cup, cooked",
+     "gram_weight": 196
+    },
+    {
+     "portion_id": "280523",
+     "seq_num": 2,
+     "description": "Quantity not specified",
+     "gram_weight": 147
+    }
+   ]
+  },
+  "56205018": {
+   "food_code": "56205018",
+   "fdc_id": 2343898,
+   "description": "Rice, brown, cooked, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 25.45,
+    "fat_g": 0.96,
+    "protein_g": 2.73,
+    "kcal": 122
+   },
+   "nutrient_rows": {
+    "carbs_g": 28744496,
+    "fat_g": 28744495,
+    "protein_g": 28744494,
+    "kcal": 28744497
+   },
+   "portions": [
+    {
+     "portion_id": "280530",
+     "seq_num": 3,
+     "description": "1 cup, cooked",
+     "gram_weight": 195
+    },
+    {
+     "portion_id": "280531",
+     "seq_num": 6,
+     "description": "Quantity not specified",
+     "gram_weight": 147
+    }
+   ]
+  },
+  "58122220": {
+   "food_code": "58122220",
+   "fdc_id": 2344206,
+   "description": "Gnocchi, potato",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 17.2,
+    "protein_g": 2.44,
+    "kcal": 135,
+    "fat_g": 6.33
+   },
+   "nutrient_rows": {
+    "carbs_g": 28764516,
+    "protein_g": 28764514,
+    "kcal": 28764517,
+    "fat_g": 28764515
+   },
+   "portions": [
+    {
+     "portion_id": "282302",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 188
+    },
+    {
+     "portion_id": "282303",
+     "seq_num": 2,
+     "description": "Quantity not specified",
+     "gram_weight": 188
+    },
+    {
+     "portion_id": "282304",
+     "seq_num": 3,
+     "description": "1 piece",
+     "gram_weight": 26
+    }
+   ]
+  },
+  "58130011": {
+   "food_code": "58130011",
+   "fdc_id": 2344234,
+   "description": "Lasagna with meat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 7.45,
+    "kcal": 139,
+    "carbs_g": 16.17,
+    "fat_g": 4.97
+   },
+   "nutrient_rows": {
+    "protein_g": 28766334,
+    "kcal": 28766337,
+    "carbs_g": 28766336,
+    "fat_g": 28766335
+   },
+   "portions": [
+    {
+     "portion_id": "282393",
+     "seq_num": 1,
+     "description": "1 piece (1/6 of 8\" square, approx 2-1/2\" x 4\")",
+     "gram_weight": 206
+    },
+    {
+     "portion_id": "282394",
+     "seq_num": 2,
+     "description": "1 piece (1/8 of 7\" x 12\", approx 3-1/2\" x 3\")",
+     "gram_weight": 232
+    },
+    {
+     "portion_id": "282395",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 250
+    },
+    {
+     "portion_id": "282396",
+     "seq_num": 4,
+     "description": "1 surface inch",
+     "gram_weight": 20.7
+    },
+    {
+     "portion_id": "282397",
+     "seq_num": 6,
+     "description": "Quantity not specified",
+     "gram_weight": 250
+    }
+   ]
+  },
+  "58146120": {
+   "food_code": "58146120",
+   "fdc_id": 2344310,
+   "description": "Pasta with tomato-based sauce, cheese and meat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 13.34,
+    "fat_g": 7.1,
+    "protein_g": 7.61,
+    "kcal": 147
+   },
+   "nutrient_rows": {
+    "carbs_g": 28771276,
+    "fat_g": 28771275,
+    "protein_g": 28771274,
+    "kcal": 28771277
+   },
+   "portions": [
+    {
+     "portion_id": "282610",
+     "seq_num": 1,
+     "description": "1 cannelloni",
+     "gram_weight": 86
+    },
+    {
+     "portion_id": "282611",
+     "seq_num": 2,
+     "description": "1 cup",
+     "gram_weight": 250
+    },
+    {
+     "portion_id": "282612",
+     "seq_num": 3,
+     "description": "Quantity not specified",
+     "gram_weight": 250
+    }
+   ]
+  },
+  "61119010": {
+   "food_code": "61119010",
+   "fdc_id": 2344665,
+   "description": "Orange, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 11.78,
+    "protein_g": 0.92,
+    "kcal": 50,
+    "fat_g": 0.14
+   },
+   "nutrient_rows": {
+    "carbs_g": 28794351,
+    "protein_g": 28794349,
+    "kcal": 28794352,
+    "fat_g": 28794350
+   },
+   "portions": [
+    {
+     "portion_id": "283543",
+     "seq_num": 1,
+     "description": "1 fruit",
+     "gram_weight": 154
+    },
+    {
+     "portion_id": "283544",
+     "seq_num": 2,
+     "description": "1 section/slice",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "283545",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 180
+    },
+    {
+     "portion_id": "283546",
+     "seq_num": 4,
+     "description": "Quantity not specified",
+     "gram_weight": 154
+    }
+   ]
+  },
+  "63101000": {
+   "food_code": "63101000",
+   "fdc_id": 2344711,
+   "description": "Apple, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 61,
+    "protein_g": 0.17,
+    "carbs_g": 14.8,
+    "fat_g": 0.15
+   },
+   "nutrient_rows": {
+    "kcal": 28797342,
+    "protein_g": 28797339,
+    "carbs_g": 28797341,
+    "fat_g": 28797340
+   },
+   "portions": [
+    {
+     "portion_id": "283741",
+     "seq_num": 1,
+     "description": "1 small",
+     "gram_weight": 165
+    },
+    {
+     "portion_id": "283742",
+     "seq_num": 2,
+     "description": "1 medium",
+     "gram_weight": 200
+    },
+    {
+     "portion_id": "283743",
+     "seq_num": 3,
+     "description": "1 large",
+     "gram_weight": 242
+    },
+    {
+     "portion_id": "283744",
+     "seq_num": 4,
+     "description": "1 extra large",
+     "gram_weight": 295
+    },
+    {
+     "portion_id": "283745",
+     "seq_num": 5,
+     "description": "1 slice",
+     "gram_weight": 25
+    },
+    {
+     "portion_id": "283746",
+     "seq_num": 6,
+     "description": "1 cup",
+     "gram_weight": 125
+    },
+    {
+     "portion_id": "283747",
+     "seq_num": 7,
+     "description": "1 single serving package",
+     "gram_weight": 34
+    },
+    {
+     "portion_id": "283748",
+     "seq_num": 8,
+     "description": "Quantity not specified",
+     "gram_weight": 200
+    }
+   ]
+  },
+  "63105010": {
+   "food_code": "63105010",
+   "fdc_id": 2344719,
+   "description": "Avocado, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 160,
+    "fat_g": 14.66,
+    "carbs_g": 8.53,
+    "protein_g": 2
+   },
+   "nutrient_rows": {
+    "kcal": 28797862,
+    "fat_g": 28797860,
+    "carbs_g": 28797861,
+    "protein_g": 28797859
+   },
+   "portions": [
+    {
+     "portion_id": "283773",
+     "seq_num": 1,
+     "description": "1 slice",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "283774",
+     "seq_num": 2,
+     "description": "1 fruit",
+     "gram_weight": 150
+    },
+    {
+     "portion_id": "283775",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 150
+    },
+    {
+     "portion_id": "283776",
+     "seq_num": 4,
+     "description": "1 cup, mashed or pureed",
+     "gram_weight": 230
+    },
+    {
+     "portion_id": "283777",
+     "seq_num": 5,
+     "description": "Quantity not specified",
+     "gram_weight": 30
+    }
+   ]
+  },
+  "63107010": {
+   "food_code": "63107010",
+   "fdc_id": 2344720,
+   "description": "Banana, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 97,
+    "fat_g": 0.28,
+    "carbs_g": 22.71,
+    "protein_g": 0.74
+   },
+   "nutrient_rows": {
+    "kcal": 28797927,
+    "fat_g": 28797925,
+    "carbs_g": 28797926,
+    "protein_g": 28797924
+   },
+   "portions": [
+    {
+     "portion_id": "283778",
+     "seq_num": 1,
+     "description": "1 banana",
+     "gram_weight": 126
+    },
+    {
+     "portion_id": "283779",
+     "seq_num": 2,
+     "description": "1 slice",
+     "gram_weight": 6
+    },
+    {
+     "portion_id": "283780",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 150
+    },
+    {
+     "portion_id": "283781",
+     "seq_num": 4,
+     "description": "1 cup, mashed",
+     "gram_weight": 225
+    },
+    {
+     "portion_id": "283782",
+     "seq_num": 5,
+     "description": "1 linear inch",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "283783",
+     "seq_num": 6,
+     "description": "Quantity not specified",
+     "gram_weight": 126
+    }
+   ]
+  },
+  "63109010": {
+   "food_code": "63109010",
+   "fdc_id": 2344722,
+   "description": "Cantaloupe, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 8.16,
+    "protein_g": 0.82,
+    "fat_g": 0.18,
+    "kcal": 38
+   },
+   "nutrient_rows": {
+    "carbs_g": 28798056,
+    "protein_g": 28798054,
+    "fat_g": 28798055,
+    "kcal": 28798057
+   },
+   "portions": [
+    {
+     "portion_id": "283787",
+     "seq_num": 1,
+     "description": "1 cube",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "283788",
+     "seq_num": 2,
+     "description": "1 ball",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "283789",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 155
+    },
+    {
+     "portion_id": "283790",
+     "seq_num": 4,
+     "description": "1 small wedge/slice",
+     "gram_weight": 35
+    },
+    {
+     "portion_id": "283791",
+     "seq_num": 5,
+     "description": "1 medium wedge/slice",
+     "gram_weight": 70
+    },
+    {
+     "portion_id": "283792",
+     "seq_num": 6,
+     "description": "1 large wedge/slice",
+     "gram_weight": 105
+    },
+    {
+     "portion_id": "283793",
+     "seq_num": 7,
+     "description": "1 small melon",
+     "gram_weight": 440
+    },
+    {
+     "portion_id": "283794",
+     "seq_num": 8,
+     "description": "1 medium melon",
+     "gram_weight": 550
+    },
+    {
+     "portion_id": "283795",
+     "seq_num": 9,
+     "description": "1 large melon",
+     "gram_weight": 815
+    },
+    {
+     "portion_id": "283796",
+     "seq_num": 10,
+     "description": "Quantity not specified",
+     "gram_weight": 78
+    }
+   ]
+  },
+  "63123000": {
+   "food_code": "63123000",
+   "fdc_id": 2344732,
+   "description": "Grapes, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 69,
+    "fat_g": 0.16,
+    "protein_g": 0.72,
+    "carbs_g": 18.1
+   },
+   "nutrient_rows": {
+    "kcal": 28798707,
+    "fat_g": 28798705,
+    "protein_g": 28798704,
+    "carbs_g": 28798706
+   },
+   "portions": [
+    {
+     "portion_id": "283824",
+     "seq_num": 1,
+     "description": "1 grape",
+     "gram_weight": 7
+    },
+    {
+     "portion_id": "283825",
+     "seq_num": 2,
+     "description": "1 cup",
+     "gram_weight": 150
+    },
+    {
+     "portion_id": "283826",
+     "seq_num": 3,
+     "description": "Quantity not specified",
+     "gram_weight": 75
+    }
+   ]
+  },
+  "63129010": {
+   "food_code": "63129010",
+   "fdc_id": 2344737,
+   "description": "Mango, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 0.38,
+    "protein_g": 0.82,
+    "kcal": 60,
+    "carbs_g": 14.98
+   },
+   "nutrient_rows": {
+    "fat_g": 28799030,
+    "protein_g": 28799029,
+    "kcal": 28799032,
+    "carbs_g": 28799031
+   },
+   "portions": [
+    {
+     "portion_id": "283848",
+     "seq_num": 1,
+     "description": "1 slice/chunk",
+     "gram_weight": 25
+    },
+    {
+     "portion_id": "283849",
+     "seq_num": 2,
+     "description": "1 mango",
+     "gram_weight": 210
+    },
+    {
+     "portion_id": "283850",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 165
+    },
+    {
+     "portion_id": "283851",
+     "seq_num": 4,
+     "description": "Quantity not specified",
+     "gram_weight": 83
+    }
+   ]
+  },
+  "63133010": {
+   "food_code": "63133010",
+   "fdc_id": 2344741,
+   "description": "Papaya, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 0.47,
+    "fat_g": 0.26,
+    "kcal": 43,
+    "carbs_g": 10.82
+   },
+   "nutrient_rows": {
+    "protein_g": 28799289,
+    "fat_g": 28799290,
+    "kcal": 28799292,
+    "carbs_g": 28799291
+   },
+   "portions": [
+    {
+     "portion_id": "283863",
+     "seq_num": 1,
+     "description": "1 slice/chunk",
+     "gram_weight": 40
+    },
+    {
+     "portion_id": "283864",
+     "seq_num": 2,
+     "description": "1 fruit",
+     "gram_weight": 330
+    },
+    {
+     "portion_id": "283865",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 165
+    },
+    {
+     "portion_id": "283866",
+     "seq_num": 4,
+     "description": "1 cup, mashed",
+     "gram_weight": 230
+    },
+    {
+     "portion_id": "283867",
+     "seq_num": 5,
+     "description": "Quantity not specified",
+     "gram_weight": 83
+    }
+   ]
+  },
+  "63137010": {
+   "food_code": "63137010",
+   "fdc_id": 2344749,
+   "description": "Pear, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 15.18,
+    "fat_g": 0.15,
+    "protein_g": 0.37,
+    "kcal": 59
+   },
+   "nutrient_rows": {
+    "carbs_g": 28799811,
+    "fat_g": 28799810,
+    "protein_g": 28799809,
+    "kcal": 28799812
+   },
+   "portions": [
+    {
+     "portion_id": "283897",
+     "seq_num": 1,
+     "description": "1 fruit",
+     "gram_weight": 180
+    },
+    {
+     "portion_id": "283898",
+     "seq_num": 2,
+     "description": "1 slice/chunk",
+     "gram_weight": 25
+    },
+    {
+     "portion_id": "283899",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 125
+    },
+    {
+     "portion_id": "283900",
+     "seq_num": 4,
+     "description": "Quantity not specified",
+     "gram_weight": 180
+    }
+   ]
+  },
+  "63141010": {
+   "food_code": "63141010",
+   "fdc_id": 2344755,
+   "description": "Pineapple, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 0.12,
+    "protein_g": 0.54,
+    "carbs_g": 13.12,
+    "kcal": 50
+   },
+   "nutrient_rows": {
+    "fat_g": 28800200,
+    "protein_g": 28800199,
+    "carbs_g": 28800201,
+    "kcal": 28800202
+   },
+   "portions": [
+    {
+     "portion_id": "283922",
+     "seq_num": 1,
+     "description": "1 slice",
+     "gram_weight": 56
+    },
+    {
+     "portion_id": "283923",
+     "seq_num": 2,
+     "description": "1 chunk",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "283924",
+     "seq_num": 3,
+     "description": "1 fruit",
+     "gram_weight": 905
+    },
+    {
+     "portion_id": "283925",
+     "seq_num": 4,
+     "description": "1 cup",
+     "gram_weight": 165
+    },
+    {
+     "portion_id": "283926",
+     "seq_num": 5,
+     "description": "Quantity not specified",
+     "gram_weight": 83
+    }
+   ]
+  },
+  "63149010": {
+   "food_code": "63149010",
+   "fdc_id": 2344765,
+   "description": "Watermelon, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 7.55,
+    "fat_g": 0.15,
+    "kcal": 30,
+    "protein_g": 0.61
+   },
+   "nutrient_rows": {
+    "carbs_g": 28800851,
+    "fat_g": 28800850,
+    "kcal": 28800852,
+    "protein_g": 28800849
+   },
+   "portions": [
+    {
+     "portion_id": "283958",
+     "seq_num": 1,
+     "description": "1 cube",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "283959",
+     "seq_num": 2,
+     "description": "1 ball",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "283960",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 155
+    },
+    {
+     "portion_id": "283961",
+     "seq_num": 4,
+     "description": "1 small wedge/slice",
+     "gram_weight": 218
+    },
+    {
+     "portion_id": "283962",
+     "seq_num": 5,
+     "description": "1 medium wedge/slice",
+     "gram_weight": 325
+    },
+    {
+     "portion_id": "283963",
+     "seq_num": 6,
+     "description": "1 large wedge/slice",
+     "gram_weight": 432
+    },
+    {
+     "portion_id": "283964",
+     "seq_num": 7,
+     "description": "1 miniature melon",
+     "gram_weight": 1300
+    },
+    {
+     "portion_id": "283965",
+     "seq_num": 8,
+     "description": "1 small melon",
+     "gram_weight": 3200
+    },
+    {
+     "portion_id": "283966",
+     "seq_num": 9,
+     "description": "1 medium melon",
+     "gram_weight": 5200
+    },
+    {
+     "portion_id": "283967",
+     "seq_num": 10,
+     "description": "1 large melon",
+     "gram_weight": 6000
+    },
+    {
+     "portion_id": "283968",
+     "seq_num": 11,
+     "description": "Quantity not specified",
+     "gram_weight": 78
+    }
+   ]
+  },
+  "63223020": {
+   "food_code": "63223020",
+   "fdc_id": 2344777,
+   "description": "Strawberries, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 7.63,
+    "fat_g": 0.22,
+    "kcal": 35,
+    "protein_g": 0.64
+   },
+   "nutrient_rows": {
+    "carbs_g": 28801631,
+    "fat_g": 28801630,
+    "kcal": 28801632,
+    "protein_g": 28801629
+   },
+   "portions": [
+    {
+     "portion_id": "283999",
+     "seq_num": 1,
+     "description": "1 fruit",
+     "gram_weight": 18
+    },
+    {
+     "portion_id": "284000",
+     "seq_num": 2,
+     "description": "1 cup",
+     "gram_weight": 150
+    },
+    {
+     "portion_id": "284001",
+     "seq_num": 3,
+     "description": "Quantity not specified",
+     "gram_weight": 75
+    }
+   ]
+  },
+  "71103010": {
+   "food_code": "71103010",
+   "fdc_id": 2344882,
+   "description": "Potato, boiled, from fresh, peel not eaten, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 21.46,
+    "kcal": 93,
+    "protein_g": 1.95,
+    "fat_g": 0.1
+   },
+   "nutrient_rows": {
+    "carbs_g": 28808456,
+    "kcal": 28808457,
+    "protein_g": 28808454,
+    "fat_g": 28808455
+   },
+   "portions": [
+    {
+     "portion_id": "284418",
+     "seq_num": 1,
+     "description": "1 baby potato",
+     "gram_weight": 60
+    },
+    {
+     "portion_id": "284419",
+     "seq_num": 2,
+     "description": "1 new potato",
+     "gram_weight": 60
+    },
+    {
+     "portion_id": "284420",
+     "seq_num": 3,
+     "description": "1 small",
+     "gram_weight": 130
+    },
+    {
+     "portion_id": "284421",
+     "seq_num": 4,
+     "description": "1 medium",
+     "gram_weight": 170
+    },
+    {
+     "portion_id": "284422",
+     "seq_num": 5,
+     "description": "1 large",
+     "gram_weight": 300
+    },
+    {
+     "portion_id": "284423",
+     "seq_num": 6,
+     "description": "1 cup",
+     "gram_weight": 160
+    },
+    {
+     "portion_id": "284424",
+     "seq_num": 14,
+     "description": "Quantity not specified",
+     "gram_weight": 170
+    }
+   ]
+  },
+  "71401010": {
+   "food_code": "71401010",
+   "fdc_id": 2344952,
+   "description": "Potato, french fries, from fresh, fried",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 1.93,
+    "carbs_g": 18.5,
+    "kcal": 198,
+    "fat_g": 13.1
+   },
+   "nutrient_rows": {
+    "protein_g": 28813004,
+    "carbs_g": 28813006,
+    "kcal": 28813007,
+    "fat_g": 28813005
+   },
+   "portions": [
+    {
+     "portion_id": "284855",
+     "seq_num": 1,
+     "description": "1 fry, NS as to shape",
+     "gram_weight": 5
+    },
+    {
+     "portion_id": "284856",
+     "seq_num": 2,
+     "description": "1 shoestring",
+     "gram_weight": 2
+    },
+    {
+     "portion_id": "284857",
+     "seq_num": 3,
+     "description": "1 straight cut",
+     "gram_weight": 5
+    },
+    {
+     "portion_id": "284858",
+     "seq_num": 4,
+     "description": "1 spiral or curly",
+     "gram_weight": 8
+    },
+    {
+     "portion_id": "284859",
+     "seq_num": 5,
+     "description": "1 waffle",
+     "gram_weight": 8
+    },
+    {
+     "portion_id": "284860",
+     "seq_num": 6,
+     "description": "1 wedge",
+     "gram_weight": 9
+    },
+    {
+     "portion_id": "284861",
+     "seq_num": 7,
+     "description": "1 crinkle cut",
+     "gram_weight": 5
+    },
+    {
+     "portion_id": "284862",
+     "seq_num": 8,
+     "description": "1 small, raw, yields",
+     "gram_weight": 50
+    },
+    {
+     "portion_id": "284863",
+     "seq_num": 9,
+     "description": "1 medium, raw, yields",
+     "gram_weight": 70
+    },
+    {
+     "portion_id": "284864",
+     "seq_num": 10,
+     "description": "1 large, raw, yields",
+     "gram_weight": 100
+    },
+    {
+     "portion_id": "284865",
+     "seq_num": 11,
+     "description": "1 cup",
+     "gram_weight": 60
+    },
+    {
+     "portion_id": "284866",
+     "seq_num": 12,
+     "description": "1 oz, raw, yields",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "284867",
+     "seq_num": 13,
+     "description": "Quantity not specified",
+     "gram_weight": 110
+    }
+   ]
+  },
+  "71501010": {
+   "food_code": "71501010",
+   "fdc_id": 2344990,
+   "description": "Potato, mashed, from fresh, made with milk",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 4.07,
+    "kcal": 114,
+    "carbs_g": 17.6,
+    "protein_g": 2.15
+   },
+   "nutrient_rows": {
+    "fat_g": 28815475,
+    "kcal": 28815477,
+    "carbs_g": 28815476,
+    "protein_g": 28815474
+   },
+   "portions": [
+    {
+     "portion_id": "285034",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 250
+    },
+    {
+     "portion_id": "285035",
+     "seq_num": 6,
+     "description": "Quantity not specified",
+     "gram_weight": 125
+    }
+   ]
+  },
+  "71930120": {
+   "food_code": "71930120",
+   "fdc_id": 2345064,
+   "description": "Cassava, cooked",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 39.62,
+    "fat_g": 3.03,
+    "protein_g": 1.42,
+    "kcal": 191
+   },
+   "nutrient_rows": {
+    "carbs_g": 28820286,
+    "fat_g": 28820285,
+    "protein_g": 28820284,
+    "kcal": 28820287
+   },
+   "portions": [
+    {
+     "portion_id": "285256",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 160
+    },
+    {
+     "portion_id": "285257",
+     "seq_num": 2,
+     "description": "Quantity not specified",
+     "gram_weight": 80
+    }
+   ]
+  },
+  "72107227": {
+   "food_code": "72107227",
+   "fdc_id": 2345084,
+   "description": "Collards, fresh, cooked with oil",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 5.64,
+    "protein_g": 3.14,
+    "fat_g": 3.76,
+    "kcal": 61
+   },
+   "nutrient_rows": {
+    "carbs_g": 28821586,
+    "protein_g": 28821584,
+    "fat_g": 28821585,
+    "kcal": 28821587
+   },
+   "portions": [
+    {
+     "portion_id": "285298",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 135
+    },
+    {
+     "portion_id": "285299",
+     "seq_num": 2,
+     "description": "Quantity not specified",
+     "gram_weight": 68
+    }
+   ]
+  },
+  "72125217": {
+   "food_code": "72125217",
+   "fdc_id": 2345124,
+   "description": "Spinach, fresh, cooked with oil",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 3.31,
+    "kcal": 63,
+    "carbs_g": 3.01,
+    "fat_g": 4.1
+   },
+   "nutrient_rows": {
+    "protein_g": 28824184,
+    "kcal": 28824187,
+    "carbs_g": 28824186,
+    "fat_g": 28824185
+   },
+   "portions": [
+    {
+     "portion_id": "285391",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 185
+    },
+    {
+     "portion_id": "285392",
+     "seq_num": 2,
+     "description": "Quantity not specified",
+     "gram_weight": 93
+    }
+   ]
+  },
+  "72201211": {
+   "food_code": "72201211",
+   "fdc_id": 2345153,
+   "description": "Broccoli, fresh, cooked, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 0.35,
+    "protein_g": 2.67,
+    "kcal": 41,
+    "carbs_g": 6.51
+   },
+   "nutrient_rows": {
+    "fat_g": 28826070,
+    "protein_g": 28826069,
+    "kcal": 28826072,
+    "carbs_g": 28826071
+   },
+   "portions": [
+    {
+     "portion_id": "285455",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 155
+    },
+    {
+     "portion_id": "285456",
+     "seq_num": 2,
+     "description": "1 piece",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "285457",
+     "seq_num": 3,
+     "description": "1 floweret",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "285458",
+     "seq_num": 4,
+     "description": "1 spear",
+     "gram_weight": 40
+    },
+    {
+     "portion_id": "285459",
+     "seq_num": 5,
+     "description": "Quantity not specified",
+     "gram_weight": 78
+    }
+   ]
+  },
+  "73101010": {
+   "food_code": "73101010",
+   "fdc_id": 2345173,
+   "description": "Carrots, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 9.58,
+    "kcal": 41,
+    "protein_g": 0.93,
+    "fat_g": 0.24
+   },
+   "nutrient_rows": {
+    "carbs_g": 28827371,
+    "kcal": 28827372,
+    "protein_g": 28827369,
+    "fat_g": 28827370
+   },
+   "portions": [
+    {
+     "portion_id": "285526",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 120
+    },
+    {
+     "portion_id": "285527",
+     "seq_num": 2,
+     "description": "1 baby carrot",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "285528",
+     "seq_num": 3,
+     "description": "1 regular carrot",
+     "gram_weight": 60
+    },
+    {
+     "portion_id": "285529",
+     "seq_num": 4,
+     "description": "1 strip/stick",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "285530",
+     "seq_num": 5,
+     "description": "1 piece/slice",
+     "gram_weight": 5
+    },
+    {
+     "portion_id": "285531",
+     "seq_num": 6,
+     "description": "1 single serving bag",
+     "gram_weight": 80
+    },
+    {
+     "portion_id": "285532",
+     "seq_num": 7,
+     "description": "Quantity not specified",
+     "gram_weight": 60
+    }
+   ]
+  },
+  "73102211": {
+   "food_code": "73102211",
+   "fdc_id": 2345177,
+   "description": "Carrots, fresh, cooked, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 43,
+    "fat_g": 0.25,
+    "protein_g": 0.97,
+    "carbs_g": 9.95
+   },
+   "nutrient_rows": {
+    "kcal": 28827632,
+    "fat_g": 28827630,
+    "protein_g": 28827629,
+    "carbs_g": 28827631
+   },
+   "portions": [
+    {
+     "portion_id": "285542",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 155
+    },
+    {
+     "portion_id": "285543",
+     "seq_num": 2,
+     "description": "1 baby carrot",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "285544",
+     "seq_num": 3,
+     "description": "1 regular carrot",
+     "gram_weight": 60
+    },
+    {
+     "portion_id": "285545",
+     "seq_num": 4,
+     "description": "1 piece/slice",
+     "gram_weight": 5
+    },
+    {
+     "portion_id": "285546",
+     "seq_num": 5,
+     "description": "1 cup, mashed",
+     "gram_weight": 230
+    },
+    {
+     "portion_id": "285547",
+     "seq_num": 6,
+     "description": "Quantity not specified",
+     "gram_weight": 78
+    }
+   ]
+  },
+  "73201020": {
+   "food_code": "73201020",
+   "fdc_id": 2345205,
+   "description": "Pumpkin, cooked",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 6.77,
+    "protein_g": 1.05,
+    "fat_g": 2.84,
+    "kcal": 52
+   },
+   "nutrient_rows": {
+    "carbs_g": 28829451,
+    "protein_g": 28829449,
+    "fat_g": 28829450,
+    "kcal": 28829452
+   },
+   "portions": [
+    {
+     "portion_id": "285648",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 230
+    },
+    {
+     "portion_id": "285649",
+     "seq_num": 2,
+     "description": "1 cup, mashed",
+     "gram_weight": 250
+    },
+    {
+     "portion_id": "285650",
+     "seq_num": 3,
+     "description": "Quantity not specified",
+     "gram_weight": 115
+    }
+   ]
+  },
+  "73405010": {
+   "food_code": "73405010",
+   "fdc_id": 2345215,
+   "description": "Sweet potato, boiled, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 76,
+    "carbs_g": 17.65,
+    "protein_g": 1.36,
+    "fat_g": 0.14
+   },
+   "nutrient_rows": {
+    "kcal": 28830102,
+    "carbs_g": 28830101,
+    "protein_g": 28830099,
+    "fat_g": 28830100
+   },
+   "portions": [
+    {
+     "portion_id": "285689",
+     "seq_num": 1,
+     "description": "1 small",
+     "gram_weight": 80
+    },
+    {
+     "portion_id": "285690",
+     "seq_num": 2,
+     "description": "1 medium",
+     "gram_weight": 150
+    },
+    {
+     "portion_id": "285691",
+     "seq_num": 3,
+     "description": "1 large",
+     "gram_weight": 235
+    },
+    {
+     "portion_id": "285692",
+     "seq_num": 4,
+     "description": "1 cup, mashed",
+     "gram_weight": 250
+    },
+    {
+     "portion_id": "285693",
+     "seq_num": 5,
+     "description": "1 oz, raw, yields",
+     "gram_weight": 25
+    },
+    {
+     "portion_id": "285694",
+     "seq_num": 8,
+     "description": "Quantity not specified",
+     "gram_weight": 100
+    }
+   ]
+  },
+  "74101000": {
+   "food_code": "74101000",
+   "fdc_id": 2345232,
+   "description": "Tomatoes, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 4.04,
+    "fat_g": 0.31,
+    "kcal": 20,
+    "protein_g": 0.82
+   },
+   "nutrient_rows": {
+    "carbs_g": 28831206,
+    "fat_g": 28831205,
+    "kcal": 28831207,
+    "protein_g": 28831204
+   },
+   "portions": [
+    {
+     "portion_id": "285751",
+     "seq_num": 1,
+     "description": "1 slice",
+     "gram_weight": 20
+    },
+    {
+     "portion_id": "285752",
+     "seq_num": 2,
+     "description": "1 grape tomato",
+     "gram_weight": 8
+    },
+    {
+     "portion_id": "285753",
+     "seq_num": 3,
+     "description": "1 cherry",
+     "gram_weight": 17
+    },
+    {
+     "portion_id": "285754",
+     "seq_num": 4,
+     "description": "1 Italian tomato",
+     "gram_weight": 60
+    },
+    {
+     "portion_id": "285755",
+     "seq_num": 5,
+     "description": "1 plum tomato",
+     "gram_weight": 60
+    },
+    {
+     "portion_id": "285756",
+     "seq_num": 6,
+     "description": "1 whole",
+     "gram_weight": 125
+    },
+    {
+     "portion_id": "285757",
+     "seq_num": 7,
+     "description": "1 cup",
+     "gram_weight": 180
+    },
+    {
+     "portion_id": "285758",
+     "seq_num": 8,
+     "description": "Quantity not specified",
+     "gram_weight": 90
+    }
+   ]
+  },
+  "75103000": {
+   "food_code": "75103000",
+   "fdc_id": 2345293,
+   "description": "Cabbage, green, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 0.1,
+    "kcal": 25,
+    "carbs_g": 5.8,
+    "protein_g": 1.28
+   },
+   "nutrient_rows": {
+    "fat_g": 28835170,
+    "kcal": 28835172,
+    "carbs_g": 28835171,
+    "protein_g": 28835169
+   },
+   "portions": [
+    {
+     "portion_id": "285945",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 90
+    },
+    {
+     "portion_id": "285946",
+     "seq_num": 2,
+     "description": "1 leaf",
+     "gram_weight": 25
+    },
+    {
+     "portion_id": "285947",
+     "seq_num": 3,
+     "description": "1 head",
+     "gram_weight": 900
+    },
+    {
+     "portion_id": "285948",
+     "seq_num": 4,
+     "description": "Quantity not specified",
+     "gram_weight": 45
+    }
+   ]
+  },
+  "75111000": {
+   "food_code": "75111000",
+   "fdc_id": 2345304,
+   "description": "Cucumber, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 3.63,
+    "kcal": 15,
+    "fat_g": 0.11,
+    "protein_g": 0.65
+   },
+   "nutrient_rows": {
+    "carbs_g": 28835886,
+    "kcal": 28835887,
+    "fat_g": 28835885,
+    "protein_g": 28835884
+   },
+   "portions": [
+    {
+     "portion_id": "285984",
+     "seq_num": 1,
+     "description": "1 piece/slice",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "285985",
+     "seq_num": 2,
+     "description": "1 stick",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "285986",
+     "seq_num": 3,
+     "description": "1 regular",
+     "gram_weight": 200
+    },
+    {
+     "portion_id": "285987",
+     "seq_num": 4,
+     "description": "1 miniature",
+     "gram_weight": 65
+    },
+    {
+     "portion_id": "285988",
+     "seq_num": 5,
+     "description": "1 cup",
+     "gram_weight": 120
+    },
+    {
+     "portion_id": "285989",
+     "seq_num": 6,
+     "description": "Quantity not specified",
+     "gram_weight": 60
+    }
+   ]
+  },
+  "75113000": {
+   "food_code": "75113000",
+   "fdc_id": 2345309,
+   "description": "Lettuce, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 1.13,
+    "fat_g": 0.14,
+    "carbs_g": 2.92,
+    "kcal": 14
+   },
+   "nutrient_rows": {
+    "protein_g": 28836209,
+    "fat_g": 28836210,
+    "carbs_g": 28836211,
+    "kcal": 28836212
+   },
+   "portions": [
+    {
+     "portion_id": "286004",
+     "seq_num": 1,
+     "description": "1 leaf",
+     "gram_weight": 8
+    },
+    {
+     "portion_id": "286005",
+     "seq_num": 2,
+     "description": "1 head",
+     "gram_weight": 539
+    },
+    {
+     "portion_id": "286006",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 35
+    },
+    {
+     "portion_id": "286007",
+     "seq_num": 4,
+     "description": "Guideline amount in salad",
+     "gram_weight": 70
+    },
+    {
+     "portion_id": "286008",
+     "seq_num": 5,
+     "description": "Quantity not specified",
+     "gram_weight": 18
+    }
+   ]
+  },
+  "75117020": {
+   "food_code": "75117020",
+   "fdc_id": 2345315,
+   "description": "Onions, raw",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 0.08,
+    "protein_g": 0.86,
+    "kcal": 38,
+    "carbs_g": 8.46
+   },
+   "nutrient_rows": {
+    "fat_g": 28836600,
+    "protein_g": 28836599,
+    "kcal": 28836602,
+    "carbs_g": 28836601
+   },
+   "portions": [
+    {
+     "portion_id": "286028",
+     "seq_num": 1,
+     "description": "1 slice",
+     "gram_weight": 15
+    },
+    {
+     "portion_id": "286029",
+     "seq_num": 2,
+     "description": "1 ring",
+     "gram_weight": 5
+    },
+    {
+     "portion_id": "286030",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 160
+    },
+    {
+     "portion_id": "286031",
+     "seq_num": 4,
+     "description": "1 whole",
+     "gram_weight": 148
+    },
+    {
+     "portion_id": "286032",
+     "seq_num": 5,
+     "description": "Quantity not specified",
+     "gram_weight": 15
+    }
+   ]
+  },
+  "75143000": {
+   "food_code": "75143000",
+   "fdc_id": 2345342,
+   "description": "Lettuce, salad with assorted vegetables including tomatoes and/or carrots, no dressing",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 0.23,
+    "carbs_g": 4.11,
+    "kcal": 21,
+    "protein_g": 1.25
+   },
+   "nutrient_rows": {
+    "fat_g": 28838355,
+    "carbs_g": 28838356,
+    "kcal": 28838357,
+    "protein_g": 28838354
+   },
+   "portions": [
+    {
+     "portion_id": "286118",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 73
+    },
+    {
+     "portion_id": "286119",
+     "seq_num": 2,
+     "description": "1 side salad",
+     "gram_weight": 94
+    },
+    {
+     "portion_id": "286120",
+     "seq_num": 3,
+     "description": "Quantity not specified",
+     "gram_weight": 73
+    },
+    {
+     "portion_id": "286121",
+     "seq_num": 4,
+     "description": "1 Burger King side salad",
+     "gram_weight": 98
+    },
+    {
+     "portion_id": "286122",
+     "seq_num": 5,
+     "description": "1 McDonald's side salad",
+     "gram_weight": 87
+    },
+    {
+     "portion_id": "286123",
+     "seq_num": 6,
+     "description": "1 Wendy's side salad",
+     "gram_weight": 168
+    }
+   ]
+  },
+  "75208011": {
+   "food_code": "75208011",
+   "fdc_id": 2345395,
+   "description": "Beets, fresh, cooked, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 9.93,
+    "fat_g": 0.18,
+    "protein_g": 1.67,
+    "kcal": 45
+   },
+   "nutrient_rows": {
+    "carbs_g": 28841801,
+    "fat_g": 28841800,
+    "protein_g": 28841799,
+    "kcal": 28841802
+   },
+   "portions": [
+    {
+     "portion_id": "286302",
+     "seq_num": 1,
+     "description": "1 slice",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "286303",
+     "seq_num": 2,
+     "description": "1 whole",
+     "gram_weight": 50
+    },
+    {
+     "portion_id": "286304",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 170
+    },
+    {
+     "portion_id": "286305",
+     "seq_num": 4,
+     "description": "Quantity not specified",
+     "gram_weight": 85
+    }
+   ]
+  },
+  "75214011": {
+   "food_code": "75214011",
+   "fdc_id": 2345420,
+   "description": "Cauliflower, fresh, cooked, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "fat_g": 0.29,
+    "kcal": 26,
+    "protein_g": 1.99,
+    "carbs_g": 5.16
+   },
+   "nutrient_rows": {
+    "fat_g": 28843425,
+    "kcal": 28843427,
+    "protein_g": 28843424,
+    "carbs_g": 28843426
+   },
+   "portions": [
+    {
+     "portion_id": "286375",
+     "seq_num": 1,
+     "description": "1 piece",
+     "gram_weight": 13
+    },
+    {
+     "portion_id": "286376",
+     "seq_num": 2,
+     "description": "1 floweret",
+     "gram_weight": 13
+    },
+    {
+     "portion_id": "286377",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 155
+    },
+    {
+     "portion_id": "286378",
+     "seq_num": 4,
+     "description": "Quantity not specified",
+     "gram_weight": 78
+    }
+   ]
+  },
+  "75216111": {
+   "food_code": "75216111",
+   "fdc_id": 2345433,
+   "description": "Corn, fresh, cooked, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 18.64,
+    "protein_g": 3.26,
+    "kcal": 86,
+    "fat_g": 1.35
+   },
+   "nutrient_rows": {
+    "carbs_g": 28844271,
+    "protein_g": 28844269,
+    "kcal": 28844272,
+    "fat_g": 28844270
+   },
+   "portions": [
+    {
+     "portion_id": "286416",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 165
+    },
+    {
+     "portion_id": "286417",
+     "seq_num": 2,
+     "description": "1 baby corn",
+     "gram_weight": 8
+    },
+    {
+     "portion_id": "286418",
+     "seq_num": 3,
+     "description": "1 mini ear",
+     "gram_weight": 55
+    },
+    {
+     "portion_id": "286419",
+     "seq_num": 4,
+     "description": "1 regular ear",
+     "gram_weight": 105
+    },
+    {
+     "portion_id": "286420",
+     "seq_num": 5,
+     "description": "Quantity not specified",
+     "gram_weight": 83
+    }
+   ]
+  },
+  "75233011": {
+   "food_code": "75233011",
+   "fdc_id": 2345515,
+   "description": "Summer squash, yellow or green, fresh, cooked, no added fat",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "kcal": 21,
+    "fat_g": 0.35,
+    "protein_g": 1.3,
+    "carbs_g": 4.1
+   },
+   "nutrient_rows": {
+    "kcal": 28849602,
+    "fat_g": 28849600,
+    "protein_g": 28849599,
+    "carbs_g": 28849601
+   },
+   "portions": [
+    {
+     "portion_id": "286667",
+     "seq_num": 1,
+     "description": "1 slice",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "286668",
+     "seq_num": 2,
+     "description": "1 whole",
+     "gram_weight": 200
+    },
+    {
+     "portion_id": "286669",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 180
+    },
+    {
+     "portion_id": "286670",
+     "seq_num": 4,
+     "description": "1 cup, mashed",
+     "gram_weight": 240
+    },
+    {
+     "portion_id": "286671",
+     "seq_num": 5,
+     "description": "Quantity not specified",
+     "gram_weight": 90
+    }
+   ]
+  },
+  "75233021": {
+   "food_code": "75233021",
+   "fdc_id": 2345519,
+   "description": "Summer squash, yellow or green, fresh, cooked, fat added, NS as to fat type",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "protein_g": 1.27,
+    "carbs_g": 3.99,
+    "kcal": 47,
+    "fat_g": 3.33
+   },
+   "nutrient_rows": {
+    "protein_g": 28849859,
+    "carbs_g": 28849861,
+    "kcal": 28849862,
+    "fat_g": 28849860
+   },
+   "portions": [
+    {
+     "portion_id": "286685",
+     "seq_num": 1,
+     "description": "1 slice",
+     "gram_weight": 10
+    },
+    {
+     "portion_id": "286686",
+     "seq_num": 2,
+     "description": "1 whole",
+     "gram_weight": 203
+    },
+    {
+     "portion_id": "286687",
+     "seq_num": 3,
+     "description": "1 cup",
+     "gram_weight": 185
+    },
+    {
+     "portion_id": "286688",
+     "seq_num": 4,
+     "description": "1 cup, mashed",
+     "gram_weight": 245
+    },
+    {
+     "portion_id": "286689",
+     "seq_num": 5,
+     "description": "Quantity not specified",
+     "gram_weight": 93
+    }
+   ]
+  },
+  "83107000": {
+   "food_code": "83107000",
+   "fdc_id": 2345761,
+   "description": "Mayonnaise, regular",
+   "publication_date": "2022-10-28",
+   "nutrients": {
+    "carbs_g": 0.57,
+    "fat_g": 74.85,
+    "protein_g": 0.96,
+    "kcal": 680
+   },
+   "nutrient_rows": {
+    "carbs_g": 28865591,
+    "fat_g": 28865590,
+    "protein_g": 28865589,
+    "kcal": 28865592
+   },
+   "portions": [
+    {
+     "portion_id": "287540",
+     "seq_num": 1,
+     "description": "1 cup",
+     "gram_weight": 220
+    },
+    {
+     "portion_id": "287541",
+     "seq_num": 2,
+     "description": "1 tablespoon",
+     "gram_weight": 13.8
+    },
+    {
+     "portion_id": "287542",
+     "seq_num": 3,
+     "description": "1 packet",
+     "gram_weight": 12
+    },
+    {
+     "portion_id": "287543",
+     "seq_num": 7,
+     "description": "Quantity not specified",
+     "gram_weight": 9
+    },
+    {
+     "portion_id": "287544",
+     "seq_num": 8,
+     "description": "1 dipping-size container",
+     "gram_weight": 28
+    },
+    {
+     "portion_id": "287545",
+     "seq_num": 9,
+     "description": "Guideline amount on regular sandwich",
+     "gram_weight": 14
+    },
+    {
+     "portion_id": "287546",
+     "seq_num": 10,
+     "description": "Guideline amount on large sandwich",
+     "gram_weight": 28
+    },
+    {
+     "portion_id": "287547",
+     "seq_num": 11,
+     "description": "Guideline amount in salad",
+     "gram_weight": 28
+    }
+   ]
+  }
+ }
+}

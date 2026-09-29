@@ -122,12 +122,12 @@
         "G-2",
         "G-3"
       ],
-      "status": "todo",
+      "status": "active",
       "review": "required",
       "depends_on": [
         "T-002"
       ],
-      "spec": null,
+      "spec": "docs/specs/SPEC-T-005-nutrition-mapping.md",
       "acceptance": [
         {
           "id": "A1",

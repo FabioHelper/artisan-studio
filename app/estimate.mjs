@@ -213,7 +213,7 @@ export function createEstimate(ctx) {
       ls.del(RUN);
       if (!live()) return;
       me.timings = { mode: 'auto', status: res.status, encoder_ms: me.encoder_ms, ...res.timings, detect_ms: res.timings.total_ms, total_ms: Math.round(performance.now() - t0), models_cold: cold, plate_detected: res.plate_detected, lite };
-      me.diag = { mask: `${mw}x${mh}`, lite, plate: { detected: res.plate_detected, via: res.plate.via, area_frac: round3(res.plate.area_frac), residual: round3(res.plate.residual) },
+      me.diag = { mask: `${mw}x${mh}`, lite, plate: { detected: res.plate_detected, via: res.plate.via, area_frac: round3(res.plate.area_frac), residual: round3(res.plate.residual), support: res.plate.support ?? null },
         items: res.items.map((it) => it.cls.id), rejected: res.rejected.length, plate_cols: ['x', 'y', 'score', 'area', 'area_raw', 'cover', 'residual', 'verdict', 'via'],
         plate_rows: (res.plate_candidates ?? []).slice(0, 40).map((c) => [c.x, c.y, c.score, c.area_frac, c.area_raw, c.cover, c.residual, c.verdict, c.via]) };
       me.noPlate = !res.plate_detected;

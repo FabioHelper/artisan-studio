@@ -272,12 +272,12 @@
         "G-2",
         "G-5"
       ],
-      "status": "todo",
+      "status": "active",
       "review": "required",
       "depends_on": [
         "T-003"
       ],
-      "spec": null,
+      "spec": "docs/specs/SPEC-T-011-capture-app.md",
       "acceptance": [
         {
           "id": "A1",

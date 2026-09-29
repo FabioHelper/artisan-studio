@@ -46,7 +46,7 @@ The weighed benchmark is the only judge of accuracy. Procedure: [weighing protoc
 
 | Module | Responsibility |
 |---|---|
-| `bench/schema.mjs` | Manifest format and the pure `validateManifest` (named rules: types, unique ids and photos, plate references, plausible grams, split by date, near-duplicate leakage, frozen test set, completeness); canonical JSON and the test-set hash |
+| `bench/schema-core.mjs`, `bench/schema.mjs` | Manifest format and the pure `validateManifest` in `schema-core.mjs` (no imports, so the browser runs it too); `schema.mjs` re-exports it and adds the Node sha256 (named rules: types, unique ids and photos, plate references, plausible grams, split by date, near-duplicate leakage, frozen test set, completeness); canonical JSON and the test-set hash |
 | `bench/lock.mjs` | CLI that freezes the test split into a lock file; refuses invalid manifests and silent relocks |
 | `bench/validate.mjs` | CLI and the checks `bench-validate` / `bench-complete`: runs the negative fixtures, then validates the real manifest and lock |
 | `bench/fixtures.mjs` | One known-good manifest plus broken variants, each tagged with the rule it must trip |
@@ -96,7 +96,7 @@ the same (`exact`) or the closest available (`analog`); a rule with no failing f
 ## Web (`web/`)
 
 Static site published to GitHub Pages by the workflow `macrofy-pages.yml`; no build step, plain ES
-modules. It becomes the Macrofy PWA (ADR 0004). Today it holds the on-phone feasibility test.
+modules. It becomes the Macrofy PWA (ADR 0004). Today it holds the on-phone feasibility test and the capture app (the shell that T-013 estimation will extend).
 Spec: [SPEC-T-012](specs/SPEC-T-012-browser-feasibility.md); owner procedure:
 [feasibility-test](runbooks/feasibility-test.md).
 
@@ -106,7 +106,9 @@ Spec: [SPEC-T-012](specs/SPEC-T-012-browser-feasibility.md); owner procedure:
 | `web/feasibility/index.html`, `web/feasibility/run.mjs` | pt-BR page and browser runner: per stage tries candidate models in order, WebGPU then WASM, times load, cached load and inference, saves progress to localStorage |
 | `web/feasibility/candidates.mjs` | The pinned transformers.js URL, stages, candidate model ids, labels |
 | `web/feasibility/verdict.mjs` | Pure verdict and result JSON, importable from Node |
-| `web/selftest.mjs` | The check `web-selftest`: files, syntax, pinned CDN version, candidates, verdict fixtures |
+| `web/app/` (`index.html`, `app.mjs`, `lib.mjs`, `db.mjs`, `sw.js`, `manifest.webmanifest`) | Capture app (T-011, [spec](specs/SPEC-T-011-capture-app.md)): pt-BR PWA shell with plate registry, weighed-meal entry, IndexedDB storage and export in the macrofy.bench/1 manifest format; `lib.mjs` is the pure, Node-testable logic (dHash, split, manifest, pt-BR problems), tested by `capture/selftest.mjs` |
+| `web/sync-data.mjs` | Copies `nutrition/vocab.json` and `bench/schema-core.mjs` into `web/app/` (Pages serves only `web/`); `--check` and `web/selftest.mjs` fail on a stale copy |
+| `web/selftest.mjs` | The check `web-selftest`: files, syntax, pinned CDN version, candidates, verdict fixtures, capture app files, service worker shell, copy drift |
 
 Invariants: the transformers.js URL carries an exact version; model ids are tried in order and the
 result records which loaded and why others failed; verdict logic lives only in `verdict.mjs`;

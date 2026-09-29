@@ -45,12 +45,12 @@ t('the feasibility stages share the app candidates (segmentation and naming) and
   assert.equal(cand.STAGES.find((s) => s.stage === 'naming').candidates, models.NAMING_CANDIDATES);
   assert.deepEqual(models.SEGMENT_CANDIDATES.map((c) => c.id), ['Xenova/slimsam-77-uniform', 'onnx-community/sam2.1-hiera-tiny-ONNX']); // smallest first (F-005)
   assert.deepEqual(models.NAMING_CANDIDATES.map((c) => c.id), ['Xenova/clip-vit-base-patch32', 'Xenova/siglip-base-patch16-224', 'onnx-community/siglip2-base-patch16-224-ONNX']); // vision files, smallest first (T-015)
-  assert.deepEqual(models.BACKENDS[0], ['webgpu', 'fp16']); assert.deepEqual(models.BACKENDS.at(-1), ['wasm', 'q8']);
+  assert.deepEqual(models.BACKENDS.slice(0, 2), [['webgpu', 'q4f16'], ['wasm', 'q4']]); assert.deepEqual(models.BACKENDS.at(-1), ['wasm', 'q8']); // 4-bit image towers (53-58 MB) first, per the CI model probe
 });
-t('memory discipline for iOS (F-005): SlimSAM q8 first, then SAM 2.1 tiny q8/fp16, never fp32 anywhere', () => {
-  assert.deepEqual(models.SEGMENT_CANDIDATES[0].backends, [['webgpu', 'q8'], ['wasm', 'q8']]);
-  assert.deepEqual(models.SEGMENT_CANDIDATES[1].backends.map((b) => b[1]).sort(), ['fp16', 'q8', 'q8']);
-  for (const c of [...models.SEGMENT_CANDIDATES, ...models.NAMING_CANDIDATES]) for (const [, dtype] of models.backendsOf(c)) assert.ok(['q8', 'fp16'].includes(dtype), `${c.id}: ${dtype}`);
+t('memory discipline for iOS (F-005): SlimSAM first, SAM on WASM before WebGPU (WebGPU crashed even at 9 MB), never fp32 anywhere', () => {
+  assert.deepEqual(models.SEGMENT_CANDIDATES[0].backends, [['wasm', 'q8'], ['webgpu', 'q8']]);
+  for (const c of models.SEGMENT_CANDIDATES) assert.equal(c.backends[0][0], 'wasm');
+  for (const c of [...models.SEGMENT_CANDIDATES, ...models.NAMING_CANDIDATES]) for (const [, dtype] of models.backendsOf(c)) assert.ok(['q8', 'fp16', 'q4', 'q4f16'].includes(dtype), `${c.id}: ${dtype}`);
   assert.equal(models.backendsOf(models.NAMING_CANDIDATES[0]), models.BACKENDS);
   assert.doesNotMatch(text('lib/models.mjs') + text('feasibility/run.mjs'), /['"]fp32['"]/);
 });
@@ -124,24 +124,24 @@ function simulate(def, hasGpu, behaviour, maxLoads = 100) {
 }
 t('the attempt plan of a stage is every (model, device, dtype), once each, in candidate order; no GPU drops the WebGPU ones', () => {
   const plan = verdict.plannedAttempts(SEG, true);
-  assert.deepEqual(plan.map(attemptName), ['Xenova/slimsam-77-uniform webgpu/q8', 'Xenova/slimsam-77-uniform wasm/q8', 'onnx-community/sam2.1-hiera-tiny-ONNX webgpu/q8',
-    'onnx-community/sam2.1-hiera-tiny-ONNX webgpu/fp16', 'onnx-community/sam2.1-hiera-tiny-ONNX wasm/q8']);
+  assert.deepEqual(plan.map(attemptName), ['Xenova/slimsam-77-uniform wasm/q8', 'Xenova/slimsam-77-uniform webgpu/q8', 'onnx-community/sam2.1-hiera-tiny-ONNX wasm/q8',
+    'onnx-community/sam2.1-hiera-tiny-ONNX webgpu/q4f16', 'onnx-community/sam2.1-hiera-tiny-ONNX webgpu/fp16']);
   assert.equal(new Set(plan.map((a) => a.key)).size, plan.length);
   assert.deepEqual(verdict.plannedAttempts(SEG, false).map(attemptName), ['Xenova/slimsam-77-uniform wasm/q8', 'onnx-community/sam2.1-hiera-tiny-ONNX wasm/q8']);
   assert.equal(verdict.plannedAttempts(NAM, true).length, NAM.candidates.length * models.BACKENDS.length);
 });
-t('F-006 (the owner run): both WebGPU q8 attempts kill the tab, then every other attempt of the stage still runs, once', () => {
+t('F-006 (the owner run): every WebGPU SAM attempt kills the tab, WASM fails, and every attempt of the stage still runs, once', () => {
   const plan = verdict.plannedAttempts(SEG, true).map((a) => a.key);
-  const r = simulate(SEG, true, (key) => (key.endsWith('webgpu|q8') ? 'crash' : 'fail'));
-  assert.deepEqual(r.ran, plan); // every attempt exactly once, in order: wasm/q8 and fp16 are NOT skipped
-  assert.equal(r.loads, 3); assert.equal(r.result.ok, false);
-  assert.equal(r.st.crashes.length, 2); assert.equal(r.st.failures.length, 3); assert.equal(r.st.attempts.segmentation.length, 5);
-  assert.match(r.st.attempts.segmentation[0], /slimsam-77-uniform webgpu\/q8: aba encerrada pelo Safari/);
-  assert.match(r.st.attempts.segmentation[1], /TypeError: Load failed \[https:\/\/huggingface\.co\/m\/resolve\/main\/onnx\/x\.onnx\]/);
+  const r = simulate(SEG, true, (key) => (key.includes('|webgpu|') ? 'crash' : 'fail'));
+  assert.deepEqual(r.ran, plan); // every attempt exactly once, in order: no backend is skipped after a crash
+  assert.equal(r.loads, 4); assert.equal(r.result.ok, false);
+  assert.equal(r.st.crashes.length, 3); assert.equal(r.st.failures.length, 2); assert.equal(r.st.attempts.segmentation.length, 5);
+  assert.match(r.st.attempts.segmentation[0], /TypeError: Load failed \[https:\/\/huggingface\.co\/m\/resolve\/main\/onnx\/x\.onnx\]/);
+  assert.match(r.st.attempts.segmentation[1], /slimsam-77-uniform webgpu\/q8: aba encerrada pelo Safari/);
 });
 t('a crash skips only THAT attempt: the same model on another backend and the same stage go on', () => {
-  const r = simulate(SEG, true, (key) => (key === 'Xenova/slimsam-77-uniform|webgpu|q8' ? 'crash' : 'ok'));
-  assert.deepEqual(r.ran, ['Xenova/slimsam-77-uniform|webgpu|q8', 'Xenova/slimsam-77-uniform|wasm|q8']); assert.deepEqual(r.result, { ok: true, key: 'Xenova/slimsam-77-uniform|wasm|q8' });
+  const r = simulate(SEG, true, (key) => (key === 'Xenova/slimsam-77-uniform|wasm|q8' ? 'crash' : 'ok'));
+  assert.deepEqual(r.ran, ['Xenova/slimsam-77-uniform|wasm|q8', 'Xenova/slimsam-77-uniform|webgpu|q8']); assert.deepEqual(r.result, { ok: true, key: 'Xenova/slimsam-77-uniform|webgpu|q8' });
   assert.equal(r.loads, 2); assert.equal(r.st.crashes.length, 1);
   assert.equal(verdict.nextStage(r.st, cand.STAGES).stage, 'segmentation'); // the stage is not abandoned; only run.mjs, on success, moves to the next
 });
@@ -166,13 +166,13 @@ t('random crash, failure and success sequences: no attempt ever runs twice, none
 });
 t('crash state details: the attempt in flight is saved with its file, the crash record is pure, old saved states are discarded, other stages are untouched', () => {
   let st = verdict.freshState(); const a = verdict.nextAttempt(st, SEG, true);
-  st = verdict.beginAttempt(st, 'segmentation', a); assert.deepEqual(st.running, { stage: 'segmentation', candidate: 'Xenova/slimsam-77-uniform', device: 'webgpu', dtype: 'q8' });
+  st = verdict.beginAttempt(st, 'segmentation', a); assert.deepEqual(st.running, { stage: 'segmentation', candidate: 'Xenova/slimsam-77-uniform', device: 'wasm', dtype: 'q8' });
   st = verdict.noteFetching(st, { file: 'onnx/vision_encoder_q8.onnx', url: 'https://huggingface.co/Xenova/slimsam-77-uniform/resolve/main/onnx/vision_encoder_q8.onnx' });
   const before = JSON.stringify(st); const after = verdict.recordCrash(st);
   assert.equal(JSON.stringify(st), before); assert.equal(after.running, null); assert.match(after.attempts.segmentation[0], /vision_encoder_q8\.onnx/);
   assert.equal(after.crashes[0].file, 'onnx/vision_encoder_q8.onnx');
-  assert.equal(verdict.nextAttempt(after, SEG, true).key, 'Xenova/slimsam-77-uniform|wasm|q8');
-  assert.equal(verdict.nextAttempt(after, NAM, true).key, `${NAM.candidates[0].id}|webgpu|fp16`); // naming keeps its full plan
+  assert.equal(verdict.nextAttempt(after, SEG, true).key, 'Xenova/slimsam-77-uniform|webgpu|q8');
+  assert.equal(verdict.nextAttempt(after, NAM, true).key, `${NAM.candidates[0].id}|webgpu|q4f16`); // naming keeps its full plan
   assert.equal(verdict.recordCrash(verdict.freshState()).crashes.length, 0);
   assert.deepEqual(verdict.migrateState({ stages: [seg(1)], crashes: [1], finished: true }), verdict.freshState()); // a v2 page state: start over
   assert.equal(verdict.migrateState(JSON.parse(JSON.stringify(after))).crashes.length, 1);
@@ -237,11 +237,11 @@ await t('createModels: loads SAM then a VISION-ONLY namer, reports progress, seg
   const m = mkModels({ importer: async () => T });
   const info = await m.load((e) => events.push(e));
   assert.equal(info.version, '4.3.0'); assert.equal(info.segmenter, 'onnx-community/sam2.1-hiera-tiny-ONNX'); assert.equal(info.namer, 'Xenova/clip-vit-base-patch32'); // the fake has no SlimSAM class; CLIP B/32 is the smallest namer
-  assert.equal(info.backend, 'wasm/q8'); assert.equal(info.namer_backend, 'wasm/q8'); // Node has no WebGPU
+  assert.equal(info.backend, 'wasm/q8'); assert.equal(info.namer_backend, 'wasm/q4'); // Node has no WebGPU; the 4-bit image tower is the first WASM option
   assert.ok(events.some((e) => e.stage === 'naming' && e.fraction === 0.5));
   assert.equal(calls.vision.length, 1); assert.equal(calls.vision[0].id, 'Xenova/clip-vit-base-patch32');
   assert.equal(calls.vision[0].o.model_file_name, 'vision_model'); assert.equal(calls.vision[0].o.revision, 'rev-Xenova/clip-vit-base-patch32'); // pinned to the revision of the embeddings
-  assert.equal(calls.vision[0].o.device, 'wasm'); assert.equal(calls.vision[0].o.dtype, 'q8');
+  assert.equal(calls.vision[0].o.device, 'wasm'); assert.equal(calls.vision[0].o.dtype, 'q4');
   await m.setImage(new Blob(['x']));
   const masks = await m.segment(1, 1);
   assert.deepEqual(masks.map((x) => x.score), [0.9, 0.5, 0.2]); assert.deepEqual([...masks[0].data], [1, 1, 0, 0]); assert.equal(masks[0].width, 2);

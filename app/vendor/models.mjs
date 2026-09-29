@@ -12,8 +12,8 @@ export const transformersUrl = (version) => `https://cdn.jsdelivr.net/npm/@huggi
 // `probeFiles`: name fragments of the ONNX files a candidate needs; the size estimate (orderBySize) sums, per fragment, the smallest
 // matching file of the probe (tools/build-text-embeddings.mjs writes it in CI).
 export const SEGMENT_CANDIDATES = [
-  { id: 'Xenova/slimsam-77-uniform', sam: 'SamModel', backends: [['webgpu', 'q8'], ['wasm', 'q8']], probeFiles: ['vision_encoder', 'prompt_encoder_mask_decoder'] },
-  { id: 'onnx-community/sam2.1-hiera-tiny-ONNX', sam: 'Sam2Model', backends: [['webgpu', 'q8'], ['webgpu', 'fp16'], ['wasm', 'q8']], probeFiles: ['vision_encoder', 'prompt_encoder_mask_decoder'] },
+  { id: 'Xenova/slimsam-77-uniform', sam: 'SamModel', backends: [['wasm', 'q8'], ['webgpu', 'q8']], probeFiles: ['vision_encoder', 'prompt_encoder_mask_decoder'] },
+  { id: 'onnx-community/sam2.1-hiera-tiny-ONNX', sam: 'Sam2Model', backends: [['wasm', 'q8'], ['webgpu', 'q4f16'], ['webgpu', 'fp16']], probeFiles: ['vision_encoder', 'prompt_encoder_mask_decoder'] },
 ];
 // T-015: naming loads ONLY the image tower (the full SigLIP files, text tower included, failed with "Load failed" on the iPhone 16e) and
 // scores it against text embeddings committed in the app data folder, built in CI from the text tower (see checkEmbeddings). `vision` and
@@ -25,7 +25,9 @@ export const NAMING_CANDIDATES = [
   { id: 'onnx-community/siglip2-base-patch16-224-ONNX', vision: ['Siglip2VisionModel', 'SiglipVisionModel'], text: ['Siglip2TextModel', 'SiglipTextModel'], pad: 'max_length', maxLength: 64, probeFiles: ['vision_model'] },
 ];
 /** Tried in order per candidate; WebGPU entries are skipped when the browser has no WebGPU adapter. Never fp32 (memory on iOS). */
-export const BACKENDS = [['webgpu', 'fp16'], ['webgpu', 'q8'], ['wasm', 'q8']];
+// Model probe (CI, 2026-09-29): the 4-bit image towers are 53-58 MB, near the 50 MB depth model that runs on the 16e; the q8/fp16
+// ones are 89-186 MB. SAM crashed the tab on WebGPU even at 9 MB (activation memory, not file size), so SAM tries WASM first.
+export const BACKENDS = [['webgpu', 'q4f16'], ['wasm', 'q4'], ['webgpu', 'fp16'], ['webgpu', 'q8'], ['wasm', 'q8']];
 
 export const isIOS = () => /iP(hone|ad|od)/.test(globalThis.navigator?.userAgent ?? '');
 export const backendsOf = (candidate) => candidate.backends ?? BACKENDS;

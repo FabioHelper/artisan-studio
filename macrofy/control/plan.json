@@ -298,7 +298,7 @@
         "G-3",
         "G-5"
       ],
-      "status": "active",
+      "status": "blocked",
       "review": "required",
       "depends_on": [
         "T-002"

@@ -86,8 +86,8 @@ function installMock({ W, H, SC, plan }) {
       for (const f of [0.2, 0.6, 1]) { onProgress({ stage: 'segmentation', label: 'Modelo de contorno (SAM)', fraction: f }); await sleep(30); }
       return { version: 'mock', backend: 'mock/none', segmenter: 'mock-sam', namer: 'mock-siglip', sequential: seq(), warnings: [] };
     },
-    async loadNaming() {
-      mlog('loadNaming');
+    async loadNaming(onProgress, opts = {}) {
+      mlog('loadNaming'); mlog(`backends ${JSON.stringify(opts.backends ?? null)}`);
       if (localStorage.getItem('__mockHangNaming') === '1') return new Promise(() => {}); // the naming page "dies" while loading the namer
       await sleep(30); return { version: 'mock', backend: null, segmenter: null, namer: 'mock-siglip', namer_backend: 'mock/none', sequential: seq(), warnings: [] };
     },
@@ -460,7 +460,7 @@ async function autoScenario() {
   const log = JSON.parse(await page.evaluate(() => sessionStorage.getItem('__mockLog'))); const cut = log.lastIndexOf('page');
   const before = log.slice(0, cut); const after = log.slice(cut + 1);
   assert.ok(before.includes('load') && before.filter((e) => e === 'segmentPoints').length === 2 && !before.includes('classify') && !before.includes('loadNaming'), `SAM page: SAM and both grids, no naming: ${JSON.stringify(log)}`);
-  assert.ok(after[0] === 'loadNaming' && !after.includes('load') && !after.includes('setImage') && !after.includes('segmentPoints') && after.filter((e) => e === 'classify').length === 4, `naming page: only the namer, 4 crops named: ${JSON.stringify(log)}`);
+  assert.ok(after[0] === 'loadNaming' && after[1] === 'backends [["wasm","q4"],["wasm","q8"]]' && !after.includes('load') && !after.includes('setImage') && !after.includes('segmentPoints') && after.filter((e) => e === 'classify').length === 4, `naming page: only the namer, 4 crops named: ${JSON.stringify(log)}`);
   assert.ok(pages.length >= 3, 'the page really reloaded between the halves');
   assert.equal(await page.evaluate(() => location.hash), '#/estimate', 'the naming URL is left before the naming model loads');
   assert.equal(await page.locator('[data-item]').count(), 3, 'rice, steak, salad; the fork rejected, as in one page');
@@ -479,10 +479,12 @@ async function autoScenario() {
   await page.evaluate(() => { localStorage.removeItem('__mockHangNaming'); sessionStorage.setItem('__mockLog', '[]'); });
   await page.goto('about:blank'); await page.goto(`${base()}#/estimate/resume`);
   await page.waitForSelector('#crash'); await shot('a09-naming-crash');
-  assert.match(await page.locator('#crash').innerText(), /carregando o modelo de nomes/);
+  assert.match(await page.locator('#crash').innerText(), /carregando o modelo de nomes \(0\/4\) \(wasm\/q4, wasm\/q8\)/, 'the crash names the backends that died');
+  await page.evaluate(() => sessionStorage.setItem('__mockLog', '[]'));
   await page.locator('#retry-naming').click(); await page.waitForSelector('h2:text-is("Resultado")');
   const log2 = JSON.parse(await page.evaluate(() => sessionStorage.getItem('__mockLog')));
-  assert.ok(!log2.includes('segmentPoints') && !log2.includes('load') && log2.includes('loadNaming'), `retry names only: ${JSON.stringify(log2)}`);
+  assert.ok(log2[0] === 'page' && !log2.includes('segmentPoints') && !log2.includes('load') && log2.includes('loadNaming') && log2.includes('backends [["webgpu","q4f16"]]'),
+    `the retry reloads into a fresh naming page, names only, with the next backend plan (WebGPU): ${JSON.stringify(log2)}`);
   assert.equal(await page.locator('[data-item]').count(), 3);
 
   step('auto on the iPhone: a correction tap loads SAM then (and only then)');

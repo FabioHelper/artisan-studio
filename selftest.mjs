@@ -330,6 +330,10 @@ await t('loadNaming (auto mode, second page on the iPhone): only the naming mode
   await m.classify(new Blob(['x']), ['uma foto de a']); await m.loadNaming();
   assert.deepEqual(log, ['load namer'], 'classify and a second loadNaming reuse the loaded namer');
   await m.load(); assert.deepEqual(log, ['load namer', 'dispose namer', 'load sam'], 'a later load() frees the namer first (sequential)');
+  const seen = []; const lib2 = { ...lib, CLIPVisionModelWithProjection: { from_pretrained: async (id, o) => { seen.push(`${o.device}/${o.dtype}`); if (o.dtype === 'q4') throw new Error('no q4 here'); const v = async () => ({ image_embeds: { data: [1, 0, 0], dims: [1, 3] } }); v.dispose = async () => {}; return v; } } };
+  const m2 = mkModels({ importer: async () => lib2, sequential: true });
+  const i2 = await m2.loadNaming(() => {}, { backends: [['wasm', 'q4'], ['wasm', 'q8']] });
+  assert.deepEqual(seen, ['wasm/q4', 'wasm/q8'], 'the given backends replace the naming list, in order (the CPU first on the naming page)'); assert.equal(i2.namer_backend, 'wasm/q8');
 });
 await t('parallel mode (desktop): both models load at load() and stay', async () => {
   const { T } = fakeLib(); const m = mkModels({ importer: async () => T, sequential: false });

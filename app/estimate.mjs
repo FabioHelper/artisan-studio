@@ -246,13 +246,17 @@ export function createEstimate(ctx) {
   async function nameAfterReload(p) {
     const me = st; const t0 = performance.now(); const live = () => st === me && me.step === 'auto';
     Object.assign(me, { step: 'auto', auto: { phase: 'namer', done: 0, total: p.kept.length } });
-    const mark = { started: isoWithOffset(), lite: !!p.lite, attempt: p.attempt ?? 1, stage: 'namer', done: 0, total: p.kept.length, page: 'naming' };
-    ls.set(RUN, mark); render(true);
+    render(true);
+    let mark = null;
     try {
       const data = await loadStatic(); const m = await getModels();
       if (typeof m.loadNaming !== 'function') throw new Error('este conjunto de modelos não carrega só o modelo de nomes');
       let params = auto.autosegParams(data.priors); if (p.lite) params = { ...params, ...params.crash_retry };
-      const info = await m.loadNaming(() => {});
+      // one backend plan per attempt: CPU first (the fresh page may still share the GPU memory the SAM page used), then WebGPU
+      const plans = params.naming_page_plans ?? [null]; const plan = (p.naming_plan ?? 0) % plans.length; const backends = plans[plan];
+      mark = { started: isoWithOffset(), lite: !!p.lite, attempt: p.attempt ?? 1, stage: 'namer', done: 0, total: p.kept.length, page: 'naming', naming_plan: plan, backends: backends ? backends.map((b) => b.join('/')).join(', ') : 'default' };
+      ls.set(RUN, mark);
+      const info = await m.loadNaming(() => {}, { backends });
       me.model = { status: 'idle', info }; // SAM is not loaded in this page: a correction that needs a tap loads it then
       const W = me.work.width; const H = me.work.height; const up = (mask) => auto.resizeMask(mask, W, H);
       const res = await auto.finishAuto({ models: m, params, classes: getVocab().classes, seg: p, crop: (mask) => cropBlob(up(mask)),
@@ -261,6 +265,14 @@ export function createEstimate(ctx) {
       if (!live()) return;
       await finishAutoResult(me, res, { mw: p.width, mh: p.height, lite: !!p.lite, cold: !!p.cold, t0: t0 - (p.elapsed_ms ?? 0), split: true });
     } catch (e) { autoFailed(me, e, live); }
+  }
+  /** The naming page died: the next backend plan, in a fresh page again (this page may hold SAM: the home screen warms it up). */
+  async function retryNaming(c) {
+    const d = await db.getSetting(DRAFT).catch(() => null);
+    if (!d?.pending?.kept) { st.pending = null; st.crash = null; return startAuto({ lite: true }); }
+    await db.setSetting(DRAFT, { ...d, pending: { ...d.pending, naming_plan: (c.naming_plan ?? 0) + 1 } });
+    history.replaceState(null, '', `${location.pathname}${location.search}#/estimate/name`);
+    location.reload();
   }
   /** A finished auto result (one page, or the naming page) -> the confirm screen. */
   async function finishAutoResult(me, res, { mw, mh, lite, cold, t0, split = false }) {
@@ -294,11 +306,11 @@ export function createEstimate(ctx) {
     if (st.crash) {
       const c = st.crash; const again = c.lite;
       return [h('h2', {}, 'A análise anterior fechou a página'), stage({}),
-        h('div', { class: 'banner', role: 'alert', id: 'crash' }, `O navegador fechou a página enquanto eu estava ${STAGE_PT[c.stage] ?? c.stage}${c.total ? ` (${c.done}/${c.total})` : ''}. Isso costuma ser falta de memória no iPhone.`,
+        h('div', { class: 'banner', role: 'alert', id: 'crash' }, `O navegador fechou a página enquanto eu estava ${STAGE_PT[c.stage] ?? c.stage}${c.total ? ` (${c.done}/${c.total})` : ''}${c.backends ? ` (${c.backends})` : ''}. Isso costuma ser falta de memória no iPhone.`,
           again ? ' Aconteceu também no modo leve.' : ''),
         h('div', { class: 'stack', style: 'margin-top:14px' },
           // died in the naming page: the plate and foods are already found and saved, so only the naming runs again (SAM is not reloaded)
-          c.page === 'naming' && st.pending?.kept ? h('button', { id: 'retry-naming', onclick: () => { const p = st.pending; st.pending = null; st.crash = null; nameAfterReload(p); } }, 'Tentar dar nome de novo (o prato e os alimentos já foram achados)') : null,
+          c.page === 'naming' && st.pending?.kept ? h('button', { id: 'retry-naming', onclick: () => retryNaming(c) }, 'Tentar dar nome de novo de outro jeito (o prato e os alimentos já foram achados)') : null,
           h('button', { id: 'retry-lite', class: c.page === 'naming' ? 'secondary' : undefined, onclick: () => startAuto({ lite: true }) }, again ? 'Tentar de novo no modo leve' : 'Tentar de novo (modo leve, usa menos memória)'),
           again ? manual : null,
           h('button', { class: 'secondary', onclick: async () => { await db.setSetting(DRAFT, null); st = { ...fresh(), model: st.model }; render(true); } }, 'Descartar esta foto')),

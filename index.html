@@ -15,7 +15,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Lanternfall</title>
-<meta name="lanternfall-build" content="62dfec4c">
+<meta name="lanternfall-build" content="541bf314">
 <meta name="theme-color" content="#0d0f1a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -248,6 +248,149 @@ body{color:var(--paper);font-family:var(--f-pix);-webkit-user-select:none;user-s
 .mapkey i{display:inline-block;width:8px;height:8px;transform:rotate(45deg);border:2px solid var(--gold)}
 .mapkey i.f{background:var(--gold)}
 #hx{position:fixed;left:-60px;top:0;opacity:0;pointer-events:none}
+
+/* ---------- Lanternfall Studio ---------- */
+.schip{margin-top:12px;display:inline-flex;align-items:center;gap:8px;padding:8px 14px 7px;border:0;background:linear-gradient(90deg,#ffd36b,#ff8fb8,#b48cff,#3fd0c9,#a6e04a);color:#140f1f;font:600 11px/1 var(--f-pix);letter-spacing:.26em;text-transform:uppercase;cursor:pointer;box-shadow:0 0 0 2px #140f1f,0 6px 18px rgba(180,140,255,.35)}
+#sbtn{position:absolute;right:calc(max(12px,env(safe-area-inset-right,0px)) + 46px);top:calc(env(safe-area-inset-top,0px) + 12px);width:40px;height:40px;border:0;padding:0;background:transparent;cursor:pointer;display:grid;place-items:center}
+#sbtn span{width:22px;height:22px;transform:rotate(45deg);display:grid;place-items:center;background:conic-gradient(#ffd36b,#ff8fb8,#b48cff,#3fd0c9,#a6e04a,#ffd36b);box-shadow:0 0 0 2px #140f1f,0 0 12px rgba(180,140,255,.6)}
+#sbtn b{transform:rotate(-45deg);font:600 11px/1 var(--f-pix);color:#140f1f}
+#studio{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;background:rgba(8,8,18,.55);opacity:0;pointer-events:none;transition:opacity .3s}
+#studio.on{opacity:1;pointer-events:auto}
+.sx{position:relative;width:100%;max-width:560px;height:92%;display:flex;flex-direction:column;color:#ece2c8;border:2px solid #2c2a4d;border-bottom:0;transform:translateY(48px);transition:transform .5s cubic-bezier(.2,.9,.25,1);overflow:hidden;
+  background:radial-gradient(circle at 100% 0,rgba(180,140,255,.2),transparent 45%),radial-gradient(circle at 0 0,rgba(255,211,107,.15),transparent 40%),repeating-linear-gradient(45deg,rgba(255,255,255,.02) 0 2px,transparent 2px 12px),#121126}
+#studio.on .sx{transform:none}
+.sxband{height:6px;flex:none;background:linear-gradient(90deg,#ffd36b 0 10%,#ffa548 0 20%,#b48cff 0 30%,#3fd0c9 0 40%,#ff6fae 0 50%,#ff6a5f 0 60%,#6fb6ff 0 70%,#ff8fb8 0 80%,#a6e04a 0 90%,#c6cbe0 0)}
+.sxhead{flex:none;display:flex;align-items:center;gap:14px;padding:14px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));border-bottom:2px solid #24223f}
+.sxhead .grow{flex:1;min-width:0}
+.sxhead .k{font:600 10px/1 var(--f-pix);letter-spacing:.32em;text-transform:uppercase;color:var(--violet)}
+.sxhead h2{margin:5px 0 0;font:400 28px/1 var(--f-sc);letter-spacing:.03em;color:#fff1d2;text-wrap:balance}
+.sxhead .bd{display:inline-block;margin-top:6px;font:600 10px/1 var(--f-pix);letter-spacing:.16em;color:rgba(236,226,200,.55);text-transform:uppercase}
+#sxring{flex:none;--p:0;width:58px;height:58px;border-radius:50%;background:conic-gradient(#a6e04a calc(var(--p)*1%),rgba(255,255,255,.09) 0);display:grid;place-items:center;position:relative}
+#sxring::after{content:"";position:absolute;inset:6px;border-radius:50%;background:#121126}
+#sxring div{position:relative;z-index:1;text-align:center}
+#sxringn{display:block;font:600 18px/1 var(--f-pix);color:#fff1d2;font-variant-numeric:tabular-nums}
+#sxringd{display:block;margin-top:2px;font:600 8px/1 var(--f-pix);letter-spacing:.12em;color:rgba(236,226,200,.6);text-transform:uppercase}
+.sxbody{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:14px max(16px,env(safe-area-inset-right,0px)) 22px max(16px,env(safe-area-inset-left,0px));-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.sxtabs{flex:none;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-top:2px solid #24223f;background:#0e0d1f;padding-bottom:env(safe-area-inset-bottom,0px)}
+.sxt{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;padding:11px 2px 10px;background:none;border:0;color:rgba(236,226,200,.6);font:600 9.5px/1 var(--f-pix);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.sxt i{width:12px;height:12px;transform:rotate(45deg);border:2px solid var(--tc);transition:transform .2s,background .2s}
+.sxt.on{color:#fff1d2}
+.sxt.on i{background:var(--tc);box-shadow:0 0 12px var(--tc);transform:rotate(45deg) scale(1.15)}
+.sxt.on::before{content:"";position:absolute;left:20%;right:20%;top:-2px;height:3px;background:var(--tc)}
+.sxhero{display:flex;flex-direction:column;gap:12px;padding:14px;border:2px solid rgba(255,211,107,.5);background:linear-gradient(135deg,rgba(255,211,107,.15),rgba(255,143,184,.1) 60%,rgba(180,140,255,.12))}
+.sxhero h3{margin:0;font:400 24px/1.05 var(--f-sc);color:#fff1d2;font-weight:400}
+.sxhero p{margin:6px 0 0;max-width:60ch;font:italic 15.5px/1.45 var(--f-book);color:#e3d8bd}
+.sxrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sxrow.foot{justify-content:center;margin-top:6px}
+.sxb{padding:11px 14px 10px;border:0;cursor:pointer;color:#ece2c8;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 2px rgba(236,226,200,.25);font:600 11.5px/1 var(--f-pix);letter-spacing:.14em;text-transform:uppercase}
+.sxb.pri{background:#ffd36b;color:#1a1306;box-shadow:0 3px 0 #b9741f}
+.sxb.ok{box-shadow:inset 0 0 0 2px #7fdc6a;color:#a6f08f}
+.sxb.bad{box-shadow:inset 0 0 0 2px #ff7a6a;color:#ffaa9e}
+.sxb.ghost{background:transparent}
+.sxb:active,.sxact:active,.sxpl:active,.sxsw:active{transform:translateY(2px)}
+.sxchip{padding:6px 8px 5px;font:600 10px/1 var(--f-pix);letter-spacing:.14em;text-transform:uppercase}
+.sxchip.bad{background:#ff6a5f;color:#1a0e0c}
+.sxbar{display:flex;gap:3px;height:8px}
+.sxbar span{position:relative;overflow:hidden;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px var(--cc)}
+.sxbar span i{position:absolute;left:0;top:0;bottom:0;background:var(--cc)}
+.sxsec{display:flex;flex-direction:column;gap:6px}
+.sxsec h4{display:flex;align-items:center;gap:10px;margin:8px 0 2px;font:600 11px/1 var(--f-pix);letter-spacing:.22em;text-transform:uppercase;color:var(--cc)}
+.sxsec h4 i{width:10px;height:10px;transform:rotate(45deg);background:var(--cc);box-shadow:0 0 10px var(--cc)}
+.sxsec h4 span{margin-left:auto;color:rgba(236,226,200,.6);letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.sxmod{border:2px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025)}
+.sxmod.ex{border-color:var(--cc)}
+.sxmod.cur{box-shadow:0 0 0 2px var(--cc),0 0 18px -6px var(--cc)}
+.sxmh{width:100%;display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 12px;background:none;border:0;color:inherit;text-align:left;cursor:pointer;font:inherit}
+.sxmh .mi{width:12px;height:12px;margin-left:4px;transform:rotate(45deg);border:2px solid var(--cc)}
+.sxmod.ok .mi{background:#7fdc6a;border-color:#7fdc6a;box-shadow:0 0 8px #7fdc6a}
+.sxmod.bad .mi{background:#ff6a5f;border-color:#ff6a5f;box-shadow:0 0 8px #ff6a5f}
+.mt b{display:block;font:400 18px/1.15 var(--f-sc);color:#fff1d2;font-weight:400}
+.mt small{display:block;margin-top:3px;font:italic 14px/1.35 var(--f-book);color:rgba(236,226,200,.62)}
+.mtags{display:flex;gap:4px}
+.mtags em{padding:4px 5px 3px;border:1.5px solid rgba(236,226,200,.3);color:rgba(236,226,200,.7);font:600 9px/1 var(--f-pix);font-style:normal;letter-spacing:.14em;text-transform:uppercase}
+.mtags em.co{border-color:#ff8fb8;color:#ff8fb8}
+.sxmb{display:flex;flex-direction:column;gap:10px;padding:0 12px 12px 44px}
+.sxmb dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px}
+.sxmb dt{font:600 10px/1.6 var(--f-pix);letter-spacing:.2em;text-transform:uppercase;color:var(--cc)}
+.sxmb dd{margin:0;font:15px/1.45 var(--f-book);color:#ece2c8}
+.sxnotes{display:grid;gap:8px}
+.sxnotes div{padding:10px 12px;border:2px dashed rgba(140,147,179,.45)}
+.sxnotes b{font:400 17px/1.2 var(--f-sc);color:#e8e2f3;font-weight:400}
+.sxnotes p{margin:4px 0 0;font:italic 14.5px/1.45 var(--f-book);color:rgba(236,226,200,.65)}
+.sxmapw{align-self:center;width:100%;max-width:380px}
+#sxmap{display:block;width:100%;aspect-ratio:1/1;image-rendering:pixelated;border:2px solid #3fd0c9;box-shadow:0 0 0 4px rgba(63,208,201,.12),0 0 30px rgba(63,208,201,.2);cursor:crosshair;background:#14132a}
+.sxcap{margin-top:8px;text-align:center;font:600 10px/1 var(--f-pix);letter-spacing:.2em;text-transform:uppercase;color:rgba(236,226,200,.55)}
+.sxlegend{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;font:600 10px/1 var(--f-pix);letter-spacing:.14em;text-transform:uppercase;color:rgba(236,226,200,.7)}
+.sxlegend span{display:inline-flex;align-items:center;gap:6px}
+.sxlegend i,.sxpl i{flex:none;width:8px;height:8px;transform:rotate(45deg);background:var(--cc)}
+.sxplaces{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.sxpl{display:flex;align-items:center;gap:10px;padding:11px 12px;background:rgba(255,255,255,.03);border:2px solid rgba(255,255,255,.08);color:#fff1d2;font:400 16px/1.1 var(--f-sc);text-align:left;cursor:pointer}
+.sxpl:hover{border-color:var(--cc)}
+.sxh{margin:8px 0 0;font:600 11px/1 var(--f-pix);letter-spacing:.22em;text-transform:uppercase;color:#fff1d2}
+.sxh small{display:block;margin-top:6px;font:italic 14px/1.3 var(--f-book);letter-spacing:0;text-transform:none;color:rgba(236,226,200,.6)}
+.sxgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sxsw{display:grid;grid-template-columns:16px minmax(0,1fr);gap:3px 10px;align-items:center;padding:12px;background:rgba(255,111,174,.06);border:2px solid rgba(255,111,174,.4);color:#fff1d2;text-align:left;cursor:pointer;font:inherit}
+.sxsw i{grid-row:span 2;width:10px;height:10px;transform:rotate(45deg);border:2px solid #ff6fae}
+.sxsw b{font:400 16px/1.15 var(--f-sc);font-weight:400}
+.sxsw small{font:600 9.5px/1 var(--f-pix);letter-spacing:.16em;text-transform:uppercase;color:#ff9cc8}
+.sxsw.done{background:rgba(127,220,106,.06);border-color:rgba(127,220,106,.45)}
+.sxsw.done i{background:#7fdc6a;border-color:#7fdc6a}
+.sxsw.done small{color:#a6f08f}
+.sxact{display:flex;flex-direction:column;gap:5px;padding:14px;border:0;cursor:pointer;color:#fff1d2;text-align:left;background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.015));box-shadow:inset 0 0 0 2px var(--cc,#ffd36b),0 0 18px -8px var(--cc,#ffd36b);font:inherit}
+.sxact b{font:400 18px/1.1 var(--f-sc);font-weight:400}
+.sxact small{font:italic 14px/1.35 var(--f-book);color:rgba(236,226,200,.65)}
+.sxact.danger{--cc:#ff6a5f}
+.sxact[disabled],.sxsw[disabled]{opacity:.55;cursor:default}
+.sxcol{display:flex;flex-direction:column;gap:8px}
+.sxtog{display:flex;align-items:center;gap:14px;padding:12px 14px;background:rgba(255,255,255,.03);border:2px solid rgba(255,255,255,.08);color:#fff1d2;text-align:left;cursor:pointer;font:inherit}
+.sxtog b{display:block;font:400 17px/1.15 var(--f-sc);font-weight:400}
+.sxtog small{display:block;margin-top:3px;font:italic 14px/1.35 var(--f-book);color:rgba(236,226,200,.6)}
+.sxtog .sw{flex:none;position:relative;width:44px;height:24px;border-radius:12px;background:rgba(255,255,255,.14);transition:background .2s}
+.sxtog .sw i{position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#ece2c8;transition:transform .2s}
+.sxtog.on{border-color:rgba(180,140,255,.55)}
+.sxtog.on .sw{background:#b48cff}
+.sxtog.on .sw i{transform:translateX(20px)}
+.sxseg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);border:2px solid rgba(255,255,255,.12)}
+.sxseg button{padding:12px 4px 11px;background:none;border:0;border-left:2px solid rgba(255,255,255,.08);color:rgba(236,226,200,.75);font:600 11px/1 var(--f-pix);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.sxseg button:first-child{border-left:0}
+.sxseg button.on{background:#b48cff;color:#140f1f}
+.sxlay{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 14px;background:rgba(166,224,74,.05);border:2px solid rgba(166,224,74,.3);color:#fff1d2;text-align:left;cursor:pointer;font:inherit}
+.sxlay i{color:#a6e04a;text-align:center;font:600 13px/1 var(--f-pix);font-style:normal}
+.sxlay b{font:400 17px/1.1 var(--f-sc);font-weight:400}
+.sxlay small{font:600 9.5px/1 var(--f-pix);letter-spacing:.14em;text-transform:uppercase;color:rgba(236,226,200,.55)}
+.sxlay.on{background:#a6e04a;color:#122005}
+.sxlay.on i,.sxlay.on small{color:#122005}
+.sxfx{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px}
+.sxfx button{padding:12px 6px 11px;background:rgba(255,255,255,.04);border:2px solid rgba(166,224,74,.28);color:#e9f7c8;font:600 10.5px/1.2 var(--f-pix);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.sxfx button:active{background:#a6e04a;color:#122005}
+.sxstats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sxstats div{padding:10px 12px;border:2px solid rgba(255,143,184,.3);background:rgba(255,143,184,.05)}
+.sxstats span{display:block;font:600 9.5px/1 var(--f-pix);letter-spacing:.16em;text-transform:uppercase;color:#ff9cc8}
+.sxstats b{display:block;margin-top:6px;font:600 15px/1.1 var(--f-pix);color:#fff1d2;font-variant-numeric:tabular-nums}
+.sxnote{margin:0;font:italic 14px/1.4 var(--f-book);color:rgba(236,226,200,.6)}
+#tourbar{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);transform:translateX(-50%);width:min(calc(100vw - 24px),460px);box-sizing:border-box;padding:10px 12px 12px;background:rgba(18,17,38,.95);border:2px solid var(--cc);box-shadow:0 10px 30px rgba(0,0,0,.45),0 0 24px -6px var(--cc);color:#ece2c8}
+#tourbar.ok{border-color:#7fdc6a}
+#tourbar .tbh{display:flex;align-items:center;gap:8px}
+.tbc{display:inline-flex;align-items:center;gap:7px;font:600 10px/1 var(--f-pix);letter-spacing:.2em;text-transform:uppercase;color:var(--cc)}
+.tbc i{width:8px;height:8px;transform:rotate(45deg);background:var(--cc)}
+.tbn{margin-left:auto;font:600 10px/1 var(--f-pix);letter-spacing:.14em;color:rgba(236,226,200,.6);font-variant-numeric:tabular-nums}
+#tourbar .tbh button{width:32px;height:32px;background:none;border:2px solid rgba(236,226,200,.2);color:#ece2c8;font:600 13px/1 var(--f-pix);cursor:pointer}
+.tbt{display:block;margin-top:8px;font:400 20px/1.1 var(--f-sc);color:#fff1d2;font-weight:400}
+.tbt em{font-style:normal;color:#7fdc6a}
+#tourbar p{margin:4px 0 0;font:italic 15px/1.4 var(--f-book);color:#e3d8bd}
+#tourbar p.tbneed{font:600 10px/1.4 var(--f-pix);font-style:normal;letter-spacing:.14em;text-transform:uppercase;color:#ff8fb8}
+.tbr{display:flex;gap:6px;margin-top:10px}
+.tbr button{flex:1;padding:11px 4px 10px;background:rgba(255,255,255,.05);border:2px solid rgba(236,226,200,.2);color:#ece2c8;font:600 11px/1 var(--f-pix);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.tbr button:first-child,.tbr button:last-child{flex:0 0 44px;font-size:18px}
+.tbr .pri{background:#ffd36b;border-color:#ffd36b;color:#1a1306}
+.tbr .ok{border-color:#7fdc6a;color:#a6f08f}
+.tbr .bad{border-color:#ff7a6a;color:#ffaa9e}
+.tbr .glow{border-color:#7fdc6a;color:#a6f08f;box-shadow:0 0 14px #7fdc6a}
+#fpsm{position:absolute;left:max(12px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 60px);padding:6px 10px 5px;background:rgba(10,10,22,.82);border:2px solid #a6e04a;color:#e9f7c8;font:600 10px/1 var(--f-pix);letter-spacing:.1em;pointer-events:none;font-variant-numeric:tabular-nums}
+#fpsm.low{border-color:#ff6a5f;color:#ffaa9e}
+#app.photo #pill,#app.photo #jbtn,#app.photo .flag,#app.photo #parrow,#app.photo #toast,#app.photo #ring,#app.photo #hold,#app.photo #tourbar,#app.photo .glyph,#app.photo .bubble,#app.photo .emote,#app.photo #zone,#app.photo #fpsm{display:none!important}
+#app.photo #sbtn{opacity:.35}
+.sxt:focus-visible,.sxb:focus-visible,.sxact:focus-visible,.sxtog:focus-visible,.sxseg button:focus-visible,.sxpl:focus-visible,.sxmh:focus-visible,.sxlay:focus-visible,.sxfx button:focus-visible,.sxsw:focus-visible,.schip:focus-visible,#sbtn:focus-visible,#tourbar button:focus-visible{outline:2px solid #fff1d2;outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.glyph .bob,#hold .pulse,.flag .cloth,.lamp,.tlink .tl1,.tlink .tl2{animation:none}}
 </style>
 
@@ -297,9 +440,14 @@ body{color:var(--paper);font-family:var(--f-pix);-webkit-user-select:none;user-s
       <p class="lede" id="tlede">Hollowmere fell asleep the night the Great Lantern went dark. Your small flame did not.</p>
       <div class="btns"><button class="btn" id="bJoin" hidden>Join your friend</button><button class="btn" id="bBegin">Begin</button><button class="btn ghost" id="bNew" hidden>New game</button></div>
       <button class="tlink" id="bTogether"><span class="tl1"></span>Play together<span class="tl2"></span></button>
+      <br><button class="schip" id="bStudio" hidden>Studio</button>
     </div>
     <div class="ctl">Drag to walk · Hold to flare · Tap to talk · Swipe up for journal</div>
   </div>
+  <button id="sbtn" hidden aria-label="Open Studio"><span><b>S</b></span></button>
+  <div id="tourbar" hidden></div>
+  <div id="fpsm" hidden></div>
+  <div id="studio" role="dialog" aria-label="Lanternfall Studio"><div class="sx"><div class="sxband"></div><header class="sxhead"><div id="sxring"><div><b id="sxringn">0</b><span id="sxringd">of 0</span></div></div><div class="grow"><div class="k">Lanternfall Studio</div><h2>Design test panel</h2><span class="bd" id="sxbuild"></span></div><button class="jx" id="sxclose" aria-label="Close Studio">✕</button></header><div class="sxbody" id="sxbody"></div><nav class="sxtabs" id="sxtabs" aria-label="Studio sections"></nav></div></div>
   <button id="pill" aria-label="Two Lights party"><span class="dot"></span><span class="tx"></span><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span></button>
   <div id="parrow" aria-hidden="true"><div class="rot"><i></i></div><div class="gem"><b></b></div></div>
   <div id="party" role="dialog" aria-label="Two Lights"><div class="sheet" id="psheet"></div></div>
@@ -351,7 +499,7 @@ const SAVE_V=2;
 function freshS(){return{v:SAVE_V,s1:false,s2:false,s3:false,pip:false,stones:false,awake:false,mem:[false,false,false,false],bell:false,mural:false,fox:false,duet:false,twin:false,note:false,mateName:'',met:{},talks:{},t:0};}
 let S=freshS();
 function save(){if(G.slot)store.set(G.slot,S);}
-const G={slot:SAVE,link:0,myFlareAt:-9,mateFlareAt:-9,errs:0,errLog:[],mode:'title',time:0,lock:0,hp:0,trauma:0,energy:1,lampBoost:0,flareReveal:0,flares:0,lastProg:0,hintAt:80,envK:0,wave:null,rek:null,zs:{},journal:false,endShown:false,holdNear:0,ready:false,readyAnim:0,gateOpen:0,quality:1};
+const G={studio:false,speedMul:1,timeScale:1,noclip:false,infLight:false,camZoom:1,envOverride:null,rawDt:0,slot:SAVE,link:0,myFlareAt:-9,mateFlareAt:-9,errs:0,errLog:[],mode:'title',time:0,lock:0,hp:0,trauma:0,energy:1,lampBoost:0,flareReveal:0,flares:0,lastProg:0,hintAt:80,envK:0,wave:null,rek:null,zs:{},journal:false,endShown:false,holdNear:0,ready:false,readyAnim:0,gateOpen:0,quality:1};
 
 /* ================= renderer / scene ================= */
 const scene=new THREE.Scene();
@@ -1042,7 +1190,7 @@ function camUpdate(dt){
     CAM.pushIn=damp(CAM.pushIn,TALK.who?1:0,2,dt);
     CAM.est=Math.max(0,CAM.est-dt/3.2);CAM.beat=Math.max(0,CAM.beat-dt/1.4);const es=reduceMotion?0:Math.sin(Math.min(1,CAM.est)*Math.PI);
     const run=clamp(PL.spd/5.4,0,1);
-    g={yaw:CAM.estYaw*es,pitch:.98-.16*es,dist:fit(14,fov,19,32)*(1-.12*CAM.pushIn)*zm*(1+.07*run+.2*es-.08*Math.sin(CAM.beat*Math.PI)),fov,x:tx,y:PL.y+.6,z:tz};}
+    g={yaw:CAM.estYaw*es,pitch:.98-.16*es,dist:fit(14,fov,19,32)*(1-.12*CAM.pushIn)*zm*(1+.07*run+.2*es-.08*Math.sin(CAM.beat*Math.PI))*G.camZoom,fov,x:tx,y:PL.y+.6,z:tz};}
   else if(CAM.mode==='story'){const fov=portrait?28:22;g={yaw:CAM.yaw,pitch:.2,dist:fit(portrait?7:11,fov,15,30),fov,x:CAM.focus.x,y:CAM.focus.y,z:CAM.focus.z};}
   else if(CAM.mode==='reveal'){CAM.t+=dt;g={yaw:.35+CAM.t*.05,pitch:.62,dist:fit(52,40,48,92),fov:40,x:0,y:2,z:-4};}
   else{CAM.t+=dt;g={yaw:.55+CAM.t*.025,pitch:.42,dist:fit(56,38,58,110),fov:38,x:0,y:2,z:-4};}
@@ -1083,10 +1231,11 @@ cv.addEventListener('pointermove',e=>{if(e.pointerId!==IN.ptr)return;IN.x=e.clie
 function ptrEnd(e,cancel){if(e.pointerId!==IN.ptr)return;const dt=performance.now()-IN.t0;if(!cancel&&!IN.drag&&!IN.held&&dt<380)tap(e.clientX,e.clientY);IN.ptr=null;IN.drag=false;IN.held=false;IN.holdT=0;IN.jx=IN.jy=0;joyEl.classList.remove('on');}
 cv.addEventListener('pointerup',e=>ptrEnd(e,false));cv.addEventListener('pointercancel',e=>ptrEnd(e,true));
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-document.addEventListener('touchmove',e=>{if(!e.target.closest||!e.target.closest('.jbody,.jtabs,#psheet'))e.preventDefault();},{passive:false});
+document.addEventListener('touchmove',e=>{if(!e.target.closest||!e.target.closest('.jbody,.jtabs,#psheet,#sxbody'))e.preventDefault();},{passive:false});
 const KM={ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right'};
 window.addEventListener('keydown',e=>{if(e.repeat)return;if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
   if(e.code==='Escape'&&party.classList.contains('on')){closeParty();return;}
+  if(typeof SX!=='undefined'&&G.studio&&(e.code==='Backquote'||(e.code==='Escape'&&SX.open))){SX.open?closeStudio():openStudio();return;}
   if(G.mode==='title'&&!party.classList.contains('on')&&(e.code==='Enter'||e.code==='Space')){e.preventDefault();$('#bBegin').click();return;}
   if(e.code==='KeyJ'||e.code==='Tab'){e.preventDefault();G.journal?closeJournal():openJournal();return;}
   if(e.code==='Escape'){if(G.journal)closeJournal();else if(memOn)hideCard();return;}
@@ -1116,6 +1265,7 @@ function tap(x,y){
   PL.tap={x:tx,z:tz};emit(tx,PL.y+.15,tz,{life:.5,size:.6,c:[1,.75,.4]});}
 function blockedWater(x,z){const wd=Math.abs(x-brookX(z));if(wd<2.55){if(S.stones&&Math.abs(z-2)<1.4)return false;return true;}return d2(x,z,POND.x,POND.z)<POND.r+.45;}
 function movePlayer(dx,dz){let nx=PL.x+dx,nz=PL.z+dz;
+  if(G.noclip){const r=Math.hypot(nx,nz);if(r>46){nx*=46/r;nz*=46/r;}PL.x=nx;PL.z=nz;return;}
   if(blockedWater(nx,nz)){if(!blockedWater(nx,PL.z))nz=PL.z;else if(!blockedWater(PL.x,nz))nx=PL.x;else{nx=PL.x;nz=PL.z;}}
   for(let pass=0;pass<2;pass++)for(const c of COL){const ex=nx-c.x,ez=nz-c.z,R=c.r+.33;const q=ex*ex+ez*ez;if(q<R*R){const d=Math.sqrt(q)||.001;nx=c.x+ex/d*R;nz=c.z+ez/d*R;}}
   if(MATE.vis){const ex=nx-MATE.x,ez=nz-MATE.z,q=ex*ex+ez*ez;if(q<.36&&q>1e-6){const d=Math.sqrt(q);nx=MATE.x+ex/d*.6;nz=MATE.z+ez/d*.6;}}
@@ -1143,7 +1293,7 @@ function playerUpdate(dt){
     const kx=(K.right?1:0)-(K.left?1:0),kz=(K.down?1:0)-(K.up?1:0);if(kx||kz){const l=Math.hypot(kx,kz);ix=kx/l;iz=kz/l;m=1;PL.tap=null;}
     if(!m&&PL.tap){const dx=PL.tap.x-PL.x,dz=PL.tap.z-PL.z,l=Math.hypot(dx,dz);if(l<.35)PL.tap=null;else{ix=dx/l;iz=dz/l;m=clamp(l/1.2,.35,1);}}
   }else PL.tap=null;
-  const SP=5.4;PL.vx=damp(PL.vx,ix*m*SP,10,dt);PL.vz=damp(PL.vz,iz*m*SP,10,dt);
+  const SP=5.4*G.speedMul;PL.vx=damp(PL.vx,ix*m*SP,10,dt);PL.vz=damp(PL.vz,iz*m*SP,10,dt);
   const ox=PL.x,oz=PL.z;if(dt>0)movePlayer(PL.vx*dt,PL.vz*dt);
   const spd=dt>0?Math.hypot(PL.x-ox,PL.z-oz)/dt:0;PL.spd=spd;
   if(spd>.2)PL.face=angDamp(PL.face,Math.atan2(PL.vx,PL.vz),12,dt);else if(PL.faceT!=null)PL.face=angDamp(PL.face,PL.faceT,5,dt);
@@ -1154,6 +1304,7 @@ function playerUpdate(dt){
   lampL.intensity=(1.75-1.0*G.envK)*(.86+.14*Math.sin(G.time*9.3)*Math.sin(G.time*5.1+1))+G.lampBoost*2.2+G.link*.5;
   w.flame.scale.setScalar(.085*(.9+.1*Math.sin(G.time*13))*(1+G.lampBoost*.6+G.link*.25));
   U.uPlayer.value.set(PL.x,0,PL.z);U.uLampR.value=6.8+G.lampBoost*6+G.link*2.6;
+  if(G.infLight)G.energy=1;
   G.energy=Math.min(1,G.energy+dt*(.11+(nearLitShrine()?.35:0)));
   if(G.mode==='play')S.t+=dt;
 }
@@ -1444,7 +1595,7 @@ function applyEnv(k){const a=ENV.c,b=ENV.w;hemi.color.copy(a.sky).lerp(b.sky,k);
   sun.color.copy(a.dir).lerp(b.dir,k);sun.intensity=lerp(a.dirI,b.dirI,k);scene.fog.color.copy(a.fog).lerp(b.fog,k);scene.background.copy(scene.fog.color);
   skyU.uTop.value.copy(a.top).lerp(b.top,k);skyU.uBot.value.copy(a.bot).lerp(b.bot,k);skyU.uGlow.value.copy(a.glow).lerp(b.glow,k);skyU.uStars.value=1-k;
   mtMat1.color.copy(a.mt1).lerp(b.mt1,k);mtMat2.color.copy(a.mt2).lerp(b.mt2,k);}
-function envUpdate(){if(Math.abs(G.envK-envLast)>.002){applyEnv(G.envK);envLast=G.envK;}}
+function envUpdate(){const k=G.envOverride==null?G.envK:G.envOverride;if(Math.abs(k-envLast)>.002){applyEnv(k);envLast=k;}}
 function ambient(dt){const t=G.time;
   if(!S.awake){if(Math.random()<dt*7)emit(PL.x+rr(-9,9),PL.y+rr(.5,3.5),PL.z+rr(-9,7),{vx:rr(-.2,.2),vy:rr(-.05,.15),life:rr(3,5),size:.1,c:[.42,.5,.7],wob:.4});}
   else{if(Math.random()<dt*6)emit(PL.x+rr(-9,9),PL.y+rr(.4,3),PL.z+rr(-9,7),{vx:rr(-.3,.3),vy:rr(0,.2),life:rr(3,5),size:.11,c:[1,.85,.45],wob:.6});
@@ -1612,7 +1763,7 @@ function netFail(kind){const guest=NET.role==='guest';
   if(!party.classList.contains('on'))openParty('err');else partyRefresh();}
 
 function snapData(){let fl='';for(let i=0;i<FL.length;i++)fl+=FL[i].open?'1':'0';
-  return{t:'snap',S:{s1:S.s1,s2:S.s2,s3:S.s3,pip:S.pip,stones:S.stones,awake:S.awake,mem:S.mem.slice(),bell:S.bell,mural:S.mural,duet:S.duet,twin:S.twin},fl,night:NIGHT,fp:worldFingerprint(),pos:[Math.round(PL.x*100)/100,Math.round(PL.z*100)/100]};}
+  return{t:'snap',studio:!!G.studio,S:{s1:S.s1,s2:S.s2,s3:S.s3,pip:S.pip,stones:S.stones,awake:S.awake,mem:S.mem.slice(),bell:S.bell,mural:S.mural,duet:S.duet,twin:S.twin},fl,night:NIGHT,fp:worldFingerprint(),pos:[Math.round(PL.x*100)/100,Math.round(PL.z*100)/100]};}
 function syncTo(sn){const w=(sn&&sn.S)||{};
   for(let i=0;i<3;i++)if(w['s'+(i+1)]&&!S['s'+(i+1)])lightShrine(i,true);
   if(w.pip&&!S.pip){S.pip=true;PIP.on=true;pipC.g.visible=true;cocoon.visible=false;PIP.x=PL.x;PIP.y=PL.y+2;PIP.z=PL.z;bloom(6,P.cocoon[0],P.cocoon[1],4.2,1,true);}
@@ -1631,6 +1782,7 @@ function syncTo(sn){const w=(sn&&sn.S)||{};
 function onEv(e){if(!e||typeof e!=='object')return;
   if(e.t==='snap'){
     if(NET.role==='guest'&&!NET.everSynced){NET.everSynced=true;NET.synced=true;clearTimeout(NET.joinTimer);
+      if(typeof studioFromSnap==='function')studioFromSnap(e);
       if(G.mode==='title'){closeParty();begin({slot:null,snap:e});}else syncTo(e);partyRefresh();return;}
     syncTo(e);return;}
   if(NET.role==='guest'&&!NET.everSynced)return;
@@ -1657,13 +1809,13 @@ function onEv(e){if(!e||typeof e!=='object')return;
   }}
 
 /* --- anti-lag: own keeper is local-first; partner arrives over an unordered lossy channel and plays back through an adaptive jitter buffer --- */
-function onSt(d){if(!Array.isArray(d)||d.length<6)return;const sq=+d[0];if(!(sq>NET.rseq))return;NET.rseq=sq;
+function onSt(d){if(!Array.isArray(d)||d.length<6)return;if(NET.simLoss&&Math.random()<NET.simLoss)return;const sq=+d[0];if(!(sq>NET.rseq))return;NET.rseq=sq;
   const t=nowS();if(NET.lastArr){const gap=t-NET.lastArr;NET.avgI=lerp(NET.avgI,gap,.08);NET.jit=lerp(NET.jit,Math.abs(gap-NET.avgI),.08);}NET.lastArr=t;
   NET.delay=clamp(NET.avgI*1.4+NET.jit*2.5,.07,.35);
   const x=+d[1],z=+d[2];if(!isFinite(x)||!isFinite(z))return;
   MATE.lastSt=t;MATE.buf.push({t,x,z,f:+d[3]||0,s:+d[4]||0,fl:d[5]|0,p:d.length>8?[+d[6],+d[7],+d[8]]:null});if(MATE.buf.length>40)MATE.buf.shift();
   if(!MATE.vis&&NET.peer&&G.mode!=='title')mateArrive(x,z,+d[3]||0);}
-function sampleMate(){const B=MATE.buf;if(!B.length)return null;const rt=nowS()-NET.delay;
+function sampleMate(){const B=MATE.buf;if(!B.length)return null;const rt=nowS()-NET.delay-(NET.simLag||0);
   if(rt<=B[0].t)return B[0];
   for(let i=B.length-1;i>=0;i--){if(B[i].t<=rt){const a=B[i],b=B[i+1];
       if(b){const k=clamp((rt-a.t)/Math.max(1e-3,b.t-a.t),0,1);const df=((b.f-a.f+Math.PI)%TAU+TAU)%TAU-Math.PI;
@@ -1825,7 +1977,7 @@ function hud(){const on=NET.on&&G.mode!=='title';let txt='',wait=false,col='#ffd
 pill.addEventListener('click',()=>{audioInit();openParty(null);});
 
 /* --- journal map with flags --- */
-function drawMap(){const c=document.getElementById('mapc');if(!c)return;const g=c.getContext('2d');const N=c.width,K=N/100,o=N/2;const X=x=>o+x*K,Y=z=>o+z*K;const aw=S.awake;
+function drawMap(cv){const c=cv||document.getElementById('mapc');if(!c)return;const g=c.getContext('2d');const N=c.width,K=N/100,o=N/2;const X=x=>o+x*K,Y=z=>o+z*K;const aw=S.awake;
   g.fillStyle='#14132a';g.fillRect(0,0,N,N);
   g.fillStyle=aw?'#1f4d3a':'#262c40';g.beginPath();g.arc(o,o,49*K,0,TAU);g.fill();
   g.fillStyle=aw?'#2f6b45':'#2f3850';g.beginPath();g.arc(o,o,44.5*K,0,TAU);g.fill();
@@ -1932,6 +2084,249 @@ $('#bTogether').addEventListener('click',()=>{audioInit();openParty('menu');});
 $('#bJoin').addEventListener('click',()=>{if(JM)startJoin(JM[1]);});
 function initInvite(){if(!(JM&&CO_OK))return;titleInvite(true);try{const aj=sessionStorage.getItem('lf.autojoin');if(aj&&aj===cleanCode(JM[1])){sessionStorage.removeItem('lf.autojoin');setTimeout(()=>startJoin(aj),400);}}catch(e){}}
 
+/*STUDIO:BEGIN*/
+/* ================= Lanternfall Studio: design test panel + dev toolbox =================
+   Sandboxed (own save slot), unlocked on purpose (#studio link or long-press on the logo),
+   shared with the second player through the snapshot. World commands go through the same
+   one-way events as play, so a co-op test world stays coherent. */
+const SAVE_STUDIO='lanternfall.emberwood.studio.v1',STUDIO_K='lanternfall.studio.results.v1',STUDIO_UNLOCK='lanternfall.studio.unlocked.v1';
+const BUILD=(document.querySelector('meta[name="lanternfall-build"]')||{}).content||'dev';
+const SX={pending:null,openWhenReady:false,tab:'tour',open:false,tour:false,step:0,res:{},exp:null,base:{},ckT:0,fpsOn:false,fps:60,ms:16.7,fAcc:0,fN:0,fT:0,solo:-1,statT:0,armed:false};
+try{const r=store.get(STUDIO_K);if(r&&typeof r==='object'){SX.res=r.res||{};SX.step=r.step|0;}}catch(e){}
+function sxSave(){store.set(STUDIO_K,{res:SX.res,step:SX.step});}
+const CAT={onb:['Onboarding','#ffd36b'],light:['Light','#ffa548'],pip:['Pip & secrets','#b48cff'],place:['Places & devices','#3fd0c9'],char:['Characters','#ff6fae'],
+  final:['The finale','#ff6a5f'],cam:['Camera & look','#6fb6ff'],coop:['Two Lights','#ff8fb8'],sound:['Sound','#a6e04a'],perf:['Device & performance','#c6cbe0']};
+
+/* ---- places (stand-beside positions, safe to land on) ---- */
+const PLACES=[
+  ['home','Home','story',[0,36]],['door','Keeper’s note','story',[P.hut[0]-.8,P.hut[1]+3.4]],['sign','Signpost','device',[P.sign[0]+1.2,P.sign[1]+.8]],
+  ['s1','Wayshrine I','story',[P.s1[0]-1.5,P.s1[1]+1.8]],['cocoon','Moth Hollow','story',[P.cocoon[0]-2,P.cocoon[1]+2.5]],['s2','Hidden wayshrine','story',[P.s2[0]-1.5,P.s2[1]+1.5]],
+  ['brook','Stillwater Brook','device',[P.ribbet[0]-1.2,2]],['mural','Chapel mural','secret',[P.mural[0]+1.6,P.mural[1]+2.4]],['s3','Chapel wayshrine','story',[P.s3[0]+1.5,P.s3[1]+1.5]],
+  ['heart','Elder Tree Heart','story',[P.heart[0],P.heart[1]+5.8]],['pond','Mirror Pond stones','coop',[P.duetA[0]-1.4,P.duetA[1]+1.4]],['gate','North Gate','story',[0,-35.5]],
+  ['hale','Hale','char',[P.hale[0]+1.5,P.hale[1]+1.8]],['nana','Nana Oakum','char',[P.nana[0]-1.5,P.nana[1]+1.5]],['bo','Bo’s mailbox','char',[P.bo[0]-1.6,P.bo[1]+1.2]],
+  ['ribbet','Prof. Ribbet','char',[P.ribbet[0]-1.2,P.ribbet[1]+.4]],['fox','Night fox rock','secret',[P.fox[0]+1.8,P.fox[1]+1.5]],['bell','Lost bell','secret',[P.bell[0]-1.2,P.bell[1]+1.6]],
+  ['m1','Memory I','secret',[P.m1[0]-1.6,P.m1[1]]],['m2','Memory II','secret',[P.m2[0]+1.6,P.m2[1]]],['m3','Memory III','secret',[P.m3[0]-1.6,P.m3[1]]]];
+const PTYPE={story:['Story','#ffd36b'],device:['Device','#3fd0c9'],char:['Character','#ff6fae'],secret:['Secret','#b48cff'],coop:['Co-op','#ff8fb8']};
+const placeById=id=>PLACES.find(p=>p[0]===id);
+function teleport(x,z,quiet){let tx=x,tz=z;for(let k=0;k<12&&blockedWater(tx,tz);k++)tx+=.8;
+  PL.x=tx;PL.z=tz;PL.vx=PL.vz=0;PL.tap=null;const nc=G.noclip;G.noclip=false;movePlayer(0,0);G.noclip=nc;
+  cc.x=PL.x;cc.z=PL.z;CAM.lx=CAM.lz=0;if(PIP.on&&pipSim()){PIP.x=PL.x;PIP.z=PL.z;PIP.y=PL.y+2;}
+  if(TALK.who)endTalk(false);if(!quiet){burst(PL.x,groundH(PL.x,PL.z)+1,PL.z,26,0xb79cff,{spd:3,up:3,size:.2,life:.9});SFX.link();}}
+function tpTo(id){const p=placeById(id);if(p)teleport(p[3][0],p[3][1]);}
+
+/* ---- world grants: instant, shared with a partner, never backwards ---- */
+const GR={
+  s1:()=>{if(!S.s1){lightShrine(0,true);share({t:'shrine',i:0});save();}},
+  s2:()=>{if(!S.s2){lightShrine(1,true);share({t:'shrine',i:1});save();}},
+  s3:()=>{if(!S.s3){lightShrine(2,true);share({t:'shrine',i:2});save();}},
+  pip:()=>{if(!S.pip){S.pip=true;PIP.on=true;pipC.g.visible=true;cocoon.visible=false;PIP.x=PL.x;PIP.y=PL.y+2;PIP.z=PL.z;bloom(6,P.cocoon[0],P.cocoon[1],4.2,1,true);share({t:'pip'});save();}},
+  stones:()=>{if(!S.stones){raiseStones(true);share({t:'stones'});save();}},
+  note:()=>{S.note=true;save();},
+  mems:()=>{for(let i=0;i<3;i++)if(!S.mem[i]){collectMem(i,true);share({t:'mem',i});}save();},
+  bell:()=>{if(!S.bell)pickBell(false);},
+  mural:()=>{if(!S.mural){S.mural=true;share({t:'mural'});save();}}};
+function grantMany(keys){keys.forEach(k=>GR[k]());setLayers();}
+
+/* ---- the test catalogue: what it is, how it works, what to do, what should happen ---- */
+const flaresNow=()=>G.flares,openFlowers=()=>{let n=0;for(const f of FL)if(f.open)n++;return n;};
+const STEPS=[
+ {id:'note',cat:'onb',t:'The Keeper’s note',how:'The chapter goal is told by the world, not a tutorial.',todo:'Tap the paper pinned to the hut door.',expect:'A card from the Keeper names the goal and teaches “hold your lantern high”.',setup:()=>tpTo('door'),check:()=>S.note},
+ {id:'now',cat:'onb',t:'Journal “Now” line',how:'The journal always names the next step in plain words.',todo:'Open the journal (book icon, or swipe up from the bottom edge).',expect:'Memories tab opens with a gold “Now” line on top.',check:()=>G.journal&&jTab==='mem'},
+ {id:'wisp',cat:'onb',t:'Hint wisp',how:'A firefly drifts toward the goal after 45 s (start) or 80 s without progress.',todo:'Set up, then stand still for a moment.',expect:'A pale blue wisp flies from your lantern to the next goal.',setup:()=>{G.hintAt=G.time+1.5;},check:()=>!!wisp},
+ {id:'flare',cat:'light',t:'Flare and light energy',how:'Hold still on the screen to flare. Each flare costs 30% light, which refills over time.',todo:'Hold your finger on the screen without dragging.',expect:'A gold ring bursts out, flowers open and the energy ring appears around your lantern.',setup:()=>{tpTo('home');SX.base.flare=flaresNow();},check:()=>SX.base.flare!=null&&flaresNow()>SX.base.flare},
+ {id:'flowers',cat:'light',t:'Flower chimes',how:'Sleeping buds open as your lantern passes, with rising chimes in a row.',todo:'Walk along the path through the flowers.',expect:'Petals pop open with a climbing melody when you pass several in a row.',setup:()=>{tpTo('sign');SX.base.fl=openFlowers();},check:()=>SX.base.fl!=null&&openFlowers()>=SX.base.fl+5},
+ {id:'shrine1',cat:'light',t:'Wayshrine I',how:'Unlit shrines breathe a faint cold glow. Flaring beside one lights it.',todo:'Flare next to the stone lantern.',expect:'Bell chime, warm burst, colour returns around it and the shrine counter shows 1 of 3.',setup:()=>tpTo('s1'),check:()=>S.s1},
+ {id:'pip',cat:'pip',t:'Waking Pip',how:'Flaring at the violet cocoon plays the first Storybook moment.',todo:'Flare beside the glowing cocoon.',expect:'Camera swings into storybook view, the cocoon bursts and Pip flies to you.',setup:()=>tpTo('cocoon'),check:()=>S.pip},
+ {id:'shrine2',cat:'pip',t:'The hidden wayshrine',how:'Pip sees hidden things and flies toward them. A flare also reveals them briefly.',todo:'Follow Pip, then flare where the ghostly shrine appears.',expect:'Ghost runes and a translucent shrine appear near Pip, and flaring makes it solid and lit.',setup:()=>{GR.pip();tpTo('s2');},check:()=>S.s2},
+ {id:'mural',cat:'pip',t:'The chapel mural (secret)',how:'A carving only small eyes can see, inside the fallen chapel.',todo:'Bring Pip close to the standing stone, then tap the glyph.',expect:'A warm mural fades in, and tapping it shows the “ENOUGH” card.',setup:()=>{GR.pip();GR.stones();tpTo('mural');},check:()=>S.mural},
+ {id:'sign',cat:'place',t:'Signpost',how:'Real directions at the crossroads.',todo:'Tap the signpost.',expect:'Three lines: north, east, west.',setup:()=>tpTo('sign'),check:()=>TALK.who===SIGN},
+ {id:'stones',cat:'place',t:'Stepping stones',how:'Ribbet hints at “something with wings”. With Pip, a flare by the water raises the stones.',todo:'Talk to Ribbet, then flare at the water’s edge.',expect:'Rumble, stones rise with runes, Ribbet comments, and you can cross.',setup:()=>{GR.pip();tpTo('brook');},check:()=>S.stones},
+ {id:'shrine3',cat:'place',t:'Chapel wayshrine',how:'The third shrine sits beyond the chapel, west of the brook.',todo:'Flare beside it.',expect:'Third shrine lights, and the Elder Tree stirs (beams to the Heart).',setup:()=>{GR.pip();GR.stones();tpTo('s3');},check:()=>S.s3},
+ {id:'bell',cat:'place',t:'Lost Bell',how:'A soft tinkle grows louder as you approach a hidden bell.',todo:'Listen, then walk into the little golden bell by the bushes.',expect:'Bright arpeggio and “Lost Bell · 1 of 12”.',setup:()=>tpTo('bell'),check:()=>S.bell},
+ {id:'memory',cat:'place',t:'Memory fragment',how:'Glowing shards play a short story card.',todo:'Walk into the floating crystal.',expect:'Chime cascade and a memory card.',setup:()=>tpTo('m1'),check:()=>S.mem[0]},
+ {id:'gate',cat:'place',t:'Sealed North Gate',how:'Blocked paths always explain themselves.',todo:'Walk into the shimmering gate before the forest wakes.',expect:'“The North Gate sleeps like everything else.”',setup:()=>tpTo('gate'),check:()=>!S.awake&&(G.gateT||0)>0},
+ {id:'sleepers',cat:'char',t:'Sleeping villagers',how:'Villagers mumble in their sleep when you come close.',todo:'Walk up to Hale.',expect:'A grey “asleep” bubble with a dreamy line, and z’s floating up.',setup:()=>tpTo('hale'),check:()=>TALK.who&&TALK.sleep},
+ {id:'ribbet',cat:'char',t:'Professor Ribbet',how:'The one character awake from the start. Lines change with your progress.',todo:'Walk up to the frog by the brook.',expect:'Ribbet greets you, and later lines react to Pip and the stones.',setup:()=>tpTo('ribbet'),check:()=>!!S.met.ribbet},
+ {id:'fox',cat:'char',t:'Nocturne, the night fox',how:'Only appears at real-world night (8 pm to 6 am). Studio can summon it.',todo:'Set up summons the fox. Tap it to talk.',expect:'A starlight fox with three lines and a secret unlocked.',setup:()=>{setFoxPresent(true);tpTo('fox');},check:()=>S.fox},
+ {id:'heart',cat:'final',t:'The Heart wakes',how:'With three shrines lit, beams join the Heart and it invites you in.',todo:'Walk up to the Heart.',expect:'The camera swings to storybook view: “The Heart is cold, but it remembers fire.”',setup:()=>{grantMany(['note','s1','pip','s2','stones','s3']);tpTo('heart');},check:()=>!!(G.rek&&G.rek.ready)||S.awake},
+ {id:'awaken',cat:'final',t:'The awakening',how:'Hold to give the Heart your flame. A wave of colour sweeps Emberwood.',todo:'Hold until the ring fills.',expect:'Flash, wide reveal, colour wave, birds, villagers wake, music adds its melody.',setup:()=>{grantMany(['note','s1','pip','s2','stones','s3']);teleport(P.heart[0],P.heart[1]+4.6);},check:()=>S.awake},
+ {id:'villagers',cat:'final',t:'Villagers awake',how:'Woken villagers share what they saw the night the Keeper left.',todo:'Talk to Hale or Nana after the awakening.',expect:'New lines about the Keeper walking north.',setup:()=>tpTo('nana'),check:()=>S.awake&&((S.talks.hale|0)+(S.talks.nana|0))>0},
+ {id:'letter',cat:'final',t:'Bo’s letter',how:'Bo delivers the Keeper’s last letter once the forest wakes.',todo:'Talk to Bo after the awakening.',expect:'Memory 4 of 4, then “The North Gate stands open”.',setup:()=>tpTo('bo'),check:()=>S.mem[3]},
+ {id:'end',cat:'final',t:'End of chapter',how:'Walking through the open gate shows the chapter card with your stats.',todo:'Walk through the North Gate.',expect:'Card with memories, secrets, bells, friends, and Keep exploring.',setup:()=>teleport(0,-36.5),check:()=>G.endShown},
+ {id:'zone',cat:'cam',t:'Establishing shot',how:'First entry to a place pulls the camera back for a gentle wide view and shows its name.',todo:'Walk toward Mirror Pond.',expect:'“Mirror Pond” title and a short wide camera move.',setup:()=>{G.zs.pond=false;teleport(POND.x-9,POND.z+6);},check:()=>!!G.zs.pond},
+ {id:'story',cat:'cam',t:'Storybook camera',how:'Key moments swing the camera into a side view with paper texture.',todo:'Press Set up to see a sample.',expect:'Smooth swing into a framed storybook page, then back to play.',setup:()=>sxStoryDemo()},
+ {id:'look',cat:'cam',t:'Cursed and awakened look',how:'Moonlit curse with readable shapes; warm, unbleached daylight after waking.',todo:'Toggle “Preview awakened look” in World, and compare.',expect:'Clear shapes at night, rich colour by day, the lantern dimmer by day.'},
+ {id:'invite',cat:'coop',coop:1,t:'Invite and join',how:'A 6-character code and link. The friend appears beside you as Fen.',todo:'Link tab → Invite a tester, then send the link.',expect:'Join chime, a pennant over Fen, the party pill with signal bars.',check:()=>MATE.vis},
+ {id:'link',cat:'coop',coop:1,t:'Light link',how:'Within about 6 m, a beaded thread joins your lanterns and both lights grow.',todo:'Stand close to your friend.',expect:'Linking chime, thread of light, a soft duet layer joins the music.',check:()=>G.link>.6},
+ {id:'twin',cat:'coop',coop:1,t:'Twin Flare',how:'Both flare within 0.9 s while close.',todo:'Count “3, 2, 1” and flare together.',expect:'Double ring, big chord, “Twin Flare”.',check:()=>nowS()-(G.twinAt||-99)<20},
+ {id:'ping',cat:'coop',coop:1,t:'Ping',how:'Double-tap the ground to raise a light beacon your friend sees.',todo:'Double-tap somewhere on the ground.',expect:'A pillar of light and whistle on both screens; their edge arrow pulses.',check:()=>PINGS.length>0},
+ {id:'five',cat:'coop',coop:1,t:'Wave and high five',how:'Tap your friend: a wave from afar, a high five side by side.',todo:'Stand next to your friend and tap them.',expect:'Both hop, clap sound, sparkles.',check:()=>nowS()-(G.hfAt||-99)<20},
+ {id:'duet',cat:'coop',coop:1,t:'The Duet (co-op secret)',how:'Two hum stones by Mirror Pond need two keepers at once.',todo:'Each stand on one stone.',expect:'The pond sings, a lotus rises with Lost Bell 2 of 12.',setup:()=>tpTo('pond'),check:()=>S.duet},
+ {id:'together',cat:'coop',coop:1,t:'Rekindle together',how:'Holding together fills the Heart 2.6× faster with a duo harmony.',todo:'Both hold at the Heart.',expect:'“Together” toast, a second voice in the charge tone.'},
+ {id:'rejoin',cat:'coop',coop:1,t:'Disconnect and rejoin',how:'If a phone drops, the party waits. Rejoining restores from a snapshot.',todo:'One player closes the page, then opens the invite link again.',expect:'“Lantern drifted away”, then the friend reappears with the same world.'},
+ {id:'layers',cat:'sound',t:'Adaptive music',how:'Each lit shrine adds a music layer; the awakening adds the melody.',todo:'Use the Sound tab to solo each layer.',expect:'Pads, arpeggio, bass and sparkle, percussion, melody, duet.'},
+ {id:'spatial',cat:'sound',coop:1,t:'Positional sound',how:'Your friend’s steps, flares and finds are panned and fade with distance.',todo:'Walk away from your friend while they flare.',expect:'Their sounds get quieter, more echoing, and shift left or right.'},
+ {id:'fps',cat:'perf',t:'Frame rate',how:'Aims for 60 fps; quality drops automatically if the phone struggles.',todo:'Turn on the FPS meter in Player and play for a minute.',expect:'Mostly 50–60 fps; quality stays near 100% on recent iPhones.',check:()=>SX.fpsOn&&SX.fps>=45},
+ {id:'lock',cat:'perf',t:'Lock and return',how:'The screen stays awake while playing. If the phone sleeps, the game resumes.',todo:'Lock the phone for 10 s, then unlock.',expect:'The game continues; in co-op your friend saw you as “away”.'},
+ {id:'install',cat:'perf',t:'Home Screen app',how:'Installs like an app with its own icon, fullscreen.',todo:'Safari → Share → Add to Home Screen, then open it.',expect:'A lantern icon, opens fullscreen with no browser bars.'}];
+const UNTESTABLE=[
+ ['SharePlay and Game Center','Need a native App Store app. Planned for the App Store phase.'],
+ ['True iPhone haptics','Safari has no vibration API. The game uses the system switch tick where iOS allows it; you may feel nothing.'],
+ ['Strict mobile networks','A few carriers block direct connections. Test one phone on mobile data and one on Wi-Fi; if it fails, a TURN relay is the fix.'],
+ ['Real-world night','The fox follows your phone’s clock. Studio can summon it any time.'],
+ ['Long sessions','Battery and warmth over 20+ minutes are best judged by hand: play a while and note it.']];
+
+/* ---- results ---- */
+function mark(id,s,auto){const prev=SX.res[id];if(auto&&prev&&prev.s==='issue')return;SX.res[id]={s,a:!!auto,b:BUILD,t:Date.now()};sxSave();
+  if(auto){const st=STEPS.find(x=>x.id===id);toast('<span class="d f"></span><span>Verified · '+esc(st?st.t:id)+'</span>',2000);SFX.chime(5);}
+  sxRefresh();}
+function studioUpdate(dt){if(!G.studio)return;
+  if(SX.pending!=null&&G.mode==='play'){const i=SX.pending;SX.pending=null;runSetup(i);}
+  if(SX.openWhenReady&&G.mode==='play'){SX.openWhenReady=false;openStudio('tour');}
+  SX.fAcc+=G.rawDt||dt;SX.fN++;SX.fT+=G.rawDt||dt;if(SX.fT>.5){SX.ms=SX.fAcc/SX.fN*1000;SX.fps=1000/SX.ms;SX.fAcc=SX.fN=SX.fT=0;if(SX.fpsOn)fpsMeter();}
+  SX.ckT-=dt;if(SX.ckT>0)return;SX.ckT=.4;
+  for(const st of STEPS){if(!st.check)continue;const r=SX.res[st.id];if(r&&r.s==='ok')continue;let ok=false;try{ok=!!st.check();}catch(e){}if(ok)mark(st.id,'ok',true);}
+  if(SX.open&&SX.tab==='link'){SX.statT-=.4;if(SX.statT<=0){SX.statT=.8;sxLinkStats();}}}
+
+/* ---- panel ---- */
+const sxEl=$('#studio'),sxBody=$('#sxbody'),sxTabs=$('#sxtabs'),sbtn=$('#sbtn'),tourbar=$('#tourbar'),fpsm=$('#fpsm');
+const TABS=[['tour','Tour','#ffd36b'],['places','Places','#3fd0c9'],['world','World','#ff6fae'],['player','Player','#b48cff'],['sound','Sound','#a6e04a'],['link','Link','#ff8fb8']];
+sxTabs.innerHTML=TABS.map(t=>'<button class="sxt" data-tab="'+t[0]+'" style="--tc:'+t[2]+'"><i></i><span>'+t[1]+'</span></button>').join('');
+sxTabs.addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(SX.tab!==b.dataset.tab){SX.tab=b.dataset.tab;sxBody.scrollTop=0;}SFX.page();sxRender();});
+function openStudio(tab){if(!G.studio)return;if(G.journal)closeJournal();if(tab&&tab!==SX.tab){SX.tab=tab;sxBody.scrollTop=0;}SX.open=true;sxEl.classList.add('on');sxRender();tourBar();SFX.page();}
+function closeStudio(){SX.open=false;sxEl.classList.remove('on');tourBar();}
+sxEl.addEventListener('pointerdown',e=>{if(e.target===sxEl)closeStudio();});
+$('#sxclose').addEventListener('click',closeStudio);
+sbtn.addEventListener('click',()=>{audioInit();SX.open?closeStudio():openStudio();});
+function sxRefresh(){if(SX.open)sxRender();tourBar();}
+const tog=(act,on,label,sub)=>'<button class="sxtog'+(on?' on':'')+'" data-act="'+act+'"><span class="sw"><i></i></span><span><b>'+label+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</span></button>';
+const seg=(act,cur,opts)=>'<div class="sxseg">'+opts.map(o=>'<button class="'+(o[0]===cur?'on':'')+'" data-act="'+act+'" data-v="'+o[0]+'">'+o[1]+'</button>').join('')+'</div>';
+function counts(){let ok=0,issue=0;for(const st of STEPS){const r=SX.res[st.id];if(r)r.s==='ok'?ok++:issue++;}return{ok,issue,n:STEPS.length};}
+function sxRender(){
+  sxTabs.querySelectorAll('.sxt').forEach(b=>b.classList.toggle('on',b.dataset.tab===SX.tab));
+  const c=counts();$('#sxbuild').textContent='Build '+BUILD;$('#sxring').style.setProperty('--p',(c.ok/c.n*100).toFixed(1));$('#sxringn').textContent=c.ok;$('#sxringd').textContent='of '+c.n;
+  let h='';
+  if(SX.tab==='tour'){
+    const cur=STEPS[Math.min(SX.step,STEPS.length-1)];
+    h+='<div class="sxhero"><div><h3>Test the whole chapter</h3><p>Every module sets itself up, tells you what to do and what should happen, and checks itself when it can. Mark anything that feels off as an issue.</p></div>'+
+       '<div class="sxrow"><button class="sxb pri" data-act="tour">'+(SX.tour?'Resume tour · step '+(SX.step+1):(SX.step>0?'Continue tour · step '+(SX.step+1):'Start guided tour'))+'</button>'+(c.issue?'<span class="sxchip bad">'+c.issue+' issue'+(c.issue>1?'s':'')+'</span>':'')+'</div></div>';
+    h+='<div class="sxbar">'+Object.keys(CAT).map(k=>{const ss=STEPS.filter(s=>s.cat===k),ok=ss.filter(s=>SX.res[s.id]&&SX.res[s.id].s==='ok').length;return'<span style="--cc:'+CAT[k][1]+';flex:'+ss.length+'"><i style="width:'+(ok/ss.length*100)+'%"></i></span>';}).join('')+'</div>';
+    for(const k in CAT){const ss=STEPS.filter(s=>s.cat===k);const ok=ss.filter(s=>SX.res[s.id]&&SX.res[s.id].s==='ok').length;
+      h+='<section class="sxsec" style="--cc:'+CAT[k][1]+'"><h4><i></i>'+CAT[k][0]+'<span>'+ok+' / '+ss.length+'</span></h4>';
+      for(const st of ss){const r=SX.res[st.id],stc=r?(r.s==='ok'?'ok':'bad'):'none',ex=SX.exp===st.id;
+        h+='<div class="sxmod '+stc+(ex?' ex':'')+(STEPS[SX.step]===st&&SX.tour?' cur':'')+'"><button class="sxmh" data-act="exp" data-id="'+st.id+'"><i class="mi"></i><span class="mt"><b>'+st.t+'</b><small>'+st.how+'</small></span><span class="mtags">'+(st.check?'<em>auto</em>':'')+(st.coop?'<em class="co">2P</em>':'')+'</span></button>';
+        if(ex)h+='<div class="sxmb"><dl><dt>Do</dt><dd>'+st.todo+'</dd><dt>Expect</dt><dd>'+st.expect+'</dd>'+(r?'<dt>Result</dt><dd>'+(r.s==='ok'?(r.a?'Verified automatically':'Marked as working'):'Marked as an issue')+' · build '+esc(r.b)+'</dd>':'')+(st.coop&&!MATE.vis?'<dt>Needs</dt><dd>A second player. Invite one from the Link tab.</dd>':'')+'</dl>'+
+          '<div class="sxrow">'+(st.setup?'<button class="sxb pri" data-act="setup" data-id="'+st.id+'">Set up & go</button>':'')+'<button class="sxb ok" data-act="ok" data-id="'+st.id+'">Works</button><button class="sxb bad" data-act="issue" data-id="'+st.id+'">Issue</button>'+(r?'<button class="sxb ghost" data-act="unmark" data-id="'+st.id+'">Clear</button>':'')+'</div></div>';
+        h+='</div>';}
+      h+='</section>';}
+    h+='<section class="sxsec" style="--cc:#8c93b3"><h4><i></i>Can’t be tested here</h4><div class="sxnotes">'+UNTESTABLE.map(u=>'<div><b>'+u[0]+'</b><p>'+u[1]+'</p></div>').join('')+'</div></section>';
+    h+='<div class="sxrow foot"><button class="sxb ghost" data-act="clearres">Clear all results</button><button class="sxb ghost" data-act="lock">Hide Studio from title</button></div>';}
+  else if(SX.tab==='places'){
+    h+='<div class="sxmapw"><canvas id="sxmap" width="240" height="240" aria-label="Map of Emberwood. Tap to teleport."></canvas><div class="sxcap">Tap anywhere on the map to teleport there</div></div>';
+    h+='<div class="sxlegend">'+Object.keys(PTYPE).map(k=>'<span style="--cc:'+PTYPE[k][1]+'"><i></i>'+PTYPE[k][0]+'</span>').join('')+'</div><div class="sxplaces">'+PLACES.map(p=>'<button class="sxpl" data-act="tp" data-id="'+p[0]+'" style="--cc:'+PTYPE[p[2]][1]+'"><i></i>'+p[1]+'</button>').join('')+'</div>';}
+  else if(SX.tab==='world'){
+    const sw=[['s1','Wayshrine I',S.s1],['pip','Pip awake',S.pip],['s2','Hidden wayshrine',S.s2],['stones','Stepping stones',S.stones],['s3','Chapel wayshrine',S.s3],['mems','Memories I–III',S.mem[0]&&S.mem[1]&&S.mem[2]],['bell','Lost bell',S.bell],['mural','Mural',S.mural]];
+    h+='<h5 class="sxh">Story switches <small>One-way, like the game itself. Reset to replay.</small></h5><div class="sxgrid">'+sw.map(x=>'<button class="sxsw'+(x[2]?' done':'')+'" data-act="grant" data-id="'+x[0]+'"'+(x[2]?' disabled':'')+'><i></i><b>'+x[1]+'</b><small>'+(x[2]?'Done':'Make it so')+'</small></button>').join('')+'</div>';
+    h+='<h5 class="sxh">Story shortcuts</h5><div class="sxgrid two">'+
+      '<button class="sxact" data-act="allshrines" style="--cc:#ffd36b"><b>Light all wayshrines</b><small>Pip, stones and all three shrines</small></button>'+
+      '<button class="sxact" data-act="heart" style="--cc:#ff6a5f"><b>Go to the ready Heart</b><small>Sets everything up, walks you in</small></button>'+
+      '<button class="sxact" data-act="awaken" style="--cc:#ffa548"'+(S.awake?' disabled':'')+'><b>Awaken Emberwood</b><small>The full cinematic, now</small></button>'+
+      '<button class="sxact" data-act="fox" style="--cc:#9fd8ff"><b>'+(NPC.fox.absent?'Summon':'Dismiss')+' the night fox</b><small>Real night is 8 pm to 6 am</small></button></div>';
+    h+='<h5 class="sxh">Look and camera</h5><div class="sxcol">'+tog('preview',G.envOverride!=null,'Preview awakened look','Non-destructive. Daylight and colour over the cursed world')+
+      '<button class="sxact" data-act="storydemo" style="--cc:#6fb6ff"><b>Storybook camera demo</b><small>Swing to a storybook page and back</small></button></div>';
+    h+='<h5 class="sxh">Sandbox</h5><div class="sxcol"><button class="sxact danger" data-act="reset"'+(NET.peer?' disabled':'')+'><b>Reset the Studio world</b><small>'+(NET.peer?'Leave the party first. A shared world can only move forward.':'Fresh Emberwood in the sandbox. Your real journey is never touched.')+'</small></button></div>';}
+  else if(SX.tab==='player'){
+    h+='<div class="sxcol">'+tog('inf',G.infLight,'Infinite light','Flare as much as you like')+tog('noclip',G.noclip,'Walk through anything','Ignores water, walls and trees')+tog('photo',app.classList.contains('photo'),'Photo mode','Hides every interface element')+tog('fpsm',SX.fpsOn,'FPS meter','Frame rate, frame time and quality')+'</div>';
+    h+='<h5 class="sxh">Walk speed</h5>'+seg('speed',G.speedMul,[[1,'1×'],[1.5,'1.5×'],[2,'2×'],[3,'3×']]);
+    h+='<h5 class="sxh">Time</h5>'+seg('time',G.timeScale,[[.25,'¼×'],[.5,'½×'],[1,'1×'],[2,'2×']]);
+    h+='<h5 class="sxh">Camera distance</h5>'+seg('zoom',G.camZoom,[[.75,'Close'],[1,'Game'],[1.35,'Far'],[1.8,'Overview']]);
+    h+='<h5 class="sxh">Quick actions</h5><div class="sxgrid two"><button class="sxact" data-act="refill" style="--cc:#ffa548"><b>Refill light</b><small>Energy to full</small></button><button class="sxact" data-act="hint" style="--cc:#9fe8ff"><b>Show the hint wisp</b><small>Points to the next goal</small></button></div>';}
+  else if(SX.tab==='sound'){
+    const L=[['Pad','Always on'],['Arpeggio','1 shrine'],['Bass and sparkle','2 shrines'],['Percussion','3 shrines'],['Melody','Awakened'],['Duet','Lights linked']];
+    h+='<h5 class="sxh">Music layers <small>Solo one to hear how the score builds</small></h5><div class="sxcol">'+L.map((l,i)=>'<button class="sxlay'+(SX.solo===i?' on':'')+'" data-act="solo" data-v="'+i+'"><i>'+(i+1)+'</i><b>'+l[0]+'</b><small>'+l[1]+'</small></button>').join('')+
+      '<button class="sxlay'+(SX.solo===-2?' on':'')+'" data-act="solo" data-v="-2"><i>✱</i><b>Everything at once</b><small>All six layers</small></button><button class="sxlay'+(SX.solo===-1?' on':'')+'" data-act="solo" data-v="-1"><i>↺</i><b>Story mix</b><small>Back to what the world has earned</small></button></div>';
+    const fx=[['flare','Flare'],['twin','Twin Flare'],['shrine','Wayshrine'],['pip','Pip'],['stones','Stones'],['memory','Memory'],['bellPick','Lost bell'],['chime','Flower'],['ping','Ping'],['clap','High five'],['join','Friend joins'],['leave','Friend leaves'],['link','Lights link'],['duet','Duet'],['heartbeat','Heartbeat'],['awaken','Awakening'],['gate','Gate opens'],['fizzle','Out of light']];
+    h+='<h5 class="sxh">Sound effects</h5><div class="sxfx">'+fx.map(f=>'<button data-act="sfx" data-v="'+f[0]+'">'+f[1]+'</button>').join('')+'</div>'+(settings.sound?'':'<p class="sxnote">Sound is off in Settings.</p>');}
+  else if(SX.tab==='link'){
+    h+='<div class="sxstats" id="sxstats"></div>';
+    h+='<div class="sxgrid two">'+(NET.on?'<button class="sxact" data-act="party" style="--cc:#ff8fb8"><b>Party</b><small>Code, invite link, leave</small></button>':'<button class="sxact" data-act="invite" style="--cc:#ff8fb8"'+(CO_OK?'':' disabled')+'><b>Invite a tester</b><small>'+(CO_OK?'Your friend lands in this Studio world':'Use the shared web link for co-op')+'</small></button>')+
+      '<button class="sxact" data-act="resync" style="--cc:#3fd0c9"'+(NET.peer?'':' disabled')+'><b>Force resync</b><small>Exchange world snapshots now</small></button></div>';
+    h+='<h5 class="sxh">Simulate distance <small>Adds delay to how you see your friend</small></h5>'+seg('lag',NET.simLag||0,[[0,'Off'],[.15,'+150 ms'],[.3,'+300 ms'],[.6,'+600 ms']]);
+    h+='<h5 class="sxh">Simulate a shaky network <small>Drops some of your friend’s position updates</small></h5>'+seg('loss',NET.simLoss||0,[[0,'Off'],[.1,'10%'],[.3,'30%'],[.5,'50%']]);}
+  sxBody.innerHTML=h;
+  if(SX.tab==='places')sxDrawMap();if(SX.tab==='link')sxLinkStats();}
+function sxLinkStats(){const el=document.getElementById('sxstats');if(!el)return;const ok=NET.peer&&MATE.vis;
+  const rows=[['Role',NET.on?(NET.role==='host'?'Host':'Guest'):'Solo'],['Partner',ok?esc(mateName())+(MATE.away?' (away)':''):'—'],['Round trip',ok&&NET.rtt?Math.round(NET.rtt)+' ms':'—'],
+    ['Smoothing buffer',ok?Math.round((NET.delay+(NET.simLag||0))*1000)+' ms':'—'],['Jitter',ok?Math.round(NET.jit*1000)+' ms':'—'],['Updates',ok?Math.round(1/Math.max(.01,NET.avgI))+' / s':'—'],
+    ['Signal',ok?['—','Weak','Good','Great'][netQuality()]:'—'],['World sync',ok?'Checked every 2.5 s':'—']];
+  el.innerHTML=rows.map(r=>'<div><span>'+r[0]+'</span><b>'+r[1]+'</b></div>').join('');}
+function sxDrawMap(){const c=document.getElementById('sxmap');if(!c)return;drawMap(c);
+  if(!c.dataset.wired){c.dataset.wired=1;c.addEventListener('click',e=>{const r=c.getBoundingClientRect(),N=c.width,K=N/100;const x=((e.clientX-r.left)/r.width*N-N/2)/K,z=((e.clientY-r.top)/r.height*N-N/2)/K;
+    if(Math.hypot(x,z)>44){toast('<span class="d"></span><span>That’s beyond the forest edge</span>',1600);return;}teleport(x,z);setTimeout(sxDrawMap,60);});}}
+function sxStoryDemo(){closeStudio();if(G.mode!=='play')return;storyOn(new THREE.Vector3(PL.x,PL.y+1.4,PL.z),.9);after(.6,()=>caption('Every key moment turns the page into a storybook.'));after(4.2,()=>{storyOff();G.mode='play';});}
+function sxReset(){if(NET.peer)return;try{store.del(SAVE_STUDIO);sessionStorage.setItem('lf.studio.boot','fresh');}catch(e){}location.reload();}
+function setSolo(v){SX.solo=v;if(!AU.ctx)audioInit();if(!AU.L)return;const t=AU.ctx.currentTime;
+  if(v===-1){setLayers();linkLast=-1;return;}AU.L.forEach((g,i)=>g.gain.setTargetAtTime(v===-2||i===v?1:0,t,.2));}
+sxBody.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const a=b.dataset.act,id=b.dataset.id,v=b.dataset.v;SFX.page();
+  switch(a){
+    case 'exp':SX.exp=SX.exp===id?null:id;break;
+    case 'setup':runSetup(STEPS.findIndex(s=>s.id===id));return;
+    case 'ok':mark(id,'ok');return;case 'issue':mark(id,'issue');return;case 'unmark':delete SX.res[id];sxSave();break;
+    case 'tour':SX.tour=true;closeStudio();tourBar();return;
+    case 'clearres':SX.res={};SX.step=0;sxSave();break;
+    case 'lock':try{localStorage.removeItem(STUDIO_UNLOCK);}catch(e){}toast('<span class="d"></span><span>Studio hidden from the title. #studio brings it back</span>',3000);return;
+    case 'tp':tpTo(id);closeStudio();return;
+    case 'grant':GR[id]();setLayers();break;
+    case 'allshrines':grantMany(['note','pip','stones','s1','s2','s3']);toast('<span class="d f"></span><span>All wayshrines lit</span>',2000);break;
+    case 'heart':grantMany(['note','pip','stones','s1','s2','s3']);teleport(P.heart[0],P.heart[1]+4.6);closeStudio();return;
+    case 'awaken':closeStudio();awaken();return;
+    case 'fox':setFoxPresent(!!NPC.fox.absent);if(!NPC.fox.absent)tpTo('fox');closeStudio();return;
+    case 'preview':if(G.envOverride==null){G.envOverride=1;U.uWake.value.z=220;}else{G.envOverride=null;if(!S.awake)U.uWake.value.z=0;}envLast=-1;break;
+    case 'storydemo':sxStoryDemo();return;
+    case 'reset':sxReset();return;
+    case 'inf':G.infLight=!G.infLight;break;case 'noclip':G.noclip=!G.noclip;break;
+    case 'photo':app.classList.toggle('photo');if(app.classList.contains('photo')){closeStudio();toast('<span class="d"></span><span>Photo mode · Studio button brings the interface back</span>',2400);return;}break;
+    case 'fpsm':SX.fpsOn=!SX.fpsOn;fpsm.hidden=!SX.fpsOn;break;
+    case 'speed':G.speedMul=+v;break;case 'time':G.timeScale=+v;break;case 'zoom':G.camZoom=+v;break;
+    case 'refill':G.energy=1;toast('<span class="d f"></span><span>Light refilled</span>',1400);return;
+    case 'hint':G.hintAt=G.time;closeStudio();return;
+    case 'solo':setSolo(+v);break;
+    case 'sfx':{const f=SFX[v];if(f)f.call(SFX,v==='chime'?6:v==='shrine'?0:v==='ping'?0:undefined);return;}
+    case 'invite':partyAct('hostHere');closeStudio();openParty();return;
+    case 'party':closeStudio();openParty();return;
+    case 'resync':share({t:'need'});share(snapData());toast('<span class="d f"></span><span>Snapshots exchanged</span>',1600);return;
+    case 'lag':NET.simLag=+v;break;case 'loss':NET.simLoss=+v;break;}
+  sxRender();});
+function runSetup(i){const st=STEPS[i];if(!st)return;SX.step=i;sxSave();closeStudio();if(G.mode!=='play'&&G.mode!=='end'){SX.pending=i;toast('<span class="d"></span><span>Setting up as soon as this moment ends</span>',1800);return;}SX.pending=null;
+  if(st.setup){try{st.setup();}catch(e){report(e,'studio:'+st.id);}}SX.exp=st.id;tourBar();}
+
+/* ---- the tour bar: one sitting, one step at a time ---- */
+function tourBar(){const show=G.studio&&SX.tour&&!SX.open&&G.mode!=='title';tourbar.hidden=!show;if(!show)return;
+  const st=STEPS[SX.step],r=SX.res[st.id],cc=CAT[st.cat][1];
+  tourbar.style.setProperty('--cc',cc);tourbar.className=r?(r.s==='ok'?'ok':'bad'):'';
+  tourbar.innerHTML='<div class="tbh"><span class="tbc"><i></i>'+CAT[st.cat][0]+'</span><span class="tbn">'+(SX.step+1)+' / '+STEPS.length+'</span><button data-tb="panel" aria-label="Open Studio">☰</button><button data-tb="end" aria-label="End tour">✕</button></div>'+
+    '<b class="tbt">'+st.t+(r&&r.s==='ok'?' <em>✓</em>':'')+'</b><p>'+st.todo+'</p>'+(st.coop&&!MATE.vis?'<p class="tbneed">Needs a second player</p>':'')+
+    '<div class="tbr"><button data-tb="prev" aria-label="Previous">‹</button>'+(st.setup?'<button data-tb="setup" class="pri">Set up</button>':'')+'<button data-tb="ok" class="ok">Works</button><button data-tb="issue" class="bad">Issue</button><button data-tb="next" aria-label="Next"'+(r?' class="glow"':'')+'>›</button></div>';}
+tourbar.addEventListener('click',e=>{const b=e.target.closest('[data-tb]');if(!b)return;const a=b.dataset.tb,st=STEPS[SX.step];SFX.page();
+  if(a==='panel'){openStudio('tour');SX.exp=st.id;sxRender();return;}if(a==='end'){SX.tour=false;tourBar();return;}
+  if(a==='prev')SX.step=Math.max(0,SX.step-1);if(a==='next')SX.step=Math.min(STEPS.length-1,SX.step+1);
+  if(a==='setup'){runSetup(SX.step);return;}if(a==='ok'){mark(st.id,'ok');SX.step=Math.min(STEPS.length-1,SX.step+1);}if(a==='issue')mark(st.id,'issue');
+  sxSave();tourBar();});
+function fpsMeter(){fpsm.textContent=Math.round(SX.fps)+' fps · '+SX.ms.toFixed(1)+' ms · quality '+Math.round(G.quality*100)+'%';fpsm.classList.toggle('low',SX.fps<45);}
+
+/* ---- entering Studio ---- */
+function studioUnlocked(){try{return localStorage.getItem(STUDIO_UNLOCK)==='1';}catch(e){return false;}}
+function unlockStudio(){try{localStorage.setItem(STUDIO_UNLOCK,'1');}catch(e){}$('#bStudio').hidden=false;}
+function enterStudio(fresh){G.studio=true;sbtn.hidden=false;begin({slot:SAVE_STUDIO,cont:!fresh&&hasProg(store.get(SAVE_STUDIO))});SX.openWhenReady=true;}
+function studioFromSnap(sn){if(sn&&sn.studio&&!G.studio){G.studio=true;sbtn.hidden=false;toast('<span class="d f"></span><span>Studio world · the S button opens the test panel</span>',3200);}}
+function initStudio(){if(/(^|#|&)studio\b/.test(location.hash))unlockStudio();$('#bStudio').hidden=!studioUnlocked();
+  let lp=0;const logo=document.querySelector('.logo');
+  logo.addEventListener('pointerdown',()=>{clearTimeout(lp);lp=setTimeout(()=>{if(!studioUnlocked()){unlockStudio();vib(20);SFX.ready&&SFX.ready();toast('<span class="d f"></span><span>Studio unlocked</span>',2000);}},900);});
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>logo.addEventListener(ev,()=>clearTimeout(lp)));
+  $('#bStudio').addEventListener('click',()=>{audioInit();enterStudio(false);});
+  try{if(sessionStorage.getItem('lf.studio.boot')==='fresh'){sessionStorage.removeItem('lf.studio.boot');setTimeout(()=>{audioInit();enterStudio(true);},300);}}catch(e){}}
+/*STUDIO:END*/
+
 /* ================= boot ================= */
 function applySave(d){S=Object.assign(freshS(),sanitizeSave(d));if(!Array.isArray(S.mem)||S.mem.length!==4)S.mem=[false,false,false,false];S.met=S.met||{};S.talks=S.talks||{};
   S.mem.forEach((g,i)=>{if(g)collectMem(i,true);});
@@ -1959,15 +2354,16 @@ function begin(opt){audioInit();opt=opt||{};G.slot=opt.slot===undefined?SAVE:opt
 $('#bBegin').addEventListener('click',()=>begin({slot:SAVE,cont:hasProg(saved)}));
 $('#bNew').addEventListener('click',()=>begin({slot:SAVE,cont:false}));
 initInvite();
+if(typeof initStudio==='function')initStudio();
 resize();
 wick.g.position.set(PL.x,groundH(PL.x,PL.z),PL.z);
 applyEnv(0);envLast=0;
 let last=performance.now(),fpsAcc=0,fpsN=0,fpsT=0;
-function frame(now){requestAnimationFrame(frame);let rdt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;let dt=rdt;if(G.hp>0){G.hp-=rdt;dt=0;}
+function frame(now){requestAnimationFrame(frame);let rdt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;let dt=rdt;if(G.hp>0){G.hp-=rdt;dt=0;}G.rawDt=rdt;dt*=G.timeScale;
   HN=0;G.time+=dt;U.uTime.value=G.time;
   timers(dt);if(G.lock>0)G.lock-=dt;
   run(inputUpdate,rdt);run(playerUpdate,dt);run(mateUpdate,dt,rdt);run(pipUpdate,dt);run(npcUpdate,dt);run(flowersUpdate,dt);run(worldUpdate,dt);run(duetUpdate,dt);run(pingUpdate,dt);run(triggers,dt);run(rekindleUpdate,dt);run(wakeUpdate,dt);run(envUpdate);run(bloomUpdate,dt);
-  if(G.mode!=='title')run(ambient,dt);run(hintUpdate,dt);run(talkUpdate,dt);run(partUpdate,dt);run(camUpdate,rdt);run(uiUpdate,rdt);run(audioUpdate,dt);run(netUpdate,rdt);
+  if(G.mode!=='title')run(ambient,dt);run(hintUpdate,dt);run(talkUpdate,dt);run(partUpdate,dt);run(camUpdate,rdt);run(uiUpdate,rdt);run(audioUpdate,dt);run(netUpdate,rdt);if(typeof studioUpdate==='function')run(studioUpdate,dt);
   try{renderer.render(scene,camera);}catch(e){report(e,'render');}
   if(G.mode==='play'&&G.quality>.55){fpsT+=rdt;fpsAcc+=rdt;fpsN++;if(fpsT>3){const avg=fpsAcc/fpsN;if(avg>1/34){G.quality*=.8;resize();}fpsT=fpsAcc=fpsN=0;}}}
 requestAnimationFrame(frame);

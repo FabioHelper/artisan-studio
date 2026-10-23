@@ -23,7 +23,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Lanternfall</title>
-<meta name="lanternfall-build" content="08e38473">
+<meta name="lanternfall-build" content="026f391d">
 <meta name="theme-color" content="#0d0f1a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -405,6 +405,10 @@ body{color:var(--paper);font-family:var(--f-pix);-webkit-user-select:none;user-s
 #app.photo #sbtn{opacity:.35}
 .sxt:focus-visible,.sxb:focus-visible,.sxact:focus-visible,.sxtog:focus-visible,.sxseg button:focus-visible,.sxpl:focus-visible,.sxmh:focus-visible,.sxlay:focus-visible,.sxfx button:focus-visible,.sxsw:focus-visible,.schip:focus-visible,#sbtn:focus-visible,#tourbar button:focus-visible{outline:2px solid #fff1d2;outline-offset:2px}
 
+
+.sxchs{display:flex;flex:none;gap:6px;margin:0;overflow-x:auto;padding-bottom:2px}.sxch{flex:1;min-width:92px;text-align:left;padding:8px 10px;border:2px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;cursor:pointer;border-radius:10px}
+.sxch b{display:block;font:600 11px var(--f-pix);letter-spacing:.12em;text-transform:uppercase;color:var(--cc)}.sxch small{display:block;font:italic 13px var(--f-book);opacity:.75}.sxch em{display:block;font:600 10px var(--f-pix);opacity:.6;font-style:normal;margin-top:2px}
+.sxch.on{border-color:var(--cc);background:color-mix(in srgb,var(--cc) 18%,transparent)}
 /* ---------- Title: The Last Light ---------- */
 #title{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:calc(env(safe-area-inset-top,0px) + max(7vh,34px)) max(20px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 18px) max(20px,env(safe-area-inset-left,0px));
   background:linear-gradient(180deg,rgba(6,7,16,.66) 0%,rgba(6,7,16,.22) 32%,rgba(6,7,16,0) 50%,rgba(6,7,16,0) 70%,rgba(6,7,16,.5) 100%)}
@@ -1797,7 +1801,7 @@ function journeyAct(a,k){SFX.page();
 function refreshTitleMenu(){const has=hasProg(store.get(lastSlot()));$('#bBegin').textContent=has?'Continue':'Begin';$('#bNew').hidden=!anyProg();
   const s=slotOf(lastSlot());const t=$('#bBegin');t.title=s?s.n:'';}
 /* ================= end card ================= */
-function showEnd(ch){ch=ch||1;G.endShown=true;G.mode='end';CAM.mode='hero';CAM.heroP=[PL.x,PL.z];CAM.t=0;CAM.tr=1.1;CAM.pr=.9;{const c=heroCamXZ(heroShot(PL.x,PL.y,PL.z,0));hideCorridor(c[0],c[1],PL.x,PL.z);}SFX.gate();const e1=$('#end');
+function showEnd(ch){ch=ch||1;G.endShown=true;clearTimeout(G.endHideT);G.mode='end';CAM.mode='hero';CAM.heroP=[PL.x,PL.z];CAM.t=0;CAM.tr=1.1;CAM.pr=.9;{const c=heroCamXZ(heroShot(PL.x,PL.y,PL.z,0));hideCorridor(c[0],c[1],PL.x,PL.z);}SFX.gate();const e1=$('#end');
   if(ch===2){e1.querySelector('.kick').textContent='Chapter II complete';e1.querySelector('h2').textContent='The bell of Hollowmere';e1.querySelector('p').textContent='The village is awake, and it remembers why it slept. Mist still hides the lake road, and somewhere above it, Ash is climbing.';}
   else{e1.querySelector('.kick').textContent='Chapter I complete';e1.querySelector('h2').textContent='The road to Hollowmere';e1.querySelector('p').textContent='The gate stands open. Beyond it, a village is still asleep, and a letter says not to climb the mountain yet.';}
   const F=FRIENDS.filter(f=>ch===2?f.ch===2:!f.ch),fr=F.filter(f=>f.k()).length;
@@ -1805,7 +1809,7 @@ function showEnd(ch){ch=ch||1;G.endShown=true;G.mode='end';CAM.mode='hero';CAM.h
   const mem=ch===2?[S.h_m5,S.h_m6,S.h_m7].filter(Boolean).length+'/3':S.mem.filter(Boolean).length+'/4';
   $('#stats').innerHTML=[[mem,'Memories'],[sec+(ch===2?'/3':'/5'),'Secrets'],[ch===2?hmBellCount()+'/'+HM_BELLS:bellCount()+'/'+BELLS_TOTAL,'Lost Bells'],[fr+'/'+F.length,ch===2?'Villagers':'Friends']].map(s=>'<div><b>'+s[0]+'</b><span>'+s[1]+'</span></div>').join('');
   const e=$('#end');e.hidden=false;void e.offsetWidth;e.classList.remove('out');}
-$('#bKeep').addEventListener('click',()=>{CAM.mode='explore';CAM.tr=1.4;CAM.pr=1.2;restoreHidden();const e=$('#end');e.classList.add('out');setTimeout(()=>{e.hidden=true;},1200);G.mode='play';});
+$('#bKeep').addEventListener('click',()=>{CAM.mode='explore';CAM.tr=1.4;CAM.pr=1.2;restoreHidden();const e=$('#end');e.classList.add('out');G.endHideT=setTimeout(()=>{e.hidden=true;},1200);G.mode='play';});
 
 /* ================= safeguards ================= */
 const ERRSEEN={};
@@ -2126,7 +2130,7 @@ function hud(){const on=NET.on&&G.mode!=='title';let txt='',wait=false,col='#ffd
 pill.addEventListener('click',()=>{audioInit();openParty(null);});
 
 /* --- journal map with flags --- */
-function drawMap(cv){const c=cv||document.getElementById('mapc');if(!c)return;if(inHMish(PL.x,PL.z)){drawMapHM(c);return;}const g=c.getContext('2d');const N=c.width,K=N/100,o=N/2;const X=x=>o+x*K,Y=z=>o+z*K;const aw=S.awake;
+function drawMap(cv,emberOnly){const c=cv||document.getElementById('mapc');if(!c)return;if(!emberOnly&&inHMish(PL.x,PL.z)){drawMapHM(c);return;}const g=c.getContext('2d');const N=c.width,K=N/100,o=N/2;const X=x=>o+x*K,Y=z=>o+z*K;const aw=S.awake;
   g.fillStyle='#14132a';g.fillRect(0,0,N,N);
   g.fillStyle=aw?'#1f4d3a':'#262c40';g.beginPath();g.arc(o,o,49*K,0,TAU);g.fill();
   g.fillStyle=aw?'#2f6b45':'#2f3850';g.beginPath();g.arc(o,o,44.5*K,0,TAU);g.fill();
@@ -2737,12 +2741,14 @@ function hmSecretsUpdate(dt){const t=G.time;if(!inHMish(PL.x,PL.z)&&!G.hwave)ret
    one-way events as play, so a co-op test world stays coherent. */
 const SAVE_STUDIO='lanternfall.emberwood.studio.v1',STUDIO_K='lanternfall.studio.results.v1',STUDIO_UNLOCK='lanternfall.studio.unlocked.v1';
 const BUILD=(document.querySelector('meta[name="lanternfall-build"]')||{}).content||'dev';
-const SX={pending:null,openWhenReady:false,tab:'tour',open:false,tour:false,step:0,res:{},exp:null,base:{},ckT:0,fpsOn:false,fps:60,ms:16.7,fAcc:0,fN:0,fT:0,solo:-1,statT:0,armed:false};
-try{const r=store.get(STUDIO_K);if(r&&typeof r==='object'){SX.res=r.res||{};SX.step=r.step|0;}}catch(e){}
-function sxSave(){store.set(STUDIO_K,{res:SX.res,step:SX.step});}
+const SX={ch:1,steps:{0:0,1:0,2:0},pending:null,openWhenReady:false,tab:'tour',open:false,tour:false,step:0,res:{},exp:null,base:{},ckT:0,fpsOn:false,fps:60,ms:16.7,fAcc:0,fN:0,fT:0,solo:-1,statT:0,armed:false};
+try{const r=store.get(STUDIO_K);if(r&&typeof r==='object'){SX.res=r.res||{};if(r.steps&&typeof r.steps==='object')Object.assign(SX.steps,r.steps);}}catch(e){}
+function sxSave(){SX.steps[SX.ch]=SX.step;store.set(STUDIO_K,{res:SX.res,steps:SX.steps});}
 const CAT={onb:['Onboarding','#ffd36b'],light:['Light','#ffa548'],pip:['Pip & secrets','#b48cff'],place:['Places & devices','#3fd0c9'],char:['Characters','#ff6fae'],
-  final:['The finale','#ff6a5f'],hm:['Hollowmere','#ff8f6a'],cam:['Camera & look','#6fb6ff'],coop:['Two Lights','#ff8fb8'],sound:['Sound','#a6e04a'],perf:['Device & performance','#c6cbe0']};
+  final:['The finale','#ff6a5f'],hm:['Favours','#ff8f6a'],hmfin:['The bell and the end','#ff6a5f'],hmsec:['Hollowmere secrets','#b48cff'],cam:['Camera & look','#6fb6ff'],coop:['Two Lights','#ff8fb8'],sound:['Sound','#a6e04a'],perf:['Device & performance','#c6cbe0']};
 
+/* ---- chapters: Studio browses one chapter at a time (law STUDIO-7) ---- */
+const CHAPTERS=[{id:1,n:'Chapter I',s:'Emberwood',c:'#ffd36b'},{id:2,n:'Chapter II',s:'Hollowmere',c:'#ff8f6a'},{id:0,n:'Everywhere',s:'Camera, co-op, sound, device',c:'#9fd8ff'}];
 /* ---- places (stand-beside positions, safe to land on) ---- */
 const PLACES=[
   ['home','Home','story',[0,36]],['door','Keeper’s note','story',[P.hut[0]-.8,P.hut[1]+3.4]],['sign','Signpost','device',[P.sign[0]+1.2,P.sign[1]+.8]],
@@ -2754,7 +2760,10 @@ const PLACES=[
   ['m1','Memory I','secret',[P.m1[0]-1.6,P.m1[1]]],['m2','Memory II','secret',[P.m2[0]+1.6,P.m2[1]]],['m3','Memory III','secret',[P.m3[0]-1.6,P.m3[1]]],
   ['sisW','Far Sister (west cliff)','coop',[-42.8,0]],['sisE','Hidden Sister (east woods)','coop',[33,-15]],
   ['hm','Hollowmere arch','story',[.6,-57.5]],['hmsq','Market square','story',[2,-76.6]],['oven','Tobin’s oven','story',[6.4,-63.8]],['hmtree','Wren’s tree','story',[15.2,-84.8]],['apo','Apothecary mist','story',[-4.4,-85.6]],
-  ['tower','Bell tower','story',[5.5,-89.4]],['road','Lake road','story',[16.6,-98.4]],['lampA','Lamplighter lamp','coop',[-1.2,-63.6]],['cat','Rooftop cat','secret',[7.4,-69.6]]];
+  ['tower','Bell tower','story',[5.5,-89.4]],['road','Lake road','story',[16.6,-98.4]],['lampA','Lamplighter lamp','coop',[-1.2,-63.6]],['cat','Rooftop cat','secret',[7.4,-69.6]],
+  ['post','Post office · Pell','char',[-2.2,-66.4]],['wren','Wren in the green','char',[14.6,-82.8]],['m5','Memory V (behind the bakery)','secret',[HP.m5[0]-1.6,HP.m5[1]]],['m6','Memory VI (moon garden)','secret',[HP.m6[0]+1.8,HP.m6[1]+.6]],
+  ['crate','Market crates','secret',[HP.crate[0]-1.4,HP.crate[1]+1.2]],['ledger','Sleepwell ledger','secret',[HP.ledger[0]+1.2,HP.ledger[1]+1]]];
+const placeCh=p=>inHMish(p[3][0],p[3][1])?2:1;
 const PTYPE={story:['Story','#ffd36b'],device:['Device','#3fd0c9'],char:['Character','#ff6fae'],secret:['Secret','#b48cff'],coop:['Co-op','#ff8fb8']};
 const placeById=id=>PLACES.find(p=>p[0]===id);
 function teleport(x,z,quiet){let tx=x,tz=z;for(let k=0;k<12&&blockedWater(tx,tz);k++)tx+=.8;
@@ -2777,6 +2786,13 @@ const GR={
 function grantMany(keys){keys.forEach(k=>GR[k]());setLayers();}
 function sxHm(){if(!S.awake){grantMany(['note','pip','stones','s1','s2','s3']);awakenInstant();share({t:'awaken'});}
   if(!S.mem[3]){collectMem(3,true);share({t:'mem',i:3});}S.c1end=true;save();if(!S.h_seen)hmSet('h_seen');}
+function sxEnd1(){if(!S.awake){grantMany(['note','pip','stones','s1','s2','s3']);awakenInstant();share({t:'awaken'});}G.gateOpen=1;S.c1end=false;G.endShown=false;save();teleport(0,-36.2);toast('<span class="d"></span><span>Walk north through the open gate</span>',2600);}
+function sxReadyToRing(){sxHm();sxHmFavours();if(!S.h_clap)hmSet('h_clap');if(!S.h_mara){G.carry='clapper';}}
+function sxEnd2(){sxReadyToRing();if(!S.h_mara)hmSet('h_mara');if(!S.h_bell)sxInst('h_bell');S.h_end=false;G.endShown=false;save();teleport(HP.road[0]-4.2,HP.road[1]+4.4);toast('<span class="d"></span><span>Walk to the misty lake road arch</span>',2600);}
+const sxInst=k=>{if(!S[k]){hmSet(k,false,true);save();share({t:'hm',k});}};
+const GRH={h_seen:()=>sxHm(),h_tobin:()=>{sxHm();hmSet('h_tobin');},h_pell:()=>{sxHm();['h_l1','h_l2','h_l3','h_pell'].forEach(k=>hmSet(k));},h_wren:()=>{sxHm();hmSet('h_kite');hmSet('h_wren');},h_sol:()=>{sxHm();hmSet('h_sol');},
+  h_clap:()=>{sxHm();sxHmFavours();hmSet('h_clap');},h_bell:()=>{sxReadyToRing();if(!S.h_mara)hmSet('h_mara');sxInst('h_bell');},hm_mem:()=>{sxHm();['h_m5','h_m6','h_m7'].forEach(sxInst);},
+  h_ledger:()=>{sxHm();hmSet('h_ledger');},h_b1:()=>{sxHm();hmSet('h_b1');},h_cat:()=>{sxHm();hmSet('h_cat');},h_lamps:()=>{sxHm();hmSet('h_lamps');}};
 function sxHmFavours(){['h_tobin','h_l1','h_l2','h_l3','h_pell','h_kite','h_wren','h_sol'].forEach(k=>hmSet(k,false,false));}
 
 /* ---- the test catalogue: what it is, how it works, what to do, what should happen ---- */
@@ -2804,7 +2820,7 @@ const STEPS=[
  {id:'awaken',cat:'final',t:'The awakening',how:'Hold to give the Heart your flame. A wave of colour sweeps Emberwood.',todo:'Hold until the ring fills.',expect:'Flash, wide reveal, colour wave, birds, villagers wake, music adds its melody.',setup:()=>{grantMany(['note','s1','pip','s2','stones','s3']);teleport(P.heart[0],P.heart[1]+4.6);},check:()=>S.awake},
  {id:'villagers',cat:'final',t:'Villagers awake',how:'Woken villagers share what they saw the night the Keeper left.',todo:'Talk to Hale or Nana after the awakening.',expect:'New lines about the Keeper walking north.',setup:()=>tpTo('nana'),check:()=>S.awake&&((S.talks.hale|0)+(S.talks.nana|0))>0},
  {id:'letter',cat:'final',t:'Bo’s letter',how:'Bo delivers the Keeper’s last letter once the forest wakes.',todo:'Talk to Bo after the awakening.',expect:'Memory 4 of 4, then “The North Gate stands open”.',setup:()=>tpTo('bo'),check:()=>S.mem[3]},
- {id:'end',cat:'final',t:'End of chapter',how:'Walking through the open gate shows the chapter card with your stats.',todo:'Walk through the North Gate.',expect:'Card with memories, secrets, bells, friends, and Keep exploring.',setup:()=>teleport(0,-36.5),check:()=>G.endShown},
+ {id:'end',cat:'final',t:'End of Chapter I',how:'The first time you walk through the open North Gate, the chapter card shows your stats. Set up wakes Emberwood and lets you see it again.',todo:'Walk north through the open gate.',expect:'“Chapter I complete”, with memories, secrets, bells and friends, then Keep exploring.',setup:()=>sxEnd1(),check:()=>G.endShown&&/Chapter I\b/.test($('#end .kick').textContent)&&!/Chapter II/.test($('#end .kick').textContent)},
  {id:'zone',cat:'cam',t:'Establishing shot',how:'First entry to a place pulls the camera back for a gentle wide view and shows its name.',todo:'Walk toward Mirror Pond.',expect:'“Mirror Pond” title and a short wide camera move.',setup:()=>{G.zs.pond=false;teleport(POND.x-9,POND.z+6);},check:()=>!!G.zs.pond},
  {id:'story',cat:'cam',t:'Storybook camera',how:'Key moments swing the camera into a side view with paper texture.',todo:'Press Set up to see a sample.',expect:'Smooth swing into a framed storybook page, then back to play.',setup:()=>sxStoryDemo()},
  {id:'look',cat:'cam',t:'Cursed and awakened look',how:'Moonlit curse with readable shapes; warm, unbleached daylight after waking.',todo:'Toggle “Preview awakened look” in World, and compare.',expect:'Clear shapes at night, rich colour by day, the lantern dimmer by day.'},
@@ -2813,15 +2829,26 @@ const STEPS=[
  {id:'twin',cat:'coop',coop:1,t:'Twin Flare',how:'Both flare within 0.9 s while close.',todo:'Count “3, 2, 1” and flare together.',expect:'Double ring, big chord, “Twin Flare”.',check:()=>nowS()-(G.twinAt||-99)<20},
  {id:'ping',cat:'coop',coop:1,t:'Ping',how:'Double-tap the ground to raise a light beacon your friend sees.',todo:'Double-tap somewhere on the ground.',expect:'A pillar of light and whistle on both screens; their edge arrow pulses.',check:()=>PINGS.length>0},
  {id:'five',cat:'coop',coop:1,t:'Wave and high five',how:'Tap your friend: a wave from afar, a high five side by side.',todo:'Stand next to your friend and tap them.',expect:'Both hop, clap sound, sparkles.',check:()=>nowS()-(G.hfAt||-99)<20},
- {id:'duet',cat:'coop',coop:1,t:'The Duet (co-op secret)',how:'Two hum stones by Mirror Pond need two keepers at once.',todo:'Each stand on one stone.',expect:'The pond sings, a lotus rises with a Lost Bell.',setup:()=>tpTo('pond'),check:()=>S.duet},
+ {id:'duet',cat:'coop',ch:1,coop:1,t:'The Duet (co-op secret)',how:'Two hum stones by Mirror Pond need two keepers at once.',todo:'Each stand on one stone.',expect:'The pond sings, a lotus rises with a Lost Bell.',setup:()=>tpTo('pond'),check:()=>S.duet},
  {id:'gifts',cat:'coop',coop:1,t:'Lantern gifts',how:'Together, each lantern has a gift. Wick (the host) has Long Flame: flares reach about a third farther. Fen (the guest) has Spirit Sight: hidden things show up close by, without Pip.',todo:'Fen: walk up to the hidden wayshrine before Pip is awake. Wick: flare and compare the ring.',expect:'A “Your gift together” toast for each; Fen sees ghostly things; Wick’s flare ring is wider.',check:()=>!!myGift()},
- {id:'sisters',cat:'coop',coop:1,t:'Sister Lights (co-op secret)',how:'Two Sister Lights stand far apart and must be flared within 5 s of each other. The Far Sister on the west cliff only answers a Long Flame. The Hidden Sister in the east woods only shows itself to Spirit Sight.',todo:'Set up sends each of you to your sister. Ping, count down together, flare.',expect:'Light beams rise from both, “Secret · Sister Lights”, then Lost Bell 3 of 3.',setup:()=>tpTo(myGift()==='spirit'?'sisE':'sisW'),check:()=>S.sisters},
+ {id:'sisters',cat:'coop',ch:1,coop:1,t:'Sister Lights (co-op secret)',how:'Two Sister Lights stand far apart and must be flared within 5 s of each other. The Far Sister on the west cliff only answers a Long Flame. The Hidden Sister in the east woods only shows itself to Spirit Sight.',todo:'Set up sends each of you to your sister. Ping, count down together, flare.',expect:'Light beams rise from both, “Secret · Sister Lights”, then Lost Bell 3 of 3.',setup:()=>tpTo(myGift()==='spirit'?'sisE':'sisW'),check:()=>S.sisters},
  {id:'hm_oven',cat:'hm',t:'Tobin’s oven',how:'A cold bread oven by the road. Flaring beside it wakes the baker.',todo:'Flare next to the brick oven.',expect:'The oven glows orange, Tobin jumps awake and talks, “Villagers awake 1 of 4”.',setup:()=>{sxHm();tpTo('oven');},check:()=>!!S.h_tobin},
  {id:'hm_letters',cat:'hm',t:'Pell’s letters',how:'Three letters blew away. Each spins with a soft glow; walking into one picks it up.',todo:'Find the three letters, then walk to Pell by the post office.',expect:'“Letter n of 3” toasts, then Pell wakes when all three come home.',setup:()=>{sxHm();tpTo('hmsq');},check:()=>!!S.h_pell},
  {id:'hm_kite',cat:'hm',t:'Wren’s kite',how:'The kite is stuck in the big tree. A flare shakes it loose; walking into it picks it up; it floats above you.',todo:'Flare under the tree, pick up the kite, bring it to Wren.',expect:'Wren wakes and her kite flies above her for good.',setup:()=>{sxHm();tpTo('hmtree');},check:()=>!!S.h_wren},
  {id:'hm_mist',cat:'hm',t:'Sol’s sleepy mist',how:'A purple mist keeps the apothecary asleep. Each flare thins it; three clear it.',todo:'Flare three times beside Sol.',expect:'“The mist thins” twice, then Sol wakes and confesses about the Sleepwell.',setup:()=>{sxHm();tpTo('apo');},check:()=>!!S.h_sol},
- {id:'hm_bell',cat:'hm',t:'The town bell',how:'Four villagers awake reveal the clapper in the well. Mara takes it; holding at the tower door rings the bell. Together it rings faster.',todo:'Set up hands you the clapper at the tower. Hold your lantern by Mara.',expect:'The bell rings three times, colour spreads from the tower, “Hollowmere has awakened”.',setup:()=>{sxHm();sxHmFavours();if(!S.h_clap)hmSet('h_clap');G.carry='clapper';tpTo('tower');},check:()=>!!S.h_bell},
- {id:'hm_lamps',cat:'coop',coop:1,t:'Lamplighter’s Route (co-op secret)',how:'Fen’s Spirit Sight shows ghostly footprints linking four tall lamps in the old order. Only Wick’s Long Flame reaches the lamps. A wrong lamp puts them all out.',todo:'Fen follows the footprints and pings the next lamp; Wick flares under it.',expect:'“A lamp catches · n of 4”, then “Secret · The Lamplighter’s Route” and a Lost Bell.',setup:()=>{sxHm();tpTo('lampA');},check:()=>!!S.h_lamps},
+ {id:'hm_bell',cat:'hmfin',t:'The town bell',how:'Four villagers awake reveal the clapper in the well. Mara takes it; holding at the tower door rings the bell. Together it rings faster.',todo:'Set up hands you the clapper at the tower. Hold your lantern by Mara.',expect:'The bell rings three times, colour spreads from the tower, “Hollowmere has awakened”.',setup:()=>{sxHm();sxHmFavours();if(!S.h_clap)hmSet('h_clap');G.carry='clapper';tpTo('tower');},check:()=>!!S.h_bell},
+ {id:'hm_lamps',cat:'coop',ch:2,coop:1,t:'Lamplighter’s Route (co-op secret)',how:'Fen’s Spirit Sight shows ghostly footprints linking four tall lamps in the old order. Only Wick’s Long Flame reaches the lamps. A wrong lamp puts them all out.',todo:'Fen follows the footprints and pings the next lamp; Wick flares under it.',expect:'“A lamp catches · n of 4”, then “Secret · The Lamplighter’s Route” and a Lost Bell.',setup:()=>{sxHm();tpTo('lampA');},check:()=>!!S.h_lamps},
+ {id:'hm_road',cat:'hm',o:-2,t:'The old road',how:'Past the open North Gate a valley road leads north; Hollowmere shows its name as you arrive.',todo:'Walk north from the gate.',expect:'“The Old Road”, then “Hollowmere · The village that chose to sleep”, and the Now line names a villager.',setup:()=>{sxEnd1();S.c1end=true;save();teleport(0,-46);},check:()=>!!S.h_seen},
+ {id:'hm_now',cat:'hm',o:-1,t:'Now line in Hollowmere',how:'The journal names the nearest unfinished favour in plain words, and counts villagers awake.',todo:'Open the journal in the village.',expect:'“Wake the villagers with small kindnesses (n of 4)” plus one concrete step.',setup:()=>{sxHm();tpTo('hmsq');},check:()=>G.journal&&jTab==='mem'&&inHMish(PL.x,PL.z)},
+ {id:'hm_well',cat:'hmfin',o:-1,t:'The clapper in the well',how:'With four villagers awake they confess where the bell’s clapper went. A flare at the well raises it into your hands.',todo:'Flare beside the well in the square.',expect:'The clapper rises and floats above you; the Now line says to bring it to Mara.',setup:()=>{sxHm();sxHmFavours();tpTo('hmsq');},check:()=>!!S.h_clap},
+ {id:'hm_m7',cat:'hmfin',t:'Mara’s gift',how:'After the bell, Mara gives you what Ash left on the tower stairs.',todo:'Talk to Mara by the tower.',expect:'Hollowmere memory 3 of 3: “The Keeper’s Request”.',setup:()=>{GRH.h_bell();tpTo('tower');},check:()=>!!S.h_m7},
+ {id:'hm_end',cat:'hmfin',t:'End of Chapter II',how:'Once the bell has rung, the misty lake road closes the chapter with its own card.',todo:'Walk to the arch on the lake road.',expect:'“Chapter II complete”, with memories, secrets, bells and villagers.',setup:()=>sxEnd2(),check:()=>G.endShown&&/Chapter II/.test($('#end .kick').textContent)},
+ {id:'hm_m5',cat:'hmsec',t:'Memory V',how:'A memory shard glows behind the bakery.',todo:'Walk into the crystal.',expect:'Hollowmere memory card: “The Sleepwell Night”.',setup:()=>{sxHm();tpTo('m5');},check:()=>!!S.h_m5},
+ {id:'hm_m6',cat:'hmsec',t:'Memory VI (hidden)',how:'A shard in Sol’s moon garden only shows to hidden sight: Pip, a flare, or Fen’s Spirit Sight.',todo:'Flare in the garden, then walk into the shard.',expect:'Hollowmere memory card: “Ash Climbs”.',setup:()=>{sxHm();tpTo('m6');},check:()=>!!S.h_m6},
+ {id:'hm_crate',cat:'hmsec',t:'Lost Bell among the crates',how:'A tinkle grows louder near the market crates.',todo:'Walk into the little bell on the crates.',expect:'“Lost Bell · 1 of 3 in Hollowmere”.',setup:()=>{sxHm();tpTo('crate');},check:()=>!!S.h_b1},
+ {id:'hm_cat',cat:'hmsec',t:'Pudding, the rooftop cat',how:'Flaring near the cat makes her leap to another roof. On the third roof she knocks down a Lost Bell.',todo:'Chase her with flares across three roofs, then pick up the bell.',expect:'Three leaps, a falling bell, “Secret · The rooftop cat”.',setup:()=>{sxHm();tpTo('cat');},check:()=>!!S.h_cat},
+ {id:'hm_ledger',cat:'hmsec',t:'The Sleepwell ledger',how:'A board by the apothecary door: Act 2’s plainest clue.',todo:'Tap the board.',expect:'“Forty-one cups… One more, for the Keeper, on the house.”',setup:()=>{sxHm();tpTo('ledger');},check:()=>!!S.h_ledger},
+ {id:'hm_carry',cat:'coop',ch:2,coop:1,t:'Carried things are never lost',how:'If your friend leaves while carrying the kite or the clapper, it falls where they stood.',todo:'One of you picks up the kite or clapper, then closes the page.',expect:'The item drops to the ground and the other can pick it up.'},
  {id:'jcode',cat:'perf',t:'Journey code',how:'Your save lives in this browser for this website. A journey code carries it to another phone or link.',todo:'Journal → settings → Copy. On the other device: Journal → settings → paste → Load.',expect:'The other device reloads straight into the same journey.'},
  {id:'together',cat:'coop',coop:1,t:'Rekindle together',how:'Holding together fills the Heart 2.6× faster with a duo harmony.',todo:'Both hold at the Heart.',expect:'“Together” toast, a second voice in the charge tone.'},
  {id:'rejoin',cat:'coop',coop:1,t:'Disconnect and rejoin',how:'If a phone drops, the party waits. Rejoining restores from a snapshot.',todo:'One player closes the page, then opens the invite link again.',expect:'“Lantern drifted away”, then the friend reappears with the same world.'},
@@ -2830,6 +2857,11 @@ const STEPS=[
  {id:'fps',cat:'perf',t:'Frame rate',how:'Aims for 60 fps; quality drops automatically if the phone struggles.',todo:'Turn on the FPS meter in Player and play for a minute.',expect:'Mostly 50–60 fps; quality stays near 100% on recent iPhones.',check:()=>SX.fpsOn&&SX.fps>=45},
  {id:'lock',cat:'perf',t:'Lock and return',how:'The screen stays awake while playing. If the phone sleeps, the game resumes.',todo:'Lock the phone for 10 s, then unlock.',expect:'The game continues; in co-op your friend saw you as “away”.'},
  {id:'install',cat:'perf',t:'Home Screen app',how:'Installs like an app with its own icon, fullscreen.',todo:'Safari → Share → Add to Home Screen, then open it.',expect:'A lantern icon, opens fullscreen with no browser bars.'}];
+const CH_OF_CAT={onb:1,light:1,pip:1,place:1,char:1,final:1,hm:2,hmfin:2,hmsec:2,cam:0,coop:0,sound:0,perf:0};
+STEPS.forEach(s=>{if(s.ch==null)s.ch=CH_OF_CAT[s.cat];});
+const CAT_KEYS=Object.keys(CAT);
+const tourList=()=>STEPS.filter(s=>s.ch===SX.ch).map((s,i)=>[s,i]).sort((a,b)=>(CAT_KEYS.indexOf(a[0].cat)-CAT_KEYS.indexOf(b[0].cat))||((a[0].o||0)-(b[0].o||0))||(a[1]-b[1])).map(x=>x[0]);
+function setChapter(c){SX.steps[SX.ch]=SX.step;SX.ch=c;SX.step=Math.min(SX.steps[c]|0,tourList().length-1);sxSave();sxBody.scrollTop=0;}
 const UNTESTABLE=[
  ['SharePlay and Game Center','Need a native App Store app. Planned for the App Store phase.'],
  ['True iPhone haptics','Safari has no vibration API. The game uses the system switch tick where iOS allows it; you may feel nothing.'],
@@ -2841,7 +2873,7 @@ const UNTESTABLE=[
 function mark(id,s,auto){const prev=SX.res[id];if(auto&&prev&&prev.s==='issue')return;SX.res[id]={s,a:!!auto,b:BUILD,t:Date.now()};sxSave();
   if(auto){const st=STEPS.find(x=>x.id===id);toast('<span class="d f"></span><span>Verified · '+esc(st?st.t:id)+'</span>',2000);SFX.chime(5);}
   sxRefresh();}
-function studioUpdate(dt){if(!G.studio)return;
+function studioUpdate(dt){if(!G.studio)return;if(tourShow()===tourbar.hidden)tourBar();
   if(SX.pending!=null&&G.mode==='play'){const i=SX.pending;SX.pending=null;runSetup(i);}
   if(SX.openWhenReady&&G.mode==='play'){SX.openWhenReady=false;openStudio('tour');}
   SX.fAcc+=G.rawDt||dt;SX.fN++;SX.fT+=G.rawDt||dt;if(SX.fT>.5){SX.ms=SX.fAcc/SX.fN*1000;SX.fps=1000/SX.ms;SX.fAcc=SX.fN=SX.fT=0;if(SX.fpsOn)fpsMeter();}
@@ -2854,7 +2886,7 @@ const sxEl=$('#studio'),sxBody=$('#sxbody'),sxTabs=$('#sxtabs'),sbtn=$('#sbtn'),
 const TABS=[['tour','Tour','#ffd36b'],['places','Places','#3fd0c9'],['world','World','#ff6fae'],['player','Player','#b48cff'],['sound','Sound','#a6e04a'],['link','Link','#ff8fb8']];
 sxTabs.innerHTML=TABS.map(t=>'<button class="sxt" data-tab="'+t[0]+'" style="--tc:'+t[2]+'"><i></i><span>'+t[1]+'</span></button>').join('');
 sxTabs.addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(SX.tab!==b.dataset.tab){SX.tab=b.dataset.tab;sxBody.scrollTop=0;}SFX.page();sxRender();});
-function openStudio(tab){if(!G.studio)return;if(G.journal)closeJournal();if(tab&&tab!==SX.tab){SX.tab=tab;sxBody.scrollTop=0;}SX.open=true;sxEl.classList.add('on');sxRender();tourBar();SFX.page();}
+function openStudio(tab){if(!G.studio)return;if(!SX.chPicked){SX.chPicked=1;const c=inHMish(PL.x,PL.z)?2:1;if(c!==SX.ch)setChapter(c);}if(G.journal)closeJournal();if(tab&&tab!==SX.tab){SX.tab=tab;sxBody.scrollTop=0;}SX.open=true;sxEl.classList.add('on');sxRender();tourBar();SFX.page();}
 function closeStudio(){SX.open=false;sxEl.classList.remove('on');tourBar();}
 sxEl.addEventListener('pointerdown',e=>{if(e.target===sxEl)closeStudio();});
 $('#sxclose').addEventListener('click',closeStudio);
@@ -2867,24 +2899,37 @@ function sxRender(){
   sxTabs.querySelectorAll('.sxt').forEach(b=>b.classList.toggle('on',b.dataset.tab===SX.tab));
   const c=counts();$('#sxbuild').textContent='Build '+BUILD;$('#sxring').style.setProperty('--p',(c.ok/c.n*100).toFixed(1));$('#sxringn').textContent=c.ok;$('#sxringd').textContent='of '+c.n;
   let h='';
+  if(SX.tab==='tour'||SX.tab==='places'||SX.tab==='world')h+='<div class="sxchs">'+CHAPTERS.map(c=>{const ss=STEPS.filter(s=>s.ch===c.id),ok=ss.filter(s=>SX.res[s.id]&&SX.res[s.id].s==='ok').length;
+    return'<button class="sxch'+(SX.ch===c.id?' on':'')+'" data-act="ch" data-v="'+c.id+'" style="--cc:'+c.c+'"><b>'+c.n+'</b><small>'+c.s+'</small><em>'+ok+' / '+ss.length+'</em></button>';}).join('')+'</div>';
   if(SX.tab==='tour'){
-    const cur=STEPS[Math.min(SX.step,STEPS.length-1)];
-    h+='<div class="sxhero"><div><h3>Test the whole chapter</h3><p>Every module sets itself up, tells you what to do and what should happen, and checks itself when it can. Mark anything that feels off as an issue.</p></div>'+
-       '<div class="sxrow"><button class="sxb pri" data-act="tour">'+(SX.tour?'Resume tour · step '+(SX.step+1):(SX.step>0?'Continue tour · step '+(SX.step+1):'Start guided tour'))+'</button>'+(c.issue?'<span class="sxchip bad">'+c.issue+' issue'+(c.issue>1?'s':'')+'</span>':'')+'</div></div>';
-    h+='<div class="sxbar">'+Object.keys(CAT).map(k=>{const ss=STEPS.filter(s=>s.cat===k),ok=ss.filter(s=>SX.res[s.id]&&SX.res[s.id].s==='ok').length;return'<span style="--cc:'+CAT[k][1]+';flex:'+ss.length+'"><i style="width:'+(ok/ss.length*100)+'%"></i></span>';}).join('')+'</div>';
-    for(const k in CAT){const ss=STEPS.filter(s=>s.cat===k);const ok=ss.filter(s=>SX.res[s.id]&&SX.res[s.id].s==='ok').length;
+    const TL=tourList(),chn=CHAPTERS.find(c=>c.id===SX.ch);
+    h+='<div class="sxhero"><div><h3>'+(SX.ch?'Tour '+chn.n+' · '+chn.s:'Everywhere: systems across chapters')+'</h3><p>'+(SX.ch?'The chapter in story order. Every module sets itself up, tells you what to do and what should happen, and checks itself when it can.':'Camera, co-op, sound and device checks that apply in every chapter.')+' Mark anything that feels off as an issue.</p></div>'+
+       '<div class="sxrow"><button class="sxb pri" data-act="tour">'+(SX.tour?'Resume tour · step '+(SX.step+1)+' of '+TL.length:(SX.step>0?'Continue tour · step '+(SX.step+1)+' of '+TL.length:'Start the '+(SX.ch?chn.n:'Everywhere')+' tour'))+'</button>'+(c.issue?'<span class="sxchip bad">'+c.issue+' issue'+(c.issue>1?'s':'')+'</span>':'')+'</div></div>';
+    const cats=Object.keys(CAT).filter(k=>TL.some(s=>s.cat===k));
+    h+='<div class="sxbar">'+cats.map(k=>{const ss=TL.filter(s=>s.cat===k),ok=ss.filter(s=>SX.res[s.id]&&SX.res[s.id].s==='ok').length;return'<span style="--cc:'+CAT[k][1]+';flex:'+ss.length+'"><i style="width:'+(ok/ss.length*100)+'%"></i></span>';}).join('')+'</div>';
+    for(const k of cats){const ss=TL.filter(s=>s.cat===k);const ok=ss.filter(s=>SX.res[s.id]&&SX.res[s.id].s==='ok').length;
       h+='<section class="sxsec" style="--cc:'+CAT[k][1]+'"><h4><i></i>'+CAT[k][0]+'<span>'+ok+' / '+ss.length+'</span></h4>';
       for(const st of ss){const r=SX.res[st.id],stc=r?(r.s==='ok'?'ok':'bad'):'none',ex=SX.exp===st.id;
-        h+='<div class="sxmod '+stc+(ex?' ex':'')+(STEPS[SX.step]===st&&SX.tour?' cur':'')+'"><button class="sxmh" data-act="exp" data-id="'+st.id+'"><i class="mi"></i><span class="mt"><b>'+st.t+'</b><small>'+st.how+'</small></span><span class="mtags">'+(st.check?'<em>auto</em>':'')+(st.coop?'<em class="co">2P</em>':'')+'</span></button>';
+        h+='<div class="sxmod '+stc+(ex?' ex':'')+(TL[SX.step]===st&&SX.tour?' cur':'')+'"><button class="sxmh" data-act="exp" data-id="'+st.id+'"><i class="mi"></i><span class="mt"><b>'+st.t+'</b><small>'+st.how+'</small></span><span class="mtags">'+(st.check?'<em>auto</em>':'')+(st.coop?'<em class="co">2P</em>':'')+'</span></button>';
         if(ex)h+='<div class="sxmb"><dl><dt>Do</dt><dd>'+st.todo+'</dd><dt>Expect</dt><dd>'+st.expect+'</dd>'+(r?'<dt>Result</dt><dd>'+(r.s==='ok'?(r.a?'Verified automatically':'Marked as working'):'Marked as an issue')+' · build '+esc(r.b)+'</dd>':'')+(st.coop&&!MATE.vis?'<dt>Needs</dt><dd>A second player. Invite one from the Link tab.</dd>':'')+'</dl>'+
           '<div class="sxrow">'+(st.setup?'<button class="sxb pri" data-act="setup" data-id="'+st.id+'">Set up & go</button>':'')+'<button class="sxb ok" data-act="ok" data-id="'+st.id+'">Works</button><button class="sxb bad" data-act="issue" data-id="'+st.id+'">Issue</button>'+(r?'<button class="sxb ghost" data-act="unmark" data-id="'+st.id+'">Clear</button>':'')+'</div></div>';
         h+='</div>';}
       h+='</section>';}
-    h+='<section class="sxsec" style="--cc:#8c93b3"><h4><i></i>Can’t be tested here</h4><div class="sxnotes">'+UNTESTABLE.map(u=>'<div><b>'+u[0]+'</b><p>'+u[1]+'</p></div>').join('')+'</div></section>';
+    if(SX.ch===0)h+='<section class="sxsec" style="--cc:#8c93b3"><h4><i></i>Can’t be tested here</h4><div class="sxnotes">'+UNTESTABLE.map(u=>'<div><b>'+u[0]+'</b><p>'+u[1]+'</p></div>').join('')+'</div></section>';
     h+='<div class="sxrow foot"><button class="sxb ghost" data-act="clearres">Clear all results</button><button class="sxb ghost" data-act="lock">Hide Studio from title</button></div>';}
   else if(SX.tab==='places'){
-    h+='<div class="sxmapw"><canvas id="sxmap" width="240" height="240" aria-label="Map of Emberwood. Tap to teleport."></canvas><div class="sxcap">Tap anywhere on the map to teleport there</div></div>';
-    h+='<div class="sxlegend">'+Object.keys(PTYPE).map(k=>'<span style="--cc:'+PTYPE[k][1]+'"><i></i>'+PTYPE[k][0]+'</span>').join('')+'</div><div class="sxplaces">'+PLACES.map(p=>'<button class="sxpl" data-act="tp" data-id="'+p[0]+'" style="--cc:'+PTYPE[p[2]][1]+'"><i></i>'+p[1]+'</button>').join('')+'</div>';}
+    const mc=SX.ch===2?2:1;h+='<div class="sxmapw"><canvas id="sxmap" width="240" height="240" aria-label="Map of '+(mc===2?'Hollowmere':'Emberwood')+'. Tap to teleport."></canvas><div class="sxcap">'+(mc===2?'Hollowmere':'Emberwood')+' · tap anywhere on the map to teleport there</div></div>';
+    h+='<div class="sxlegend">'+Object.keys(PTYPE).map(k=>'<span style="--cc:'+PTYPE[k][1]+'"><i></i>'+PTYPE[k][0]+'</span>').join('')+'</div><div class="sxplaces">'+PLACES.filter(p=>!SX.ch||placeCh(p)===mc).map(p=>'<button class="sxpl" data-act="tp" data-id="'+p[0]+'" style="--cc:'+PTYPE[p[2]][1]+'"><i></i>'+p[1]+'</button>').join('')+'</div>';}
+  else if(SX.tab==='world'&&SX.ch===2){
+    const hs=[['h_seen','Entered Hollowmere',S.h_seen],['h_tobin','Tobin awake',S.h_tobin],['h_pell','Pell awake',S.h_pell],['h_wren','Wren awake',S.h_wren],['h_sol','Sol awake',S.h_sol],['h_clap','Clapper raised',S.h_clap],['h_bell','Bell rung',S.h_bell],['hm_mem','Memories V–VII',S.h_m5&&S.h_m6&&S.h_m7],['h_ledger','Ledger read',S.h_ledger],['h_b1','Crate bell',S.h_b1],['h_cat','Cat bell',S.h_cat],['h_lamps','Lamplighter route',S.h_lamps]];
+    h+='<h5 class="sxh">Chapter II switches <small>One-way, like the game itself. Earlier steps are set up for you.</small></h5><div class="sxgrid">'+hs.map(x=>'<button class="sxsw'+(x[2]?' done':'')+'" data-act="granth" data-id="'+x[0]+'"'+(x[2]?' disabled':'')+'><i></i><b>'+x[1]+'</b><small>'+(x[2]?'Done':'Make it so')+'</small></button>').join('')+'</div>';
+    h+='<h5 class="sxh">Chapter II shortcuts</h5><div class="sxgrid two">'+
+      '<button class="sxact" data-act="hmgo" style="--cc:#ff8f6a"><b>Go to Hollowmere</b><small>Emberwood done, gate open, walks you in</small></button>'+
+      '<button class="sxact" data-act="hmfav" style="--cc:#ffc23d"><b>Wake four villagers</b><small>Every favour done; the well is next</small></button>'+
+      '<button class="sxact" data-act="hmready" style="--cc:#ffa548"><b>Ready to ring</b><small>Clapper in hand, at the tower</small></button>'+
+      '<button class="sxact" data-act="hmring" style="--cc:#ff6a5f"'+(S.h_bell?' disabled':'')+'><b>Ring the bell</b><small>The full awakening, now</small></button>'+
+      '<button class="sxact" data-act="end2" style="--cc:#9fd8ff"><b>End of Chapter II</b><small>Bell rung, walks you to the lake road</small></button></div>';
+    h+='<h5 class="sxh">Sandbox</h5><div class="sxcol"><button class="sxact danger" data-act="reset"'+(NET.peer?' disabled':'')+'><b>Reset the Studio world</b><small>'+(NET.peer?'Leave the party first. A shared world can only move forward.':'Back to a fresh Emberwood in the sandbox. Your real journeys are never touched.')+'</small></button></div>';}
   else if(SX.tab==='world'){
     const sw=[['s1','Wayshrine I',S.s1],['pip','Pip awake',S.pip],['s2','Hidden wayshrine',S.s2],['stones','Stepping stones',S.stones],['s3','Chapel wayshrine',S.s3],['mems','Memories I–III',S.mem[0]&&S.mem[1]&&S.mem[2]],['bell','Lost bell',S.bell],['mural','Mural',S.mural]];
     h+='<h5 class="sxh">Story switches <small>One-way, like the game itself. Reset to replay.</small></h5><div class="sxgrid">'+sw.map(x=>'<button class="sxsw'+(x[2]?' done':'')+'" data-act="grant" data-id="'+x[0]+'"'+(x[2]?' disabled':'')+'><i></i><b>'+x[1]+'</b><small>'+(x[2]?'Done':'Make it so')+'</small></button>').join('')+'</div>';
@@ -2892,8 +2937,7 @@ function sxRender(){
       '<button class="sxact" data-act="allshrines" style="--cc:#ffd36b"><b>Light all wayshrines</b><small>Pip, stones and all three shrines</small></button>'+
       '<button class="sxact" data-act="heart" style="--cc:#ff6a5f"><b>Go to the ready Heart</b><small>Sets everything up, walks you in</small></button>'+
       '<button class="sxact" data-act="awaken" style="--cc:#ffa548"'+(S.awake?' disabled':'')+'><b>Awaken Emberwood</b><small>The full cinematic, now</small></button>'+
-      '<button class="sxact" data-act="hmgo" style="--cc:#ff8f6a"><b>Go to Hollowmere</b><small>Emberwood done, gate open, walks you in</small></button>'+
-      '<button class="sxact" data-act="hmfav" style="--cc:#ffc23d"><b>Wake four villagers</b><small>Every favour done; the well is next</small></button>'+
+      '<button class="sxact" data-act="end1" style="--cc:#9fd8ff"><b>End of Chapter I</b><small>Forest awake, walks you to the gate</small></button>'+
       '<button class="sxact" data-act="fox" style="--cc:#9fd8ff"><b>'+(NPC.fox.absent?'Summon':'Dismiss')+' the night fox</b><small>Real night is 8 pm to 6 am</small></button></div>';
     h+='<h5 class="sxh">Look and camera</h5><div class="sxcol">'+tog('preview',G.envOverride!=null,'Preview awakened look','Non-destructive. Daylight and colour over the cursed world')+
       '<button class="sxact" data-act="storydemo" style="--cc:#6fb6ff"><b>Storybook camera demo</b><small>Swing to a storybook page and back</small></button></div>';
@@ -2923,9 +2967,9 @@ function sxLinkStats(){const el=document.getElementById('sxstats');if(!el)return
     ['Smoothing buffer',ok?Math.round((NET.delay+(NET.simLag||0))*1000)+' ms':'—'],['Jitter',ok?Math.round(NET.jit*1000)+' ms':'—'],['Updates',ok?Math.round(1/Math.max(.01,NET.avgI))+' / s':'—'],
     ['Signal',ok?['—','Weak','Good','Great'][netQuality()]:'—'],['World sync',ok?'Checked every 2.5 s':'—']];
   el.innerHTML=rows.map(r=>'<div><span>'+r[0]+'</span><b>'+r[1]+'</b></div>').join('');}
-function sxDrawMap(){const c=document.getElementById('sxmap');if(!c)return;drawMap(c);
-  if(!c.dataset.wired){c.dataset.wired=1;c.addEventListener('click',e=>{const r=c.getBoundingClientRect(),N=c.width,K=N/100;const x=((e.clientX-r.left)/r.width*N-N/2)/K,z=((e.clientY-r.top)/r.height*N-N/2)/K;
-    if(Math.hypot(x,z)>44){toast('<span class="d"></span><span>That’s beyond the forest edge</span>',1600);return;}teleport(x,z);setTimeout(sxDrawMap,60);});}}
+function sxDrawMap(){const c=document.getElementById('sxmap');if(!c)return;const hm=SX.ch===2;if(hm)drawMapHM(c);else drawMap(c,true);
+  if(!c.dataset.wired){c.dataset.wired=1;c.addEventListener('click',e=>{const r=c.getBoundingClientRect(),N=c.width,hm2=SX.ch===2,K=N/(hm2?56:100);let x=((e.clientX-r.left)/r.width*N-N/2)/K,z=((e.clientY-r.top)/r.height*N-N/2)/K;if(hm2){x+=HM.x;z+=HM.z;}
+    const out=hm2?d2(x,z,HM.x,HM.z)>HM.r-.6:Math.hypot(x,z)>44;if(out){toast('<span class="d"></span><span>'+(hm2?'That’s beyond the village':'That’s beyond the forest edge')+'</span>',1600);return;}teleport(x,z);setTimeout(sxDrawMap,60);});}}
 function sxStoryDemo(){closeStudio();if(G.mode!=='play')return;storyOn(new THREE.Vector3(PL.x,PL.y+1.4,PL.z),.9);after(.6,()=>caption('Every key moment turns the page into a storybook.'));after(4.2,()=>{storyOff();G.mode='play';});}
 function sxReset(){if(NET.peer)return;try{store.del(SAVE_STUDIO);sessionStorage.setItem('lf.studio.boot','fresh');}catch(e){}location.reload();}
 function setSolo(v){SX.solo=v;if(!AU.ctx)audioInit();if(!AU.L)return;const t=AU.ctx.currentTime;
@@ -2943,6 +2987,12 @@ sxBody.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b
     case 'allshrines':grantMany(['note','pip','stones','s1','s2','s3']);toast('<span class="d f"></span><span>All wayshrines lit</span>',2000);break;
     case 'heart':grantMany(['note','pip','stones','s1','s2','s3']);teleport(P.heart[0],P.heart[1]+4.6);closeStudio();return;
     case 'awaken':closeStudio();awaken();return;
+    case 'ch':setChapter(+v);break;
+    case 'granth':GRH[id]();setLayers();break;
+    case 'end1':closeStudio();sxEnd1();return;
+    case 'end2':closeStudio();sxEnd2();return;
+    case 'hmready':closeStudio();sxReadyToRing();tpTo('tower');return;
+    case 'hmring':closeStudio();sxReadyToRing();if(!S.h_mara)hmSet('h_mara');hmSet('h_bell');return;
     case 'hmgo':sxHm();tpTo('hm');closeStudio();return;
     case 'hmfav':sxHm();sxHmFavours();toast('<span class="d f"></span><span>Four villagers awake</span>',2000);break;
     case 'fox':setFoxPresent(!!NPC.fox.absent);if(!NPC.fox.absent)tpTo('fox');closeStudio();return;
@@ -2962,20 +3012,21 @@ sxBody.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b
     case 'resync':share({t:'need'});share(snapData());toast('<span class="d f"></span><span>Snapshots exchanged</span>',1600);return;
     case 'lag':NET.simLag=+v;break;case 'loss':NET.simLoss=+v;break;}
   sxRender();});
-function runSetup(i){const st=STEPS[i];if(!st)return;SX.step=i;sxSave();closeStudio();if(G.mode!=='play'&&G.mode!=='end'){SX.pending=i;toast('<span class="d"></span><span>Setting up as soon as this moment ends</span>',1800);return;}SX.pending=null;
+function runSetup(i){const st=STEPS[i];if(!st)return;if(st.ch!==SX.ch)setChapter(st.ch);SX.step=Math.max(0,tourList().indexOf(st));sxSave();closeStudio();if(G.mode!=='play'&&G.mode!=='end'){SX.pending=i;toast('<span class="d"></span><span>Setting up as soon as this moment ends</span>',1800);return;}SX.pending=null;
   if(st.setup){try{st.setup();}catch(e){report(e,'studio:'+st.id);}}SX.exp=st.id;tourBar();}
 
 /* ---- the tour bar: one sitting, one step at a time ---- */
-function tourBar(){const show=G.studio&&SX.tour&&!SX.open&&G.mode!=='title';tourbar.hidden=!show;if(!show)return;
-  const st=STEPS[SX.step],r=SX.res[st.id],cc=CAT[st.cat][1];
+const tourShow=()=>G.studio&&SX.tour&&!SX.open&&(G.mode==='play'||G.mode==='intro');
+function tourBar(){const show=tourShow();tourbar.hidden=!show;if(!show)return;
+  const TL=tourList(),st=TL[Math.min(SX.step,TL.length-1)],r=SX.res[st.id],cc=CAT[st.cat][1];
   tourbar.style.setProperty('--cc',cc);tourbar.className=r?(r.s==='ok'?'ok':'bad'):'';
-  tourbar.innerHTML='<div class="tbh"><span class="tbc"><i></i>'+CAT[st.cat][0]+'</span><span class="tbn">'+(SX.step+1)+' / '+STEPS.length+'</span><button data-tb="panel" aria-label="Open Studio">☰</button><button data-tb="end" aria-label="End tour">✕</button></div>'+
+  tourbar.innerHTML='<div class="tbh"><span class="tbc"><i></i>'+CAT[st.cat][0]+'</span><span class="tbn">'+(CHAPTERS.find(c=>c.id===SX.ch).n)+' · '+(SX.step+1)+' / '+TL.length+'</span><button data-tb="panel" aria-label="Open Studio">☰</button><button data-tb="end" aria-label="End tour">✕</button></div>'+
     '<b class="tbt">'+st.t+(r&&r.s==='ok'?' <em>✓</em>':'')+'</b><p>'+st.todo+'</p>'+(st.coop&&!MATE.vis?'<p class="tbneed">Needs a second player</p>':'')+
     '<div class="tbr"><button data-tb="prev" aria-label="Previous">‹</button>'+(st.setup?'<button data-tb="setup" class="pri">Set up</button>':'')+'<button data-tb="ok" class="ok">Works</button><button data-tb="issue" class="bad">Issue</button><button data-tb="next" aria-label="Next"'+(r?' class="glow"':'')+'>›</button></div>';}
-tourbar.addEventListener('click',e=>{const b=e.target.closest('[data-tb]');if(!b)return;const a=b.dataset.tb,st=STEPS[SX.step];SFX.page();
+tourbar.addEventListener('click',e=>{const b=e.target.closest('[data-tb]');if(!b)return;const a=b.dataset.tb,TL=tourList(),st=TL[Math.min(SX.step,TL.length-1)];SFX.page();
   if(a==='panel'){openStudio('tour');SX.exp=st.id;sxRender();return;}if(a==='end'){SX.tour=false;tourBar();return;}
-  if(a==='prev')SX.step=Math.max(0,SX.step-1);if(a==='next')SX.step=Math.min(STEPS.length-1,SX.step+1);
-  if(a==='setup'){runSetup(SX.step);return;}if(a==='ok'){mark(st.id,'ok');SX.step=Math.min(STEPS.length-1,SX.step+1);}if(a==='issue')mark(st.id,'issue');
+  if(a==='prev')SX.step=Math.max(0,SX.step-1);if(a==='next')SX.step=Math.min(TL.length-1,SX.step+1);
+  if(a==='setup'){runSetup(STEPS.indexOf(st));return;}if(a==='ok'){mark(st.id,'ok');SX.step=Math.min(TL.length-1,SX.step+1);}if(a==='issue')mark(st.id,'issue');
   sxSave();tourBar();});
 function fpsMeter(){fpsm.textContent=Math.round(SX.fps)+' fps · '+SX.ms.toFixed(1)+' ms · quality '+Math.round(G.quality*100)+'%';fpsm.classList.toggle('low',SX.fps<45);}
 

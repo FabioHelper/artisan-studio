@@ -23,7 +23,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Lanternfall</title>
-<meta name="lanternfall-build" content="f5b63b7c">
+<meta name="lanternfall-build" content="08e38473">
 <meta name="theme-color" content="#0d0f1a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -259,6 +259,9 @@ body{color:var(--paper);font-family:var(--f-pix);-webkit-user-select:none;user-s
 .mapkey i.f{background:var(--gold)}
 #hx{position:fixed;left:-60px;top:0;opacity:0;pointer-events:none}
 
+.jslot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px dashed rgba(236,226,200,.17)}.jslot.last .jsi b{color:var(--gold)}
+.jsi{min-width:0}.jsi b{display:block;font:600 14px var(--f-pix);letter-spacing:.06em}.jsi b small{font:italic 13px var(--f-book);opacity:.6;letter-spacing:0}.jsi span{display:block;font:italic 15px var(--f-book);color:rgba(236,226,200,.7);margin-top:2px}.jsi .jnote{font-size:13px;color:#ff8fb8}
+.jsb{display:flex;flex-direction:column;gap:6px;flex:none}.jsb .pbtn{min-width:96px;padding:9px 10px}.pbtn.warn{border-color:#ff6a5f;color:#ff6a5f}
 /* ---------- Lanternfall Studio ---------- */
 .schip{margin-top:12px;display:inline-flex;align-items:center;gap:8px;padding:8px 14px 7px;border:0;background:linear-gradient(90deg,#ffd36b,#ff8fb8,#b48cff,#3fd0c9,#a6e04a);color:#140f1f;font:600 11px/1 var(--f-pix);letter-spacing:.26em;text-transform:uppercase;cursor:pointer;box-shadow:0 0 0 2px #140f1f,0 6px 18px rgba(180,140,255,.35)}
 #sbtn{position:absolute;right:calc(max(12px,env(safe-area-inset-right,0px)) + 46px);top:calc(env(safe-area-inset-top,0px) + 12px);width:40px;height:40px;border:0;padding:0;background:transparent;cursor:pointer;display:grid;place-items:center}
@@ -443,6 +446,8 @@ body{color:var(--paper);font-family:var(--f-pix);-webkit-user-select:none;user-s
 #end{background:linear-gradient(180deg,rgba(8,8,20,0) 0%,rgba(8,8,20,.12) 36%,rgba(8,8,20,.86) 74%,rgba(8,8,20,.94) 100%);-webkit-backdrop-filter:none;backdrop-filter:none;place-items:end center;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 36px)}
 @media (prefers-reduced-motion:reduce){#title .logo span{transform:none;filter:none;transition:opacity .6s}#title.ts1 .tap{animation:none}.emblem .fl{animation:none}}
 @media (prefers-reduced-motion:reduce){.glyph .bob,#hold .pulse,.flag .cloth,.lamp,.tlink .tl1,.tlink .tl2{animation:none}}
+
+#title .logo{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
 </style>
 
 </head>
@@ -494,7 +499,7 @@ body{color:var(--paper);font-family:var(--f-pix);-webkit-user-select:none;user-s
       <nav class="tmenu" aria-label="Main menu">
         <button class="btn" id="bJoin" hidden>Join your friend</button>
         <button class="btn" id="bBegin">Begin</button>
-        <button class="btn ghost" id="bNew" hidden>New journey</button>
+        <button class="btn ghost" id="bNew" hidden>Journeys</button>
         <button class="tlink" id="bTogether"><span class="tl1"></span>Play together<span class="tl2"></span></button>
         <button class="schip" id="bStudio" hidden>Studio</button>
       </nav>
@@ -550,7 +555,7 @@ const reduceMotion=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduc
 
 /* ================= save + settings ================= */
 const store={get(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}},del(k){try{localStorage.removeItem(k);}catch(e){}}};
-const SAVE='lanternfall.emberwood.v1', SETS='lanternfall.settings.v1';
+const SAVE='lanternfall.emberwood.v1', SETS='lanternfall.settings.v1', SAVE_COOP='lanternfall.emberwood.coop.v1';
 const settings=Object.assign({sound:true,retro:true},store.get(SETS)||{});
 const SAVE_V=2;
 function freshS(){return{v:SAVE_V,s1:false,s2:false,s3:false,pip:false,stones:false,awake:false,mem:[false,false,false,false],bell:false,mural:false,fox:false,duet:false,twin:false,sisters:false,note:false,mateName:'',met:{},talks:{},t:0};}
@@ -1737,12 +1742,13 @@ function renderJournal(){const b=$('#jbody');let h='';
   else{h+='<div class="row"><div>Sound<small>Music, footsteps and voices</small></div><button class="opt'+(settings.sound?' on':'')+'" id="oSound">'+(settings.sound?'On':'Off')+'</button></div>';
     h+='<div class="row"><div>Pixel look<small>Chunky retro pixels or a crisp picture</small></div><button class="opt'+(settings.retro?' on':'')+'" id="oPix">'+(settings.retro?'Retro':'Crisp')+'</button></div>';
     h+=journeyRows();
-    h+='<div class="row"><div>Start over<small>Erase this journal and begin again</small></div><button class="opt danger" id="oReset">Reset</button></div>';}
+    if(typeof studioRow==='function')h+=studioRow();
+    if(G.slot)h+='<div class="row"><div>Start over<small>Erase only this journey ('+esc((slotOf(G.slot)||{n:'this one'}).n)+') and begin again</small></div><button class="opt danger" id="oReset">Reset</button></div>';}
   b.innerHTML=h;
   journeyBind();
   const os=$('#oSound');if(os)os.onclick=()=>{settings.sound=!settings.sound;store.set(SETS,settings);audioInit();if(AU.master)AU.master.gain.setTargetAtTime(settings.sound?.85:0,AU.ctx.currentTime,.05);renderJournal();};
   const op=$('#oPix');if(op)op.onclick=()=>{settings.retro=!settings.retro;store.set(SETS,settings);resize();renderJournal();};
-  const or=$('#oReset');if(or)or.onclick=()=>{if(or.dataset.c){store.del(SAVE);location.reload();}else{or.dataset.c='1';or.textContent='Sure?';}};}
+  const or=$('#oReset');if(or)or.onclick=()=>{if(or.dataset.c){if(G.slot)store.del(G.slot);location.reload();}else{or.dataset.c='1';or.textContent='Sure?';}};}
 function openJournal(){if(G.mode==='title'||G.journal)return;G.journal=true;IN.ptr=null;IN.drag=false;joyEl.classList.remove('on');renderJournal();$('#journal').classList.add('on');SFX.page();newMark(false);}
 function closeJournal(){if(!G.journal)return;G.journal=false;$('#journal').classList.remove('on');SFX.page();}
 document.querySelectorAll('.jtab').forEach(b=>b.addEventListener('click',()=>{jTab=b.dataset.t;document.querySelectorAll('.jtab').forEach(x=>x.setAttribute('aria-selected',x===b?'true':'false'));renderJournal();SFX.page();}));
@@ -1764,6 +1770,32 @@ function journeyRows(){return'<div class="row"><div>Journey code<small>Carry you
 function journeyBind(){const c=$('#oJCopy'),l=$('#oJLoad'),msg=t=>{const m=$('#jcMsg');if(m)m.textContent=t;};
   if(c)c.onclick=()=>{copyText(journeyCode()).then(ok=>msg(ok?'Copied. Keep it somewhere safe, or send it to yourself.':journeyCode()));};
   if(l)l.onclick=()=>{const v=$('#jcIn').value;if(l.dataset.c!==v){l.dataset.c=v;l.textContent='Sure?';msg('This replaces the journey on this phone.');return;}const e=journeyLoad(v);msg(e||'Journey loaded. One moment…');l.textContent='Load';l.dataset.c='';};}
+/* ================= journeys (save slots) ================= */
+const SLOTS=[{k:SAVE,n:'Journey 1'},{k:'lanternfall.journey2.v1',n:'Journey 2'},{k:'lanternfall.journey3.v1',n:'Journey 3'},{k:SAVE_COOP,n:'Shared journey',shared:true}];
+const LAST_K='lanternfall.last.v1';
+function slotOf(k){return SLOTS.find(s=>s.k===k)||null;}
+function lastSlot(){const k=store.get(LAST_K);return slotOf(k)&&!slotOf(k).shared?k:SAVE;}
+function setLast(k){const s=slotOf(k);if(s&&!s.shared)store.set(LAST_K,k);}
+function anyProg(){return SLOTS.some(s=>hasProg(store.get(s.k)));}
+function slotSummary(d){if(!hasProg(d))return'Empty';
+  const n=(d.h_tobin?1:0)+(d.h_pell?1:0)+(d.h_wren?1:0)+(d.h_sol?1:0),w=(d.s1?1:0)+(d.s2?1:0)+(d.s3?1:0);
+  const where=d.h_bell?'Hollowmere · awake':d.h_seen?'Hollowmere · '+n+' of 4 villagers awake':d.awake?'Emberwood · awake':'Emberwood · '+w+' of 3 wayshrines';
+  return where+(d.mateName?' · with '+String(d.mateName).replace(/[<>]/g,''):'');}
+const JV={erase:null};
+function renderJourneys(el){const last=lastSlot();
+  let h='<div class="pv" style="--pc:#ffd36b"><div class="ph"><div><h2>Journeys</h2><div class="sub">Each journey keeps its own save. Playing one never changes another.</div></div><button class="jx" data-j="close" aria-label="Close">✕</button></div>';
+  for(const s of SLOTS){const d=store.get(s.k),has=hasProg(d);
+    h+='<div class="jslot'+(s.k===last&&!s.shared?' last':'')+'"><div class="jsi"><b>'+esc(s.n)+(s.shared?' <small>played together</small>':'')+'</b><span>'+esc(slotSummary(d))+'</span>'+(s.shared&&has?'<span class="jnote">Playing it alone moves it on for both of you.</span>':'')+'</div><div class="jsb">'+
+      '<button class="pbtn" data-j="play" data-k="'+s.k+'">'+(has?'Continue':'Start')+'</button>'+(has?'<button class="pbtn ghost'+(JV.erase===s.k?' warn':'')+'" data-j="erase" data-k="'+s.k+'">'+(JV.erase===s.k?'Erase it?':'Erase')+'</button>':'')+'</div></div>';}
+  h+='<p class="pnote">Want to play with a friend? Close this and tap Play together. Saves live on this phone for this link; the journey code in the journal carries one anywhere.</p></div>';
+  el.innerHTML=h;el.querySelectorAll('[data-j]').forEach(b=>b.addEventListener('click',()=>journeyAct(b.dataset.j,b.dataset.k)));}
+function openJourneys(){JV.erase=null;renderJourneys(psheet);party.classList.add('on');SFX.page();}
+function journeyAct(a,k){SFX.page();
+  if(a==='close'){closeParty();return;}
+  if(a==='play'){closeParty();if(!slotOf(k))return;setLast(k);begin({slot:k,cont:hasProg(store.get(k))});return;}
+  if(a==='erase'){if(JV.erase!==k){JV.erase=k;renderJourneys(psheet);return;}store.del(k);JV.erase=null;if(store.get(LAST_K)===k)store.del(LAST_K);refreshTitleMenu();renderJourneys(psheet);}}
+function refreshTitleMenu(){const has=hasProg(store.get(lastSlot()));$('#bBegin').textContent=has?'Continue':'Begin';$('#bNew').hidden=!anyProg();
+  const s=slotOf(lastSlot());const t=$('#bBegin');t.title=s?s.n:'';}
 /* ================= end card ================= */
 function showEnd(ch){ch=ch||1;G.endShown=true;G.mode='end';CAM.mode='hero';CAM.heroP=[PL.x,PL.z];CAM.t=0;CAM.tr=1.1;CAM.pr=.9;{const c=heroCamXZ(heroShot(PL.x,PL.y,PL.z,0));hideCorridor(c[0],c[1],PL.x,PL.z);}SFX.gate();const e1=$('#end');
   if(ch===2){e1.querySelector('.kick').textContent='Chapter II complete';e1.querySelector('h2').textContent='The bell of Hollowmere';e1.querySelector('p').textContent='The village is awake, and it remembers why it slept. Mist still hides the lake road, and somewhere above it, Ash is climbing.';}
@@ -2156,9 +2188,9 @@ function renderParty(el,where){const sheet=where==='sheet';const head=(t,sub)=>'
     h+=head('Two Lights','Play Emberwood with a friend, anywhere');
     h+='<div class="plabel">Your name</div><div class="prow"><input class="pin nm" id="pname" maxlength="12" autocomplete="off" spellcheck="false" value="'+esc(myNameRaw())+'" placeholder="Wick"></div>';
     h+='<div class="plabel">Invite a friend</div>';
-    if(title){const sv=store.get(SAVE),cv=store.get(SAVE_COOP);
+    if(title){const sv=store.get(lastSlot()),cv=store.get(SAVE_COOP);
       h+=pcard('hostSolo',hasProg(sv)?'Bring a friend into my journey':'Begin a journey together',hasProg(sv)?'Your saved Emberwood, with a friend beside you.':'A fresh Emberwood, started side by side.');
-      if(hasProg(sv))h+=pcard('hostNew','Start a new journey together','A fresh forest for the two of you. Your solo save stays safe.',1);
+      if(hasProg(sv)&&!hasProg(cv))h+=pcard('hostNew','Start a new journey together','A fresh forest for the two of you. Your solo save stays safe.',1);
       if(hasProg(cv))h+=pcard('hostCoop','Continue our shared journey','Back to the forest you started together.',1);}
     else h+=pcard('hostHere','Invite a friend to this journey','They’ll appear right beside you.');
     h+='<div class="plabel">Join a friend</div><div class="prow"><input class="pin" id="pcode" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC-234"><button class="pbtn" data-a="join">Join</button></div><div class="pmsg" id="pmsg">'+esc(PV.msg)+'</div>';
@@ -2171,7 +2203,7 @@ function partyAct(a){SFX.page();
   if(a==='close'){closeParty();return;}
   if(a==='menu'){PV.view='menu';PV.msg='';partyRefresh();return;}
   if(a==='hostSolo'||a==='hostNew'||a==='hostCoop'||a==='hostHere'){if(!CO_OK)return;const code=genCode();if(!netStart('host',code))return;
-    if(a==='hostSolo')begin({slot:SAVE,cont:hasProg(store.get(SAVE))});else if(a==='hostNew')begin({slot:SAVE_COOP,cont:false});else if(a==='hostCoop')begin({slot:SAVE_COOP,cont:true});
+    if(a==='hostSolo'){const k=lastSlot();begin({slot:k,cont:hasProg(store.get(k))});}else if(a==='hostNew')begin({slot:SAVE_COOP,cont:false});else if(a==='hostCoop')begin({slot:SAVE_COOP,cont:true});
     PV.view='live';PV.msg='';if(G.journal&&jTab==='together')renderJournal();else{renderParty(psheet,'sheet');party.classList.add('on');}return;}
   if(a==='join'){const pc=document.getElementById('pcode');const c=cleanCode(pc?pc.value:'');if(c.length!==6){pmsg('Enter the 6-character code');return;}startJoin(c);return;}
   if(a==='retry'){startJoin(NET.code);return;}
@@ -2198,7 +2230,7 @@ const JM=/join[-=]([A-Za-z0-9]{6})/.exec(location.hash+' '+location.search);
 const TITLE0={kick:$('#tkick').textContent,lede:$('#tlede').textContent};
 function titleInvite(on){$('#bJoin').hidden=!on;$('#bTogether').hidden=on;
   $('#tkick').textContent=on?'You’re invited':TITLE0.kick;$('#tlede').textContent=on?'A friend’s lantern is waiting for you in Emberwood.':TITLE0.lede;
-  const bb=$('#bBegin');bb.classList.toggle('ghost',on);const sv=hasProg(store.get(SAVE));bb.textContent=on?'Play solo':(sv?'Continue':'Begin');$('#bNew').hidden=on||!sv;}
+  const bb=$('#bBegin');bb.classList.toggle('ghost',on);const sv=hasProg(store.get(lastSlot()));bb.textContent=on?'Play solo':(sv?'Continue':'Begin');$('#bNew').hidden=on||!anyProg();}
 $('#bTogether').addEventListener('click',()=>{audioInit();openParty('menu');});
 $('#bJoin').addEventListener('click',()=>{if(JM)startJoin(JM[1]);});
 function initInvite(){if(!(JM&&CO_OK))return;titleInvite(true);titleStage(2);try{const aj=sessionStorage.getItem('lf.autojoin');if(aj&&aj===cleanCode(JM[1])){sessionStorage.removeItem('lf.autojoin');setTimeout(()=>startJoin(aj),400);}}catch(e){}}
@@ -2957,7 +2989,10 @@ function initStudio(){if(/(^|#|&)studio\b/.test(location.hash))unlockStudio();$(
   logo.addEventListener('pointerdown',()=>{clearTimeout(lp);lp=setTimeout(()=>{if(!studioUnlocked()){unlockStudio();vib(20);SFX.ready&&SFX.ready();toast('<span class="d f"></span><span>Studio unlocked</span>',2000);}},900);});
   ['pointerup','pointerleave','pointercancel'].forEach(ev=>logo.addEventListener(ev,()=>clearTimeout(lp)));
   $('#bStudio').addEventListener('click',()=>{audioInit();enterStudio(false);});
-  try{if(sessionStorage.getItem('lf.studio.boot')==='fresh'){sessionStorage.removeItem('lf.studio.boot');setTimeout(()=>{audioInit();enterStudio(true);},300);}}catch(e){}}
+  try{const sb=sessionStorage.getItem('lf.studio.boot');if(sb==='fresh'||sb==='cont'){sessionStorage.removeItem('lf.studio.boot');setTimeout(()=>{audioInit();enterStudio(sb==='fresh');},300);}}catch(e){}}
+/* from inside the game: the journal offers Studio once it is unlocked (it reloads into the Studio sandbox, your journey is saved) */
+function studioRow(){if(!studioUnlocked()||G.studio)return'';return'<div class="row"><div>Lanternfall Studio<small>The design test panel, in its own sandbox</small></div><button class="opt" id="oStudio">Open</button></div>';}
+document.addEventListener('click',e=>{if(e.target&&e.target.id==='oStudio'){save();try{sessionStorage.setItem('lf.studio.boot','cont');}catch(_){}location.hash='studio';location.reload();}});
 /*STUDIO:END*/
 
 
@@ -2971,7 +3006,7 @@ function titleWake(){if(G.mode!=='title'||TITLE.stage>=2)return;audioInit();titl
 $('#tap').addEventListener('click',e=>{e.stopPropagation();titleWake();});
 tEl.addEventListener('click',e=>{if(TITLE.stage===1&&!e.target.closest('button'))titleWake();});
 function titleInit(){const lg=tEl.querySelector('.logo');lg.innerHTML=[...'Lanternfall'].map((ch,i)=>'<span aria-hidden="true" style="--i:'+i+'">'+ch+'</span>').join('');
-  const sv=store.get(SAVE);
+  const sv=store.get(lastSlot());
   if(!JM&&hasProg(sv)&&sv.awake){TITLE.dawn=true;G.envOverride=1;U.uWake.value.z=56;envLast=-1;$('#tlede').textContent=sv.h_bell?'Hollowmere is awake. Mist still hides the lake road.':'Emberwood is awake. Hollowmere still sleeps.';}
   if(!JM&&sv&&sv.h_seen){$('#tkick').textContent='Chapter II · Hollowmere';const f=tEl.querySelector('.tfoot span:last-child');if(f)f.textContent='Chapter II';}}
 function titleUpdate(dt){if(G.mode!=='title')return;TITLE.t+=dt;
@@ -2994,11 +3029,9 @@ function applySave(d){S=Object.assign(freshS(),sanitizeSave(d));if(!Array.isArra
   if(wasAw)awakenInstant();
   G.gateOpen=S.awake?1:0;
   hmApply();}
-const SAVE_COOP='lanternfall.emberwood.coop.v1';
 function hasProg(d){return!!(d&&typeof d==='object'&&(d.s1||d.pip||Array.isArray(d.mem)&&d.mem.some(Boolean)||d.awake));}
-const saved=store.get(SAVE);
-if(hasProg(saved)){$('#bBegin').textContent='Continue';$('#bNew').hidden=false;}
-function begin(opt){audioInit();opt=opt||{};G.slot=opt.slot===undefined?SAVE:opt.slot;titleStage(2);G.ign=Math.max(G.ign,1);restoreHidden();
+refreshTitleMenu();
+function begin(opt){audioInit();opt=opt||{};G.slot=opt.slot===undefined?lastSlot():opt.slot;setLast(G.slot);titleStage(2);G.ign=Math.max(G.ign,1);restoreHidden();
   if(TITLE.dawn){TITLE.dawn=false;G.envOverride=null;U.uWake.value.z=0;envLast=-1;}
   try{if(opt.snap){S=freshS();syncTo(opt.snap);if(Array.isArray(opt.snap.pos)){PL.x=+opt.snap.pos[0]+1.4;PL.z=+opt.snap.pos[1]+1.2;movePlayer(0,0);}}
     else if(opt.cont){const d=store.get(G.slot);if(d)applySave(d);}
@@ -3009,8 +3042,8 @@ function begin(opt){audioInit();opt=opt||{};G.slot=opt.slot===undefined?SAVE:opt
   G.mode='intro';CAM.mode='explore';CAM.tr=.75;CAM.pr=.7;G.lock=3;G.lastProg=G.time;G.hintAt=G.time+(S.s1?80:45);keepAwake();
   after(2.4,()=>{if(inHMish(PL.x,PL.z))zone('Hollowmere',opt.snap?'With '+mateName():S.h_bell?'The village is awake':'The village that chose to sleep');else zone('Emberwood',opt.snap?'With '+mateName():S.awake?'The forest is awake':'The forest of sleeping light');});
   after(3.0,()=>{if(G.mode==='intro')G.mode='play';});setLayers(true);}
-$('#bBegin').addEventListener('click',()=>begin({slot:SAVE,cont:hasProg(saved)}));
-$('#bNew').addEventListener('click',()=>begin({slot:SAVE,cont:false}));
+$('#bBegin').addEventListener('click',()=>{const k=lastSlot();begin({slot:k,cont:hasProg(store.get(k))});});
+$('#bNew').addEventListener('click',()=>{audioInit();openJourneys();});
 initInvite();
 if(typeof initStudio==='function')initStudio();
 resize();
@@ -3029,6 +3062,10 @@ function frame(now){requestAnimationFrame(frame);let rdt=Math.min(.05,Math.max(0
 requestAnimationFrame(frame);
 requestAnimationFrame(()=>{const f=$('#fade');f.classList.add('out');});
 cv.addEventListener('webglcontextlost',e=>{e.preventDefault();fail();});
+/* offline play: on the hosted web build a service worker keeps the game on the phone after the first visit (law BUILD-7) */
+try{if('serviceWorker' in navigator&&!IN_CLAUDE&&(location.protocol==='https:'))navigator.serviceWorker.register('sw.js').catch(()=>{});}catch(e){}
+function netLabel(){const f=tEl.querySelector('.tfoot span:first-child');if(f)f.textContent=navigator.onLine===false?'Offline · journeys play alone':'Best with sound on';}
+netLabel();window.addEventListener('online',netLabel);window.addEventListener('offline',netLabel);
 
 })();
 </script>

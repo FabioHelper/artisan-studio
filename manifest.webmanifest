@@ -1,7 +1,6 @@
 {
  "name": "Lanternfall",
  "short_name": "Lanternfall",
- "start_url": "./",
  "scope": "./",
  "display": "fullscreen",
  "orientation": "portrait",

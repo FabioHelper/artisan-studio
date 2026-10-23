@@ -23,7 +23,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Lanternfall</title>
-<meta name="lanternfall-build" content="5be792f2">
+<meta name="lanternfall-build" content="8a0325c1">
 <meta name="theme-color" content="#0d0f1a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -551,7 +551,7 @@ const store={get(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):n
 const SAVE='lanternfall.emberwood.v1', SETS='lanternfall.settings.v1';
 const settings=Object.assign({sound:true,retro:true},store.get(SETS)||{});
 const SAVE_V=2;
-function freshS(){return{v:SAVE_V,s1:false,s2:false,s3:false,pip:false,stones:false,awake:false,mem:[false,false,false,false],bell:false,mural:false,fox:false,duet:false,twin:false,note:false,mateName:'',met:{},talks:{},t:0};}
+function freshS(){return{v:SAVE_V,s1:false,s2:false,s3:false,pip:false,stones:false,awake:false,mem:[false,false,false,false],bell:false,mural:false,fox:false,duet:false,twin:false,sisters:false,note:false,mateName:'',met:{},talks:{},t:0};}
 let S=freshS();
 function save(){if(G.slot)store.set(G.slot,S);}
 const G={ign:-.45,studio:false,speedMul:1,timeScale:1,noclip:false,infLight:false,camZoom:1,envOverride:null,rawDt:0,slot:SAVE,link:0,myFlareAt:-9,mateFlareAt:-9,errs:0,errLog:[],mode:'title',time:0,lock:0,hp:0,trauma:0,energy:1,lampBoost:0,flareReveal:0,flares:0,lastProg:0,hintAt:80,envK:0,wave:null,rek:null,zs:{},journal:false,endShown:false,holdNear:0,ready:false,readyAnim:0,gateOpen:0,quality:1};
@@ -1384,10 +1384,12 @@ function doFlare(){
   if(G.mode!=='play'||G.lock>0)return;
   if(G.energy<.3){SFX.fizzle();burst(_lp.x,_lp.y,_lp.z,6,0x8a7a6a,{spd:1,up:1,size:.12,life:.5});return;}
   const p=wick.pal;
-  G.energy-=.3;G.flares++;G.lampBoost=1;revealAt(PL.x,PL.z,8,1.8);G.trauma=Math.max(G.trauma,.18);vib(12);SFX.flare(myVoice());
-  ringFx(PL.x,PL.y+.12,PL.z,7.2,p.ring);burst(_lp.x,_lp.y,_lp.z,26,p.spark,{spd:5,up:2.5,size:.22,life:.9,grav:-.5});
-  bloomNear(PL.x,PL.z,7);
-  for(const t of FT){if(t.ok()&&d2(PL.x,PL.z,t.x,t.z)<t.r){t.act();break;}}
+  const lr=flareReach();
+  G.energy-=.3;G.flares++;G.lampBoost=1;revealAt(PL.x,PL.z,8*lr,1.8);G.trauma=Math.max(G.trauma,.18);vib(12);SFX.flare(myVoice());
+  ringFx(PL.x,PL.y+.12,PL.z,7.2*lr,p.ring);burst(_lp.x,_lp.y,_lp.z,26,p.spark,{spd:5,up:2.5,size:.22,life:.9,grav:-.5});
+  bloomNear(PL.x,PL.z,7*lr);
+  for(const t of FT){if(t.ok()&&d2(PL.x,PL.z,t.x,t.z)<t.r*lr){t.act();break;}}
+  sisFlare(PL.x,PL.z);
   G.holdNear=0;
   if(NET.peer){share({t:'fl'});G.myFlareAt=nowS();if(MATE.vis&&nowS()-G.mateFlareAt<.9&&d2(PL.x,PL.z,MATE.x,MATE.z)<9)twinFlare();}
 }
@@ -1587,9 +1589,12 @@ function worldUpdate(dt){const t=G.time;
   /* gate */
   G.gateOpen=damp(G.gateOpen,S.awake?1:0,.7,dt);gateBarrier.material.uniforms.uO.value=1-G.gateOpen;gateBarrier.visible=G.gateOpen<.98;
   /* spectral */
-  for(const s of SPEC){let tg=0;if(s.active()){if(PIP.on)tg=1-ss(4.5,8.5,Math.hypot(PIP.x-s.x,PIP.z-s.z));for(const r of REV){if(d2(r.x,r.z,s.x,s.z)<r.r)tg=Math.max(tg,.8*Math.min(1,r.t));}}
+  const sight=spiritSight();
+  for(const s of SPEC){let tg=0;if(s.active()){const sp=sight?1-ss(4.5,8.5,Math.hypot(PL.x-s.x,PL.z-s.z)):0;
+      if(s.spirit)tg=sp;else{if(PIP.on)tg=1-ss(4.5,8.5,Math.hypot(PIP.x-s.x,PIP.z-s.z));for(const r of REV){if(d2(r.x,r.z,s.x,s.z)<r.r)tg=Math.max(tg,.8*Math.min(1,r.t));}tg=Math.max(tg,sp);}}
     if(s.always)tg=Math.max(tg,s.always());s.rev=damp(s.rev,tg,3.5,dt);s.mesh.material.opacity=s.rev*s.max*(.8+.2*Math.sin(t*3+s.x));s.mesh.visible=s.rev>.004;
-    if(s.rev>.55&&!s.seen&&PIP.on&&s.lure()){s.seen=true;SFX.ghost();emote(pipAnchor,'!','#d8c8ff');}}
+    if(s.rev>.55&&!s.seen&&PIP.on&&s.lure()){s.seen=true;SFX.ghost();emote(pipAnchor,'!','#d8c8ff');}
+    if(s.spirit&&s.rev>.55&&!s.seen){s.seen=true;SFX.ghost();emote(meAnchor,'!',wick.pal.ui);toast('<span class="d f"></span><span>Your Spirit Sight finds something hidden</span>',3000);}}
   for(let i=REV.length-1;i>=0;i--){REV[i].t-=dt;if(REV[i].t<=0)REV.splice(i,1);}
   RINGS.forEach(r=>{if(r.t>=1){r.m.visible=false;return;}r.t=Math.min(1,r.t+dt/.7);const k=easeOut(r.t);r.m.scale.setScalar(.5+k*r.R);r.m.material.opacity=(1-r.t)*.85;});
   birdsUpdate(dt);
@@ -1705,7 +1710,7 @@ function renderJournal(){const b=$('#jbody');let h='';
   if(jTab==='mem'){h+='<div class="goal"><b>Now</b><span>'+esc(goalText())+'</span></div><div class="prog"><span>'+[1,2,3].map(i=>'<i class="'+(S['s'+i]?'f':'')+'"></i>').join('')+' Wayshrines</span><span><i class="'+(S.awake?'f':'')+'"></i> The Heart</span></div>';
     MEM_T.forEach((m,i)=>{const g=S.mem[i];h+='<div class="entry '+(g?'got':'lock')+'"><span class="ic"></span><h4>'+(g?esc(m.t):'A memory not yet found')+'</h4><p>'+(g?esc(m.x):'· · ·')+'</p></div>';});}
   else if(jTab==='friends'){FRIENDS.forEach(f=>{const g=!!f.k();h+='<div class="entry '+(g?'got':'lock')+'"><span class="ic"></span><h4>'+(g?esc(f.id==='mate'?(NET.peer?mateName():(S.mateName||'A fellow keeper')):f.n):'Someone you haven’t met')+'</h4><p>'+(g?esc(f.x):'· · ·')+'</p></div>';});}
-  else if(jTab==='secrets'){const bc=bellCount();const sec=[['Lost Bells',bc?bc+' of 12 found.'+(S.bell?' One rang softly near home.':'')+(S.duet?' One rose from Mirror Pond on a song for two.':''):'0 of 12 found. Listen for a tinkle.',bc>0],['The Mural',S.mural?'A hand covering a lantern. “Enough.”':'Something is carved where only small eyes can see.',S.mural],['The night visitor',S.fox?'Nocturne, the starlight fox.':'Some things only walk when the real sun sleeps.',S.fox],['The Duet',S.duet?'Two voices on two stones. Mirror Pond remembered its song.':'Two stones by Mirror Pond hum alone. Some songs need two voices.',S.duet],['Twin Flare',S.twin?'Two lanterns flared in the same breath, and the light reached twice as far.':'Two lanterns, one moment.',S.twin]];
+  else if(jTab==='secrets'){const bc=bellCount();const sec=[['Lost Bells',bc+' of '+BELLS_TOTAL+' found in Emberwood.'+(S.bell?' One rang softly near home.':' Listen for a tinkle.')+(S.duet?' One rose from Mirror Pond on a song for two.':'')+(S.sisters?' One answered the Sister Lights.':'')+(bc<BELLS_TOTAL?' Two of them ring only for two keepers.':''),bc>0],['The Mural',S.mural?'A hand covering a lantern. “Enough.”':'Something is carved where only small eyes can see.',S.mural],['The night visitor',S.fox?'Nocturne, the starlight fox.':'Some things only walk when the real sun sleeps.',S.fox],['The Duet',S.duet?'Two voices on two stones. Mirror Pond remembered its song.':'Two stones by Mirror Pond hum alone. Some songs need two voices.',S.duet],['Sister Lights',S.sisters?'Two lanterns far apart, woken in the same breath: one on the west cliff, one hidden in the east woods.':'A lantern waits on the west cliff, out of reach. Its sister hides from ordinary eyes.',S.sisters],['Twin Flare',S.twin?'Two lanterns flared in the same breath, and the light reached twice as far.':'Two lanterns, one moment.',S.twin]];
     sec.forEach(s=>{h+='<div class="entry '+(s[2]?'got':'lock')+'"><span class="ic"></span><h4>'+esc(s[0])+'</h4><p>'+esc(s[1])+'</p></div>';});}
   else{h+='<div class="row"><div>Sound<small>Music, footsteps and voices</small></div><button class="opt'+(settings.sound?' on':'')+'" id="oSound">'+(settings.sound?'On':'Off')+'</button></div>';
     h+='<div class="row"><div>Pixel look<small>Chunky retro pixels or a crisp picture</small></div><button class="opt'+(settings.retro?' on':'')+'" id="oPix">'+(settings.retro?'Retro':'Crisp')+'</button></div>';
@@ -1721,8 +1726,8 @@ $('#jclose').addEventListener('click',closeJournal);$('#jbtn').addEventListener(
 (function(){let sy=null;const j=$('#journal');j.addEventListener('pointerdown',e=>{if(!e.target.closest('.jbody'))sy=e.clientY;});j.addEventListener('pointerup',e=>{if(sy!=null&&e.clientY-sy>50)closeJournal();sy=null;});})();
 
 /* ================= end card ================= */
-function showEnd(){G.endShown=true;G.mode='end';CAM.mode='hero';CAM.heroP=[PL.x,PL.z];CAM.t=0;CAM.tr=1.1;CAM.pr=.9;{const c=heroCamXZ(heroShot(PL.x,PL.y,PL.z,0));hideCorridor(c[0],c[1],PL.x,PL.z);}SFX.gate();const fr=FRIENDS.filter(f=>f.k()).length;const sec=(S.mural?1:0)+(S.fox?1:0)+(S.duet?1:0)+(S.twin?1:0);const mins=Math.max(1,Math.round(S.t/60));
-  $('#stats').innerHTML=[[S.mem.filter(Boolean).length+'/4','Memories'],[sec+'/4','Secrets'],[bellCount()+'/12','Lost Bells'],[fr+'/'+FRIENDS.length,'Friends']].map(s=>'<div><b>'+s[0]+'</b><span>'+s[1]+'</span></div>').join('');
+function showEnd(){G.endShown=true;G.mode='end';CAM.mode='hero';CAM.heroP=[PL.x,PL.z];CAM.t=0;CAM.tr=1.1;CAM.pr=.9;{const c=heroCamXZ(heroShot(PL.x,PL.y,PL.z,0));hideCorridor(c[0],c[1],PL.x,PL.z);}SFX.gate();const fr=FRIENDS.filter(f=>f.k()).length;const sec=(S.mural?1:0)+(S.fox?1:0)+(S.duet?1:0)+(S.twin?1:0)+(S.sisters?1:0);const mins=Math.max(1,Math.round(S.t/60));
+  $('#stats').innerHTML=[[S.mem.filter(Boolean).length+'/4','Memories'],[sec+'/5','Secrets'],[bellCount()+'/'+BELLS_TOTAL,'Lost Bells'],[fr+'/'+FRIENDS.length,'Friends']].map(s=>'<div><b>'+s[0]+'</b><span>'+s[1]+'</span></div>').join('');
   const e=$('#end');e.hidden=false;void e.offsetWidth;e.classList.remove('out');}
 $('#bKeep').addEventListener('click',()=>{CAM.mode='explore';CAM.tr=1.4;CAM.pr=1.2;restoreHidden();const e=$('#end');e.classList.add('out');setTimeout(()=>{e.hidden=true;},1200);G.mode='play';});
 
@@ -1732,16 +1737,17 @@ function report(e,where){G.errs++;const m=(where||'?')+': '+((e&&e.message)||Str
 function run(fn,a,b){try{fn(a,b);}catch(e){report(e,fn.name||'system');}}
 window.addEventListener('error',e=>report(e.error||e.message,'window'));
 window.addEventListener('unhandledrejection',e=>report(e.reason,'promise'));
-const SAVE_FLAGS=['s1','s2','s3','pip','stones','awake','bell','mural','fox','duet','twin','note'];
+const SAVE_FLAGS=['s1','s2','s3','pip','stones','awake','bell','mural','fox','duet','twin','note','sisters'];
 function sanitizeSave(d){const o={};if(!d||typeof d!=='object')return o;
   for(const k of SAVE_FLAGS)o[k]=!!d[k];
   o.mem=Array.isArray(d.mem)?[0,1,2,3].map(i=>!!d.mem[i]):[false,false,false,false];
   o.met=(d.met&&typeof d.met==='object')?Object.assign({},d.met):{};
   o.talks=(d.talks&&typeof d.talks==='object')?Object.assign({},d.talks):{};
   o.t=isFinite(d.t)?+d.t:0;o.mateName=typeof d.mateName==='string'?d.mateName.slice(0,12):'';o.v=SAVE_V;return o;}
-function worldKey(){return[S.s1,S.s2,S.s3,S.pip,S.stones,S.awake,S.mem[0],S.mem[1],S.mem[2],S.mem[3],S.bell,S.mural,S.duet,S.twin].map(v=>v?1:0).join('');}
+function worldKey(){return[S.s1,S.s2,S.s3,S.pip,S.stones,S.awake,S.mem[0],S.mem[1],S.mem[2],S.mem[3],S.bell,S.mural,S.duet,S.twin,S.sisters].map(v=>v?1:0).join('');}
+const COL_STATIC=COL.length;   // colliders that exist before any story event; later ones (lit shrines, woken sisters) are state, not world
 function worldFingerprint(){let h=2166136261;const mix=v=>{h^=Math.round(v*1000)|0;h=Math.imul(h,16777619);};
-  for(const f of FL){mix(f.x);mix(f.z);}for(const t of TREES){mix(t.x);mix(t.z);}mix(COL.length);mix(GRASS.length);return(h>>>0).toString(16)+':'+FL.length;}
+  for(const f of FL){mix(f.x);mix(f.z);}for(const t of TREES){mix(t.x);mix(t.z);}mix(COL_STATIC);mix(GRASS.length);return(h>>>0).toString(16)+':'+FL.length;}
 
 /* ================= iPhone niceties ================= */
 let wakeL=null;
@@ -1753,7 +1759,7 @@ const IN_CLAUDE=/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostna
 const QS=new URLSearchParams(location.search);
 const LOCAL_NET=false;
 const CO_OK=!IN_CLAUDE&&(LOCAL_NET||(!!window.LFNet&&typeof RTCPeerConnection!=='undefined'));
-const PROTO=2,APPID='lanternfall-emberwood-twolights',ALPH='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const PROTO=3,APPID='lanternfall-emberwood-twolights',ALPH='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const NET={on:false,role:null,code:'',tr:null,peer:null,synced:false,everSynced:false,sendT:0,seq:0,rseq:-1,mateName:'',joinTimer:0,
   avgI:.05,jit:.01,lastArr:0,delay:.1,rtt:0,pingT:0,ckT:0,needT:0,lastFl:-1,idleT:0,hiSent:{}};
 const MATE={vis:false,x:0,z:0,y:0,face:0,spd:0,ph:0,sq:0,sqV:0,moving:false,jump:0,jA:1,seed:2.1,boost:0,flags:0,buf:[],lastSt:0,away:false,pop:0,pip:null,link:false,zt:0,rt:0};
@@ -1824,7 +1830,7 @@ function netFail(kind){const guest=NET.role==='guest';
   if(!party.classList.contains('on'))openParty('err');else partyRefresh();}
 
 function snapData(){let fl='';for(let i=0;i<FL.length;i++)fl+=FL[i].open?'1':'0';
-  return{t:'snap',studio:!!G.studio,S:{s1:S.s1,s2:S.s2,s3:S.s3,pip:S.pip,stones:S.stones,awake:S.awake,mem:S.mem.slice(),bell:S.bell,mural:S.mural,duet:S.duet,twin:S.twin},fl,night:NIGHT,fp:worldFingerprint(),pos:[Math.round(PL.x*100)/100,Math.round(PL.z*100)/100]};}
+  return{t:'snap',studio:!!G.studio,S:{s1:S.s1,s2:S.s2,s3:S.s3,pip:S.pip,stones:S.stones,awake:S.awake,mem:S.mem.slice(),bell:S.bell,mural:S.mural,duet:S.duet,twin:S.twin,sisters:S.sisters},fl,night:NIGHT,fp:worldFingerprint(),pos:[Math.round(PL.x*100)/100,Math.round(PL.z*100)/100]};}
 function syncTo(sn){const w=(sn&&sn.S)||{};
   for(let i=0;i<3;i++)if(w['s'+(i+1)]&&!S['s'+(i+1)])lightShrine(i,true);
   if(w.pip&&!S.pip){S.pip=true;PIP.on=true;pipC.g.visible=true;cocoon.visible=false;PIP.x=PL.x;PIP.y=PL.y+2;PIP.z=PL.z;bloom(6,P.cocoon[0],P.cocoon[1],4.2,1,true);}
@@ -1833,6 +1839,7 @@ function syncTo(sn){const w=(sn&&sn.S)||{};
   if(w.bell&&!S.bell){S.bell=true;bellM.visible=false;}
   if(w.mural)S.mural=true;if(w.twin)S.twin=true;
   if(w.duet&&!S.duet)duetInstant();
+  if(w.sisters&&!S.sisters)sistersInstant();
   if(w.awake&&!S.awake)awakenInstant();
   if(typeof sn.fl==='string'&&sn.fl.length===FL.length){let dirty=false;for(let i=0;i<FL.length;i++){if(sn.fl[i]==='1'&&!FL[i].open){const f=FL[i];f.open=true;f.t=1;f.anim=false;setFlower(i);_fc.set(0xffd36b);budIM.setColorAt(i,_fc);dirty=true;}}
     if(dirty){petalIM.instanceMatrix.needsUpdate=true;budIM.instanceMatrix.needsUpdate=true;budIM.instanceColor.needsUpdate=true;}}
@@ -1867,6 +1874,8 @@ function onEv(e){if(!e||typeof e!=='object')return;
     case 'wave':if(MATE.vis)wave(true);break;
     case 'duet':duetComplete(true);break;
     case 'twin':if(!S.twin){S.twin=true;save();}break;
+    case 'sis':if(n(e.i)>=0&&e.i<2)sisLight(e.i,true);break;
+    case 'sisters':sistersComplete(true);break;
   }}
 
 /* --- anti-lag: own keeper is local-first; partner arrives over an unordered lossy channel and plays back through an adaptive jitter buffer --- */
@@ -1899,6 +1908,7 @@ function mateArrive(x,z,f){MATE.vis=true;MATE.x=x;MATE.z=z;MATE.face=f;MATE.pop=
   after(.5,()=>{ringFx(x,y+.12,z,5,mate.pal.ring);burst(x,y+1,z,30,mate.pal.spark,{spd:3,up:3,size:.2,life:1});});
   SFX.join();vib([10,30,10]);S.met.mate=true;S.mateName=NET.mateName;save();
   after(.9,()=>{toast('<span class="d f"></span><span>'+esc(mateName())+' joined · Two Lights</span>',3000);emote(mateAnchor,'♥',mate.pal.ui);});
+  after(4.2,giftTell);
   partyRefresh();setTimeout(()=>{if(party.classList.contains('on')&&NET.peer)closeParty();},1600);}
 function mateGone(quiet){if(!MATE.vis)return;MATE.vis=false;mate.flame.getWorldPosition(_mp);burst(_mp.x,_mp.y,_mp.z,30,mate.pal.spark,{spd:3,up:2,size:.2,life:1});
   mate.g.visible=false;MATE.buf=[];mateL.intensity=0;U.uP2.value.z=0;MATE.link=false;
@@ -1935,9 +1945,9 @@ function mateUpdate(dt,rdt){
   linkAudio(G.link);}
 
 /* --- shared moments --- */
-function remoteFlare(){if(!MATE.vis)return;MATE.boost=1;revealAt(MATE.x,MATE.z,8,1.8);const p=mate.pal;
-  ringFx(MATE.x,MATE.y+.12,MATE.z,7.2,p.ring);mate.flame.getWorldPosition(_mp);burst(_mp.x,_mp.y,_mp.z,26,p.spark,{spd:5,up:2.5,size:.22,life:.9,grav:-.5});
-  SFX.flare(1-myVoice(),spat(MATE.x,MATE.z,30));bloomNear(MATE.x,MATE.z,7);
+function remoteFlare(){if(!MATE.vis)return;MATE.boost=1;const lr=mateGift()==='long'?1.35:1;revealAt(MATE.x,MATE.z,8*lr,1.8);const p=mate.pal;
+  ringFx(MATE.x,MATE.y+.12,MATE.z,7.2*lr,p.ring);mate.flame.getWorldPosition(_mp);burst(_mp.x,_mp.y,_mp.z,26,p.spark,{spd:5,up:2.5,size:.22,life:.9,grav:-.5});
+  SFX.flare(1-myVoice(),spat(MATE.x,MATE.z,30));bloomNear(MATE.x,MATE.z,7*lr);
   G.mateFlareAt=nowS();if(nowS()-G.myFlareAt<.9&&d2(PL.x,PL.z,MATE.x,MATE.z)<9)twinFlare();}
 function twinFlare(){const t=nowS();if(t-(G.twinAt||-9)<1.5)return;G.twinAt=t;
   const mx=(PL.x+MATE.x)/2,mz=(PL.z+MATE.z)/2,my=groundH(mx,mz);
@@ -1965,11 +1975,10 @@ function highFive(remote){const t=nowS();if(t-(G.hfAt||-9)<.9)return;G.hfAt=t;if
 function wave(remote){const t=nowS();if(t-(G.wvAt||-9)<.8)return;G.wvAt=t;if(!remote)share({t:'wave'});
   const o=remote?MATE:PL;o.jump=1;o.jA=.45;emote(remote?mateAnchor:meAnchor,'♥',remote?mate.pal.ui:wick.pal.ui);SFX.hey(remote?1-myVoice():myVoice(),remote?spat(MATE.x,MATE.z,40):null);}
 
-/* --- Lost Bells --- */
-function bellCount(){return(S.bell?1:0)+(S.duet?1:0);}
+/* --- Lost Bells (count and total live with the co-op gifts module) --- */
 function pickBell(remote){if(S.bell)return;bellM.visible=false;S.bell=true;save();progress();if(!remote)share({t:'bell'});
   SFX.bellPick(remote?spat(P.bell[0],P.bell[1],40):null);burst(bellM.position.x,bellM.position.y,bellM.position.z,24,0xffc43d,{spd:2,up:2,size:.16});
-  toast('<span class="d f"></span><span>Lost Bell · '+bellCount()+' of 12'+(remote?' · '+esc(mateName()):'')+'</span>',3200);}
+  toast('<span class="d f"></span><span>'+bellLine()+(remote?' · '+esc(mateName()):'')+'</span>',3200);}
 
 /* --- Mirror Pond duet: a song that needs two voices --- */
 const DUET=[P.duetA,P.duetB].map((p,i)=>{const[x,z]=p;const b=gy(x,z);
@@ -2006,7 +2015,7 @@ function duetComplete(remote){if(S.duet)return;S.duet=true;save();progress();if(
   ringFx(POND.x,-.2,POND.z,9,0xffd36b);bloom(9,POND.x,POND.z,9,1);LOTUS.rise=0;
   for(const d of DUET)burst(d.x,d.b+.5,d.z,24,0xffd36b,{spd:3,up:3,size:.2,life:1});
   after(1.2,()=>toast('<span class="d f"></span><span>Secret · The Duet</span>',2800));
-  after(4.4,()=>{burst(POND.x,LOTUS.g.position.y+.7,POND.z,30,0xffc43d,{spd:2.5,up:2.5,size:.18,life:1.1});SFX.bellPick(sd);LOTUS.bell.visible=false;toast('<span class="d f"></span><span>Lost Bell · '+bellCount()+' of 12</span>',3200);});}
+  after(4.4,()=>{burst(POND.x,LOTUS.g.position.y+.7,POND.z,30,0xffc43d,{spd:2.5,up:2.5,size:.18,life:1.1});SFX.bellPick(sd);LOTUS.bell.visible=false;toast('<span class="d f"></span><span>'+bellLine()+'</span>',3200);});}
 function duetInstant(){S.duet=true;bloom(9,POND.x,POND.z,9,1,true);LOTUS.rise=1;LOTUS.g.visible=true;LOTUS.g.position.y=-.24;LOTUS.bell.visible=false;for(const d of DUET)d.glow=1;}
 
 /* --- flags over each keeper, edge arrow, party pill --- */
@@ -2060,6 +2069,7 @@ function drawMap(cv){const c=cv||document.getElementById('mapc');if(!c)return;co
   g.fillStyle=aw?'#aaa6bd':'#5d6077';g.fillRect(Math.round(X(-2.7))-2,Math.round(Y(P.gate[1]))-2,4,4);g.fillRect(Math.round(X(2.7))-2,Math.round(Y(P.gate[1]))-2,4,4);
   SH.forEach((s,i)=>{if(i===1&&!S.s2&&!S.pip)return;dia(s.x,s.z,s.lit?'#ffd36b':'#c6cbe0',s.lit,1.8);});
   for(const d of DUET)dia(d.x,d.z,S.duet?'#ffd36b':'#8c93b3',S.duet,1.3);
+  for(const s of SIS){if(s.hidden&&!S.sisters&&!(s.spec&&s.spec.seen))continue;dia(Math.max(-47,s.x),s.z,S.sisters?'#ffd36b':'#ffa8e0',S.sisters,1.4);}
   for(const p of PINGS){g.strokeStyle='#ffffff';g.globalAlpha=Math.max(0,1-p.t/3.6);g.lineWidth=1;g.beginPath();g.arc(X(p.x),Y(p.z),2+p.t*3,0,TAU);g.stroke();g.globalAlpha=1;}
   const flag=(x,z,col,ph)=>{const bx=Math.round(X(x)),by=Math.round(Y(z));g.fillStyle='rgba(0,0,0,.5)';g.fillRect(bx-1,by,3,1);g.fillStyle='#f1e3c2';g.fillRect(bx,by-9,1,9);
     const w=Math.sin(G.time*5+ph)>0?1:0;g.fillStyle=col;g.beginPath();g.moveTo(bx+1,by-9);g.lineTo(bx+7,by-7+w);g.lineTo(bx+1,by-5);g.closePath();g.fill();};
@@ -2083,7 +2093,8 @@ function renderParty(el,where){const sheet=where==='sheet';const head=(t,sub)=>'
   else if(PV.view==='err'){h+=head('Two Lights',esc(PV.msg))+'<div class="pbtns"><button class="pbtn" data-a="menu">OK</button></div>';}
   else if(NET.on&&NET.peer&&(NET.role==='host'||NET.everSynced)){
     h+=head('Two Lights','You’re exploring together')+'<div class="pmate"><span class="dot"></span><div><b>'+esc(mateName())+'</b><span>'+(MATE.away?'Away for a moment':NET.role==='host'?'Visiting your Emberwood':'Your host')+(NET.rtt?' · '+Math.round(NET.rtt)+' ms':'')+'</span></div></div>';
-    h+='<ul class="ptips"><li>Stay close and your lights link, reaching further together.</li><li>Flare in the same moment for a Twin Flare.</li><li>Double-tap the ground to call your friend over.</li><li>Tap your friend to wave, or high-five when you’re side by side.</li><li>Some places in Emberwood need two voices.</li></ul>';
+    const mg=myGift(),og=mateGift();
+    h+='<ul class="ptips">'+(mg?'<li><b>Your gift · '+GIFTS[mg].n+'.</b> '+GIFTS[mg].x+'</li><li><b>'+esc(mateName())+'’s gift · '+GIFTS[og].n+'.</b> '+GIFTS[og].x+'</li>':'')+'<li>Stay close and your lights link, reaching further together.</li><li>Flare in the same moment for a Twin Flare.</li><li>Double-tap the ground to call your friend over.</li><li>Tap your friend to wave, or high-five when you’re side by side.</li><li>Some places in Emberwood need two voices, or both your gifts at once.</li></ul>';
     h+='<div class="pbtns">'+(sheet?'<button class="pbtn" data-a="close">Keep playing</button>':'')+'<button class="pbtn ghost" data-a="leave">Leave party</button></div>';}
   else if(NET.on&&NET.role==='host'){
     h+=head('Invite a friend','Send them this code or the link')+codeHTML(NET.code)+'<div class="pwait"><span class="lamp"></span><span>Waiting for your friend…</span><span class="lamp b"></span></div>';
@@ -2145,6 +2156,72 @@ $('#bTogether').addEventListener('click',()=>{audioInit();openParty('menu');});
 $('#bJoin').addEventListener('click',()=>{if(JM)startJoin(JM[1]);});
 function initInvite(){if(!(JM&&CO_OK))return;titleInvite(true);titleStage(2);try{const aj=sessionStorage.getItem('lf.autojoin');if(aj&&aj===cleanCode(JM[1])){sessionStorage.removeItem('lf.autojoin');setTimeout(()=>startJoin(aj),400);}}catch(e){}}
 
+/* ================= co-op gifts + Sister Lights ================= */
+/* Gifts only add to the base kit and only while a partner is here, so solo play is never weaker (law COOP-11). */
+const GIFTS={long:{n:'Long Flame',x:'Your flares reach much farther.'},spirit:{n:'Spirit Sight',x:'You see hidden things close by, the way Pip does.'}};
+function giftOf(pal){return pal===PALS.fen?'spirit':'long';}
+function myGift(){return MATE.vis?giftOf(wick.pal):null;}
+function mateGift(){return MATE.vis?giftOf(mate.pal):null;}
+function spiritSight(){return myGift()==='spirit';}
+const flareReach=()=>myGift()==='long'?1.35:1;
+function giftTell(){const g=myGift();if(!g||G.giftTold)return;G.giftTold=1;const mg=mateGift();
+  toast('<span class="d f"></span><span>Your gift together · '+GIFTS[g].n+'</span>',3600);
+  after(3.9,()=>{if(MATE.vis)toast('<span class="d"></span><span>'+esc(mateName())+'’s gift · '+GIFTS[mg].n+'</span>',3200);});}
+
+/* Lost Bells in this chapter: one near home, one on the Duet, one on the Sister Lights (law GUIDE-6: counts tell the truth) */
+const BELLS_TOTAL=3;
+function bellCount(){return(S.bell?1:0)+(S.duet?1:0)+(S.sisters?1:0);}
+const bellLine=()=>'Lost Bell · '+bellCount()+' of '+BELLS_TOTAL;
+
+/* --- Sister Lights: two lanterns far apart that must be flared within a few breaths of each other.
+   The Far Sister sits on the west cliff, out of reach of an ordinary flare (Long Flame reaches it).
+   The Hidden Sister stands in the east woods and shows itself only to Spirit Sight. --- */
+const SIS_WIN=5;
+const SIS=[{i:0,n:'Far Sister',x:-49,z:0,far:true},{i:1,n:'Hidden Sister',x:34.5,z:-16.5,hidden:true}].map(o=>{
+  const b=gy(o.x,o.z);const g=new THREE.Group();g.position.set(o.x,b,o.z);scene.add(g);
+  const solid=new THREE.Mesh(shrineGeo,shrineMat);solid.scale.setScalar(.82);solid.rotation.y=o.i?2.2:.6;g.add(solid);
+  if(o.far){const rock=new THREE.Mesh(GB.cyl6,M(0x8f8aa3,{flat:1}));rock.scale.set(1.5,.7,1.4);rock.position.y=-.2;g.add(rock);}
+  const flame=new THREE.Mesh(GB.sph,new THREE.MeshBasicMaterial({color:0xffd27a}));flame.position.y=2.12;flame.scale.setScalar(.001);g.add(flame);
+  let ghost=null,spec=null;
+  if(o.hidden){solid.visible=false;ghost=new THREE.Mesh(shrineGeo,specMat(0xffa8e0));ghost.scale.setScalar(.82);ghost.rotation.y=2.2;ghost.position.set(o.x,b,o.z);scene.add(ghost);
+    spec=addSpec(ghost,o.x,1.4,o.z,.9,()=>!S.sisters&&!sisCalling(1),()=>false);spec.spirit=true;}
+  return Object.assign(o,{b,g,solid,flame,ghost,spec,callT:-99,glow:0,wasOn:false,col:false});});
+function sisCalling(i){return nowS()-SIS[i].callT<SIS_WIN;}
+function sisLight(i,remote){if(S.sisters)return;const s=SIS[i];if(sisCalling(i)&&!remote)return;s.callT=nowS();
+  if(!remote&&NET.peer)share({t:'sis',i});
+  const near=d2(PL.x,PL.z,s.x,s.z)<18,sd=near?null:spat(s.x,s.z,90);
+  SFX.bell(midi(i?79:74),1,sd);if(near){ringFx(s.x,s.b+.15,s.z,6,0xffd27a);burst(s.x,s.b+1.5,s.z,30,0xffd27a,{spd:3.5,up:3,size:.22,life:1.1,grav:-.6});G.trauma=Math.max(G.trauma,.2);vib(15);}
+  const o=SIS[1-i];
+  if(sisCalling(1-i)){sistersComplete(false);return;}
+  if(remote){toast('<span class="d f"></span><span>'+esc(mateName())+' woke the '+s.n+'. Flare the other one, now!</span>',3600);}
+  else if(MATE.vis){toast('<span class="d f"></span><span>The '+s.n+' is calling. '+esc(mateName())+', flare the other one!</span>',3600);}
+  else after(.6,()=>toast('<span class="d"></span><span>The '+s.n+' calls for its twin, far away. It needs two keepers.</span>',4200));}
+function sisFlare(x,z){if(S.sisters)return;const long=myGift()==='long';
+  for(const s of SIS){const d=d2(x,z,s.x,s.z);
+    const reach=s.far?(long?7.4:0):3.8*flareReach();
+    if(d<reach){sisLight(s.i,false);return;}
+    if(s.far&&!long&&d<9.5&&nowS()-(G.farHintAt||-99)>20){G.farHintAt=nowS();after(.5,()=>toast('<span class="d"></span><span>The Far Sister is out of reach. Only a longer flame could touch it.</span>',3800));}}}
+function sistersComplete(remote){if(S.sisters)return;S.sisters=true;save();progress();if(!remote)share({t:'sisters'});
+  const near=SIS.some(s=>d2(PL.x,PL.z,s.x,s.z)<18);
+  SIS.forEach((s,k)=>{bloom(10+k,s.x,s.z,6.5,1);if(d2(PL.x,PL.z,s.x,s.z)<26){ringFx(s.x,s.b+.15,s.z,10,0xffd27a);burst(s.x,s.b+1.6,s.z,40,0xffc43d,{spd:4,up:4,size:.24,life:1.3,grav:-.5});}});
+  if(near){SFX.twin();G.trauma=Math.max(G.trauma,.34);vib([20,40,20]);}else SFX.bell(midi(86),.8);
+  after(1.0,()=>toast('<span class="d f"></span><span>Secret · Sister Lights</span>',2800));
+  after(3.9,()=>{SFX.bellPick(null);toast('<span class="d f"></span><span>'+bellLine()+'</span>',3200);});}
+function sistersInstant(){S.sisters=true;SIS.forEach((s,k)=>{bloom(10+k,s.x,s.z,6.5,1,true);s.glow=1;});}
+function sisUpdate(dt){const t=G.time;
+  for(const s of SIS){const calling=sisCalling(s.i)&&!S.sisters,lit=S.sisters||calling;
+    s.glow=damp(s.glow,lit?1:0,3,dt);const fl=.85+.15*Math.sin(t*11+s.i)*Math.sin(t*7.3+s.i*2);s.flame.scale.set(.001+.15*s.glow*fl,.001+.21*s.glow*fl,.001+.15*s.glow*fl);
+    if(s.hidden){s.solid.visible=lit;if(lit&&!s.col){s.col=true;COL.push({x:s.x,z:s.z,r:.7});}}
+    const fy=s.b+2.12;
+    if(S.sisters){halo(s.x,fy,s.z,2.4,0xffc46a,.6+.1*Math.sin(t*2+s.i));}
+    else if(calling){const k=1-(nowS()-s.callT)/SIS_WIN;s.ringT=(s.ringT||0)-dt;if(s.ringT<=0){s.ringT=.9;ringFx(s.x,s.b+.15,s.z,4.5,0xffd27a);}for(let j=0;j<11;j++)halo(s.x,fy+j*1.5,s.z,1.15-j*.06,0xffd27a,k*(.6-j*.05));
+      if(Math.random()<dt*14)emit(s.x+rr(-.3,.3),fy,s.z+rr(-.3,.3),{vy:rr(5,9),life:1.4,size:.16,c:[1,.85,.5]});}
+    else if(s.far){const b=.5+.5*Math.sin(t*1.3);halo(s.x,fy,s.z,1.3+.5*b,0xffa8e0,.32+.16*b);
+      if(!G.farSeen&&G.mode==='play'&&d2(PL.x,PL.z,s.x,s.z)<12){G.farSeen=1;toast('<span class="d"></span><span>A small lantern waits on the cliff, out of reach</span>',3400);}}
+    if(s.wasOn&&!calling&&!S.sisters&&d2(PL.x,PL.z,s.x,s.z)<20)toast('<span class="d"></span><span>The '+s.n+' fades. Both must be woken within a few breaths.</span>',3200);
+    s.wasOn=calling;}}
+/* the camera leans toward the Far Sister when you come near the west cliff, so it is noticed (law GUIDE-2) */
+POIS.push({p:[SIS[0].x+3,SIS[0].z],ok:()=>!S.sisters});
 /*STUDIO:BEGIN*/
 /* ================= Lanternfall Studio: design test panel + dev toolbox =================
    Sandboxed (own save slot), unlocked on purpose (#studio link or long-press on the logo),
@@ -2166,7 +2243,8 @@ const PLACES=[
   ['heart','Elder Tree Heart','story',[P.heart[0],P.heart[1]+5.8]],['pond','Mirror Pond stones','coop',[P.duetA[0]-1.4,P.duetA[1]+1.4]],['gate','North Gate','story',[0,-35.5]],
   ['hale','Hale','char',[P.hale[0]+1.5,P.hale[1]+1.8]],['nana','Nana Oakum','char',[P.nana[0]-1.5,P.nana[1]+1.5]],['bo','Bo’s mailbox','char',[P.bo[0]-1.6,P.bo[1]+1.2]],
   ['ribbet','Prof. Ribbet','char',[P.ribbet[0]-1.2,P.ribbet[1]+.4]],['fox','Night fox rock','secret',[P.fox[0]+1.8,P.fox[1]+1.5]],['bell','Lost bell','secret',[P.bell[0]-1.2,P.bell[1]+1.6]],
-  ['m1','Memory I','secret',[P.m1[0]-1.6,P.m1[1]]],['m2','Memory II','secret',[P.m2[0]+1.6,P.m2[1]]],['m3','Memory III','secret',[P.m3[0]-1.6,P.m3[1]]]];
+  ['m1','Memory I','secret',[P.m1[0]-1.6,P.m1[1]]],['m2','Memory II','secret',[P.m2[0]+1.6,P.m2[1]]],['m3','Memory III','secret',[P.m3[0]-1.6,P.m3[1]]],
+  ['sisW','Far Sister (west cliff)','coop',[-42.8,0]],['sisE','Hidden Sister (east woods)','coop',[33,-15]]];
 const PTYPE={story:['Story','#ffd36b'],device:['Device','#3fd0c9'],char:['Character','#ff6fae'],secret:['Secret','#b48cff'],coop:['Co-op','#ff8fb8']};
 const placeById=id=>PLACES.find(p=>p[0]===id);
 function teleport(x,z,quiet){let tx=x,tz=z;for(let k=0;k<12&&blockedWater(tx,tz);k++)tx+=.8;
@@ -2203,7 +2281,7 @@ const STEPS=[
  {id:'sign',cat:'place',t:'Signpost',how:'Real directions at the crossroads.',todo:'Tap the signpost.',expect:'Three lines: north, east, west.',setup:()=>tpTo('sign'),check:()=>TALK.who===SIGN},
  {id:'stones',cat:'place',t:'Stepping stones',how:'Ribbet hints at “something with wings”. With Pip, a flare by the water raises the stones.',todo:'Talk to Ribbet, then flare at the water’s edge.',expect:'Rumble, stones rise with runes, Ribbet comments, and you can cross.',setup:()=>{GR.pip();tpTo('brook');},check:()=>S.stones},
  {id:'shrine3',cat:'place',t:'Chapel wayshrine',how:'The third shrine sits beyond the chapel, west of the brook.',todo:'Flare beside it.',expect:'Third shrine lights, and the Elder Tree stirs (beams to the Heart).',setup:()=>{GR.pip();GR.stones();tpTo('s3');},check:()=>S.s3},
- {id:'bell',cat:'place',t:'Lost Bell',how:'A soft tinkle grows louder as you approach a hidden bell.',todo:'Listen, then walk into the little golden bell by the bushes.',expect:'Bright arpeggio and “Lost Bell · 1 of 12”.',setup:()=>tpTo('bell'),check:()=>S.bell},
+ {id:'bell',cat:'place',t:'Lost Bell',how:'A soft tinkle grows louder as you approach a hidden bell.',todo:'Listen, then walk into the little golden bell by the bushes.',expect:'Bright arpeggio and “Lost Bell · 1 of 3”.',setup:()=>tpTo('bell'),check:()=>S.bell},
  {id:'memory',cat:'place',t:'Memory fragment',how:'Glowing shards play a short story card.',todo:'Walk into the floating crystal.',expect:'Chime cascade and a memory card.',setup:()=>tpTo('m1'),check:()=>S.mem[0]},
  {id:'gate',cat:'place',t:'Sealed North Gate',how:'Blocked paths always explain themselves.',todo:'Walk into the shimmering gate before the forest wakes.',expect:'“The North Gate sleeps like everything else.”',setup:()=>tpTo('gate'),check:()=>!S.awake&&(G.gateT||0)>0},
  {id:'sleepers',cat:'char',t:'Sleeping villagers',how:'Villagers mumble in their sleep when you come close.',todo:'Walk up to Hale.',expect:'A grey “asleep” bubble with a dreamy line, and z’s floating up.',setup:()=>tpTo('hale'),check:()=>TALK.who&&TALK.sleep},
@@ -2222,7 +2300,9 @@ const STEPS=[
  {id:'twin',cat:'coop',coop:1,t:'Twin Flare',how:'Both flare within 0.9 s while close.',todo:'Count “3, 2, 1” and flare together.',expect:'Double ring, big chord, “Twin Flare”.',check:()=>nowS()-(G.twinAt||-99)<20},
  {id:'ping',cat:'coop',coop:1,t:'Ping',how:'Double-tap the ground to raise a light beacon your friend sees.',todo:'Double-tap somewhere on the ground.',expect:'A pillar of light and whistle on both screens; their edge arrow pulses.',check:()=>PINGS.length>0},
  {id:'five',cat:'coop',coop:1,t:'Wave and high five',how:'Tap your friend: a wave from afar, a high five side by side.',todo:'Stand next to your friend and tap them.',expect:'Both hop, clap sound, sparkles.',check:()=>nowS()-(G.hfAt||-99)<20},
- {id:'duet',cat:'coop',coop:1,t:'The Duet (co-op secret)',how:'Two hum stones by Mirror Pond need two keepers at once.',todo:'Each stand on one stone.',expect:'The pond sings, a lotus rises with Lost Bell 2 of 12.',setup:()=>tpTo('pond'),check:()=>S.duet},
+ {id:'duet',cat:'coop',coop:1,t:'The Duet (co-op secret)',how:'Two hum stones by Mirror Pond need two keepers at once.',todo:'Each stand on one stone.',expect:'The pond sings, a lotus rises with a Lost Bell.',setup:()=>tpTo('pond'),check:()=>S.duet},
+ {id:'gifts',cat:'coop',coop:1,t:'Lantern gifts',how:'Together, each lantern has a gift. Wick (the host) has Long Flame: flares reach about a third farther. Fen (the guest) has Spirit Sight: hidden things show up close by, without Pip.',todo:'Fen: walk up to the hidden wayshrine before Pip is awake. Wick: flare and compare the ring.',expect:'A “Your gift together” toast for each; Fen sees ghostly things; Wick’s flare ring is wider.',check:()=>!!myGift()},
+ {id:'sisters',cat:'coop',coop:1,t:'Sister Lights (co-op secret)',how:'Two Sister Lights stand far apart and must be flared within 5 s of each other. The Far Sister on the west cliff only answers a Long Flame. The Hidden Sister in the east woods only shows itself to Spirit Sight.',todo:'Set up sends each of you to your sister. Ping, count down together, flare.',expect:'Light beams rise from both, “Secret · Sister Lights”, then Lost Bell 3 of 3.',setup:()=>tpTo(myGift()==='spirit'?'sisE':'sisW'),check:()=>S.sisters},
  {id:'together',cat:'coop',coop:1,t:'Rekindle together',how:'Holding together fills the Heart 2.6× faster with a duo harmony.',todo:'Both hold at the Heart.',expect:'“Together” toast, a second voice in the charge tone.'},
  {id:'rejoin',cat:'coop',coop:1,t:'Disconnect and rejoin',how:'If a phone drops, the party waits. Rejoining restores from a snapshot.',todo:'One player closes the page, then opens the invite link again.',expect:'“Lantern drifted away”, then the friend reappears with the same world.'},
  {id:'layers',cat:'sound',t:'Adaptive music',how:'Each lit shrine adds a music layer; the awakening adds the melody.',todo:'Use the Sound tab to solo each layer.',expect:'Pads, arpeggio, bass and sparkle, percussion, melody, duet.'},
@@ -2446,7 +2526,7 @@ let last=performance.now(),fpsAcc=0,fpsN=0,fpsT=0;
 function frame(now){requestAnimationFrame(frame);let rdt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;let dt=rdt;if(G.hp>0){G.hp-=rdt;dt=0;}G.rawDt=rdt;dt*=G.timeScale;
   HN=0;G.time+=dt;U.uTime.value=G.time;
   timers(dt);if(G.lock>0)G.lock-=dt;
-  run(inputUpdate,rdt);run(playerUpdate,dt);run(mateUpdate,dt,rdt);run(pipUpdate,dt);run(npcUpdate,dt);run(flowersUpdate,dt);run(worldUpdate,dt);run(duetUpdate,dt);run(pingUpdate,dt);run(triggers,dt);run(rekindleUpdate,dt);run(wakeUpdate,dt);run(envUpdate);run(bloomUpdate,dt);
+  run(inputUpdate,rdt);run(playerUpdate,dt);run(mateUpdate,dt,rdt);run(pipUpdate,dt);run(npcUpdate,dt);run(flowersUpdate,dt);run(worldUpdate,dt);run(duetUpdate,dt);run(sisUpdate,dt);run(pingUpdate,dt);run(triggers,dt);run(rekindleUpdate,dt);run(wakeUpdate,dt);run(envUpdate);run(bloomUpdate,dt);
   if(G.mode!=='title')run(ambient,dt);run(hintUpdate,dt);run(talkUpdate,dt);run(partUpdate,dt);run(camUpdate,rdt);run(uiUpdate,rdt);run(audioUpdate,dt);run(netUpdate,rdt);run(titleUpdate,rdt);if(typeof studioUpdate==='function')run(studioUpdate,dt);
   try{renderer.render(scene,camera);}catch(e){report(e,'render');}
   if(G.mode==='play'&&G.quality>.55){fpsT+=rdt;fpsAcc+=rdt;fpsN++;if(fpsT>3){const avg=fpsAcc/fpsN;if(avg>1/34){G.quality*=.8;resize();}fpsT=fpsAcc=fpsN=0;}}}

@@ -23,7 +23,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Lanternfall</title>
-<meta name="lanternfall-build" content="8a0325c1">
+<meta name="lanternfall-build" content="f5b63b7c">
 <meta name="theme-color" content="#0d0f1a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -148,6 +148,8 @@ body{color:var(--paper);font-family:var(--f-pix);-webkit-user-select:none;user-s
 .row small{display:block;font:italic 14px var(--f-book);color:rgba(236,226,200,.55);margin-top:3px}
 .opt{flex:none;font:600 11px var(--f-pix);letter-spacing:.14em;text-transform:uppercase;padding:8px 12px 7px;border:2px solid var(--gold);background:transparent;color:var(--gold);cursor:pointer;min-width:84px}
 .opt.on{background:var(--gold);color:var(--navy)}
+.jsec{margin:16px 0 2px;font:600 10px var(--f-pix);letter-spacing:.24em;text-transform:uppercase;color:var(--gold);opacity:.8}
+.jcrow{padding-top:4px;border-top:0}.jcin{flex:1;min-width:0;font:400 13px var(--f-pix);letter-spacing:.04em;text-transform:none}
 .opt.danger{border-color:var(--rose);color:var(--rose)}
 
 /* title + end */
@@ -475,9 +477,9 @@ body{color:var(--paper);font-family:var(--f-pix);-webkit-user-select:none;user-s
   </section>
   <div id="end" class="out" hidden>
     <div>
-      <div class="kick">End of the Emberwood test</div>
+      <div class="kick">Chapter I complete</div>
       <h2>The road to Hollowmere</h2>
-      <p>The gate stands open. Somewhere beyond it, a village is still asleep, and a letter says not to climb the mountain yet.</p>
+      <p>The gate stands open. Beyond it, a village is still asleep, and a letter says not to climb the mountain yet.</p>
       <div id="stats"></div>
       <div class="btns"><button class="btn" id="bKeep">Keep exploring</button></div>
     </div>
@@ -573,12 +575,12 @@ function resize(){
 window.addEventListener('resize',resize);
 
 /* shared uniforms for the curse: the world is grey except where light has touched it */
-const U={uCut:{value:new THREE.Vector4(0,0,0,0)},uRes:{value:new THREE.Vector2(1,1)},uTime:{value:0},uPlayer:{value:new THREE.Vector3(0,0,37)},uP2:{value:new THREE.Vector3(0,0,0)},uLampR:{value:6.8},uWake:{value:new THREE.Vector3(0,-4,0)},uRim:{value:0},uBloom:{value:[]}};
-for(let i=0;i<12;i++)U.uBloom.value.push(new THREE.Vector4(0,0,0,0));
+const U={uCut:{value:new THREE.Vector4(0,0,0,0)},uRes:{value:new THREE.Vector2(1,1)},uTime:{value:0},uPlayer:{value:new THREE.Vector3(0,0,37)},uP2:{value:new THREE.Vector3(0,0,0)},uLampR:{value:6.8},uWake:{value:new THREE.Vector3(0,-4,0)},uWake2:{value:new THREE.Vector3(5.5,-91,0)},uRim:{value:0},uBloom:{value:[]}};
+for(let i=0;i<16;i++)U.uBloom.value.push(new THREE.Vector4(0,0,0,0));
 function patch(mat,o){
   o=o||{}; const curse=o.curse!==false, sway=o.sway||0, push=!!o.push, water=!!o.water, cut=!!o.cut;
   mat.onBeforeCompile=function(sh){
-    sh.uniforms.uTime=U.uTime; sh.uniforms.uPlayer=U.uPlayer; sh.uniforms.uLampR=U.uLampR; sh.uniforms.uWake=U.uWake; sh.uniforms.uRim=U.uRim; sh.uniforms.uBloom=U.uBloom; sh.uniforms.uCut=U.uCut; sh.uniforms.uRes=U.uRes; sh.uniforms.uP2=U.uP2;
+    sh.uniforms.uTime=U.uTime; sh.uniforms.uPlayer=U.uPlayer; sh.uniforms.uLampR=U.uLampR; sh.uniforms.uWake=U.uWake; sh.uniforms.uWake2=U.uWake2; sh.uniforms.uRim=U.uRim; sh.uniforms.uBloom=U.uBloom; sh.uniforms.uCut=U.uCut; sh.uniforms.uRes=U.uRes; sh.uniforms.uP2=U.uP2;
     let disp='';
     if(sway||push){
       disp=`
@@ -613,7 +615,7 @@ function patch(mat,o){
       gl_Position=projectionMatrix*mvPosition;
     `);
     if(curse||water){
-      sh.fragmentShader='uniform float uTime;\nuniform vec3 uPlayer;\nuniform float uLampR;\nuniform vec3 uWake;\nuniform float uRim;\nuniform vec4 uBloom[12];\nuniform vec4 uCut;\nuniform vec2 uRes;\nuniform vec3 uP2;\nvarying vec3 vWPos;\nvarying float vVZ;\n'+sh.fragmentShader.replace('#include <tonemapping_fragment>',`{
+      sh.fragmentShader='uniform float uTime;\nuniform vec3 uPlayer;\nuniform float uLampR;\nuniform vec3 uWake;\nuniform vec3 uWake2;\nuniform float uRim;\nuniform vec4 uBloom[16];\nuniform vec4 uCut;\nuniform vec2 uRes;\nuniform vec3 uP2;\nvarying vec3 vWPos;\nvarying float vVZ;\n'+sh.fragmentShader.replace('#include <tonemapping_fragment>',`{
         `+(cut?`if(uCut.z>0.0&&vWPos.y>uPlayer.y+1.7&&vVZ<uCut.w-1.0){ vec2 q=(gl_FragCoord.xy/uRes-uCut.xy)*vec2(uRes.x/uRes.y,1.0); float k=1.0-smoothstep(uCut.z*0.55,uCut.z,length(q)); float ign=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(0.06711056,0.00583715)))); if(k*0.92>ign) discard; }
         `:'')+`
         vec3 col=gl_FragColor.rgb;
@@ -624,11 +626,14 @@ function patch(mat,o){
         cur=clamp((cur-0.28)*1.14+0.28,0.0,1.0);
         float a=(1.0-smoothstep(uLampR*0.3,uLampR,distance(vWPos.xz,uPlayer.xz)))*0.92;
         if(uP2.z>0.01) a=max(a,(1.0-smoothstep(uP2.z*0.3,uP2.z,distance(vWPos.xz,uP2.xy)))*0.92);
-        for(int i=0;i<12;i++){ vec4 b=uBloom[i]; if(b.w>0.002){ float r=b.z*b.w; a=max(a,1.0-smoothstep(r*0.5,r+0.01,distance(vWPos.xz,b.xy))); } }
+        for(int i=0;i<16;i++){ vec4 b=uBloom[i]; if(b.w>0.002){ float r=b.z*b.w; a=max(a,1.0-smoothstep(r*0.5,r+0.01,distance(vWPos.xz,b.xy))); } }
         float dw=distance(vWPos.xz,uWake.xy);
         a=max(a,1.0-smoothstep(uWake.z-9.0,uWake.z+0.01,dw));
+        float dw2=distance(vWPos.xz,uWake2.xy);
+        a=max(a,1.0-smoothstep(uWake2.z-9.0,uWake2.z+0.01,dw2));
         col=mix(cur,col,a);
         float rim=smoothstep(uWake.z-3.5,uWake.z-0.6,dw)*(1.0-smoothstep(uWake.z-0.6,uWake.z+0.6,dw));
+        rim=max(rim,step(0.5,uWake2.z)*smoothstep(uWake2.z-3.5,uWake2.z-0.6,dw2)*(1.0-smoothstep(uWake2.z-0.6,uWake2.z+0.6,dw2)));
         col+=rim*uRim*vec3(1.0,0.72,0.32);
         `:'')+`gl_FragColor.rgb=col; }
       #include <tonemapping_fragment>`);
@@ -666,6 +671,16 @@ sky.renderOrder=-10; scene.add(sky);
 function brookX(z){return -19.5+2.6*Math.sin(z*.11+.6)+1.2*Math.sin(z*.27);}
 const BX2=brookX(2);
 const POND={x:13,z:-19,r:4.2};
+/* Chapter II: Hollowmere village lies past the North Gate, joined by the old road (a valley between the hills) */
+const HM={x:6,z:-82,r:24},CORR={hw:4.5,z0:-64,z1:-31};
+function edgeDist(x,z){const e1=Math.hypot(x,z)-45;const e2=(z<CORR.z1&&z>CORR.z0)?Math.abs(x)-CORR.hw:99;const e3=Math.hypot(x-HM.x,z-HM.z)-HM.r-2;return Math.min(e1,e2,e3);}
+function inHMish(x,z){return z<-46;}
+function walkClamp(x,z){const R=43.4,HR=HM.r-.4,cw=3.1;
+  if(Math.hypot(x,z)<=R)return[x,z];if(z<-38.8&&z>-61&&Math.abs(x)<=cw)return[x,z];if(Math.hypot(x-HM.x,z-HM.z)<=HR)return[x,z];
+  const r=Math.hypot(x,z)||1,dx=x-HM.x,dz=z-HM.z,dh=Math.hypot(dx,dz)||1;
+  const c=[[x*R/r,z*R/r],[clamp(x,-cw,cw),clamp(z,-61,-38.8)],[HM.x+dx*HR/dh,HM.z+dz*HR/dh]];let best=c[0],bd=1e9;
+  for(const p of c){const d=(p[0]-x)*(p[0]-x)+(p[1]-z)*(p[1]-z);if(d<bd){bd=d;best=p;}}return best;}
+const HPATHS=[[[0,-46],[0,-58],[1.5,-66],[3,-74]],[[3,-74],[4,-80],[5.5,-88]],[[4,-80],[12,-76],[18,-72]],[[4,-80],[-4,-84],[-8,-88]],[[5.5,-88],[12,-95],[18,-100]],[[1.5,-66],[-5,-70]],[[1.5,-66],[10,-68]]];
 const P={duetA:[7,-18.6],duetB:[19,-19.4],spawn:[0,37],hut:[6.5,32],bo:[2.4,30.2],bell:[9.8,27.2],hale:[-6.5,28.5],m1:[7.6,35.4],
   s1:[3.3,21.5],sign:[-1.9,18.4],arch:[0,8],heart:[0,-4],tree:[-1,-12.5],
   cottage:[17,12],nana:[19.6,15.6],cocoon:[29.4,6.4],hollow:[31.2,8.8],s2:[34,-3],m3:[36,7.6],
@@ -680,10 +695,11 @@ const PATHS=[
   [[1.5,-23.5],[8,-21]]
 ];
 function segDist(px,pz,ax,az,bx,bz){const dx=bx-ax,dz=bz-az;const t=clamp(((px-ax)*dx+(pz-az)*dz)/(dx*dx+dz*dz),0,1);return Math.hypot(px-ax-dx*t,pz-az-dz*t);}
-function pathDist(x,z){let m=1e9;for(const p of PATHS)for(let i=0;i<p.length-1;i++){const d=segDist(x,z,p[i][0],p[i][1],p[i+1][0],p[i+1][1]);if(d<m)m=d;}return m;}
+function pathDist(x,z){let m=1e9;for(const p of PATHS)for(let i=0;i<p.length-1;i++){const d=segDist(x,z,p[i][0],p[i][1],p[i+1][0],p[i+1][1]);if(d<m)m=d;}
+  if(z<-45)for(const p of HPATHS)for(let i=0;i<p.length-1;i++){const d=segDist(x,z,p[i][0],p[i][1],p[i+1][0],p[i+1][1]);if(d<m)m=d;}return m;}
 function groundH(x,z){
   let h=(noise2(x*.07+3,z*.07+9)-.5)*.6+(noise2(x*.2,z*.2)-.5)*.12;
-  const r=Math.hypot(x,z); if(r>45) h+=Math.pow(r-45,1.35)*.22;
+  const e=edgeDist(x,z); if(e>0) h+=Math.pow(e,1.35)*.22;
   const wd=Math.abs(x-brookX(z)); if(wd<3.4) h=lerp(h,-.78,sm(clamp((3.4-wd)/1.5,0,1)));
   const pd=d2(x,z,POND.x,POND.z); if(pd<POND.r+1.4) h=lerp(h,-.78,sm(clamp((POND.r+1.4-pd)/1.5,0,1)));
   const pa=pathDist(x,z); if(pa<2.4) h=lerp(h,h*.25,sm(clamp((2.4-pa)/2.4,0,1)));
@@ -698,9 +714,9 @@ function vegOK(x,z,m,exk){exk=exk||1;if(Math.hypot(x,z)>44.5)return false;if(pat
 
 /* ---- ground ---- */
 (function(){
-  const g=new THREE.PlaneGeometry(140,140,120,120); g.rotateX(-Math.PI/2);
+  const g=new THREE.PlaneGeometry(140,140+70,120,120+60); g.rotateX(-Math.PI/2); g.translate(0,0,-35);
   const p=g.attributes.position, col=new Float32Array(p.count*3);
-  const moss=new THREE.Color(0x45984a),deep=new THREE.Color(0x2a7f55),lime=new THREE.Color(0x96c84a),dirt=new THREE.Color(0xb78859),stone=new THREE.Color(0xb7b2c8),sand=new THREE.Color(0xe2cc8e),bed=new THREE.Color(0x2c6f7c),violet=new THREE.Color(0x6a8f6e),c=new THREE.Color(),t2=new THREE.Color();
+  const cobble=new THREE.Color(0x9a9082),moss=new THREE.Color(0x45984a),deep=new THREE.Color(0x2a7f55),lime=new THREE.Color(0x96c84a),dirt=new THREE.Color(0xb78859),stone=new THREE.Color(0xb7b2c8),sand=new THREE.Color(0xe2cc8e),bed=new THREE.Color(0x2c6f7c),violet=new THREE.Color(0x6a8f6e),c=new THREE.Color(),t2=new THREE.Color();
   for(let i=0;i<p.count;i++){
     const x=p.getX(i),z=p.getZ(i); p.setY(i,groundH(x,z));
     const n=noise2(x*.09,z*.09),n2=noise2(x*.33+7,z*.33+1);
@@ -711,6 +727,8 @@ function vegOK(x,z,m,exk){exk=exk||1;if(Math.hypot(x,z)>44.5)return false;if(pat
     const wd=Math.min(Math.abs(x-brookX(z)),d2(x,z,POND.x,POND.z)-POND.r+2.3);
     if(wd<4.2) c.lerp(sand,sm(clamp((4.2-wd)/1.4,0,1))*.8);
     if(wd<2.4) c.lerp(bed,sm(clamp((2.4-wd)/1,0,1)));
+    if(z<-44){const sq=d2(x,z,4,-80),tw=d2(x,z,5.5,-91);if(sq<9.5)c.lerp(cobble,sm(clamp((9.5-sq)/2,0,1))*.9);if(tw<4.5)c.lerp(cobble,sm(clamp((4.5-tw)/1.5,0,1))*.9);
+      if(sq<9.5&&((Math.floor(x*1.3)+Math.floor(z*1.3))&1))c.multiplyScalar(.93);}
     col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;
   }
   g.setAttribute('color',new THREE.BufferAttribute(col,3)); g.computeVertexNormals();
@@ -722,7 +740,7 @@ function vegOK(x,z,m,exk){exk=exk||1;if(Math.hypot(x,z)>44.5)return false;if(pat
 const waterMat=patch(new THREE.MeshPhongMaterial({color:0x37c9db,emissive:0x0b3a50,transparent:true,opacity:.84,shininess:90,specular:0xcfefff}),{water:true});
 (function(){
   const pos=[],idx=[];let n=0;
-  for(let z=-72;z<=72;z+=1.2){const bx=brookX(z);pos.push(bx-2.55,-.26,z,bx+2.55,-.26,z);if(n>0){const a=(n-1)*2;idx.push(a,a+2,a+1,a+1,a+2,a+3);}n++;}
+  for(let z=-112;z<=72;z+=1.2){const bx=brookX(z);pos.push(bx-2.55,-.26,z,bx+2.55,-.26,z);if(n>0){const a=(n-1)*2;idx.push(a,a+2,a+1,a+1,a+2,a+3);}n++;}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();
   scene.add(new THREE.Mesh(g,waterMat));
   const pg=new THREE.CircleGeometry(POND.r+.4,32);pg.rotateX(-Math.PI/2);const pm=new THREE.Mesh(pg,waterMat);pm.position.set(POND.x,-.26,POND.z);scene.add(pm);
@@ -1153,7 +1171,7 @@ function playStep(s,t){const ch=(S.awake?CH_W:CH_C)[s>>4],L=AU.L;
   if(s%4===3)tone(midi(ch[(s>>2)%3]+24),t,.55,{type:'sine',vol:.026,dest:L[5]});
   if(s%16===8)tone(midi(ch[1]+12),t,SIX*8,{type:'triangle',vol:.022,a:.3,lp:1600,dest:L[5]});
   for(const n of MEL)if(n[0]===s){tone(midi(74+n[1]),t,n[2]*SIX+.08,{wave:AU.pulse,vol:.034,a:.01,dest:L[4]});tone(midi(62+n[1]),t,n[2]*SIX+.1,{type:'triangle',vol:.022,dest:L[4]});}}
-function setLayers(fast){if(!AU.ctx)return;const n=(S.s1?1:0)+(S.s2?1:0)+(S.s3?1:0);const tg=[1,n>=1?1:0,n>=2?1:0,(n>=3||S.awake)?1:0,S.awake?1:0];const t=AU.ctx.currentTime;AU.L.slice(0,5).forEach((g,i)=>g.gain.setTargetAtTime(tg[i],t,fast?.05:1.4));}
+function setLayers(fast){if(!AU.ctx)return;const hm=typeof hmLayers==='function'&&inHMish(PL.x,PL.z);const n=hm?hmLayers():(S.s1?1:0)+(S.s2?1:0)+(S.s3?1:0),aw=hm?!!S.h_bell:S.awake;const tg=[1,n>=1?1:0,n>=2?1:0,(n>=3||aw)?1:0,aw?1:0];const t=AU.ctx.currentTime;AU.L.slice(0,5).forEach((g,i)=>g.gain.setTargetAtTime(tg[i],t,fast?.05:1.4));}
 const SFX={
   ok:()=>!!(AU.ctx&&settings.sound&&AU.ctx.state==='running'),
   chime(i,d){if(!SFX.ok()||d===0)return;const t=AU.ctx.currentTime,m=PENT[Math.min(i,PENT.length-1)];tone(midi(m),t,.9,{vol:.075,send:1,dest:d});tone(midi(m+12),t,.4,{type:'triangle',vol:.022,dest:d});},
@@ -1225,7 +1243,7 @@ const TM=[];function after(s,fn){TM.push({t:s,fn});}
 function timers(dt){for(let i=TM.length-1;i>=0;i--){TM[i].t-=dt;if(TM[i].t<=0){const f=TM[i].fn;TM.splice(i,1);f();}}}
 
 /* ================= camera ================= */
-const CAM={est:0,estYaw:0,beat:0,mode:'intro',focus:new THREE.Vector3(0,2,-4),yaw:0,tr:5,pr:2.5,lx:0,lz:0,t:0,pushIn:0};
+const CAM={rc:[0,-4],est:0,estYaw:0,beat:0,mode:'intro',focus:new THREE.Vector3(0,2,-4),yaw:0,tr:5,pr:2.5,lx:0,lz:0,t:0,pushIn:0};
 const cc={yaw:.55,pitch:.42,dist:90,fov:38,x:0,y:2,z:-4};
 const HIDDEN=[];const _zero=new THREE.Matrix4().makeScale(0,0,0);
 function hideCorridor(ax,az,bx,bz){restoreHidden();const test=(x,z)=>segDist(x,z,ax,az,bx,bz)<3.4&&d2(x,z,bx,bz)>2.4;
@@ -1252,7 +1270,7 @@ function camUpdate(dt){
     const run=clamp(PL.spd/5.4,0,1);
     g={yaw:CAM.estYaw*es,pitch:.98-.16*es,dist:fit(14,fov,19,32)*(1-.12*CAM.pushIn)*zm*(1+.07*run+.2*es-.08*Math.sin(CAM.beat*Math.PI))*G.camZoom,fov,x:tx,y:PL.y+.6,z:tz};}
   else if(CAM.mode==='story'){const fov=portrait?28:22;g={yaw:CAM.yaw,pitch:.2,dist:fit(portrait?7:11,fov,15,30),fov,x:CAM.focus.x,y:CAM.focus.y,z:CAM.focus.z};}
-  else if(CAM.mode==='reveal'){CAM.t+=dt;g={yaw:.35+CAM.t*.05,pitch:.62,dist:fit(52,40,48,92),fov:40,x:0,y:2,z:-4};}
+  else if(CAM.mode==='reveal'){CAM.t+=dt;g={yaw:.35+CAM.t*.05,pitch:.62,dist:fit(52,40,48,92),fov:40,x:CAM.rc[0],y:2,z:CAM.rc[1]};}
   else{CAM.t+=dt;const hp=(CAM.mode==='hero'&&CAM.heroP)?CAM.heroP:[PL.x,PL.z];g=heroShot(hp[0],groundH(hp[0],hp[1]),hp[1],CAM.t);}
   CAM.tr=damp(CAM.tr,CAM.mode==='explore'?6:2.6,.5,dt);CAM.pr=damp(CAM.pr,2.6,.5,dt);
   cc.x=damp(cc.x,g.x,CAM.tr,dt);cc.y=damp(cc.y,g.y,CAM.tr,dt);cc.z=damp(cc.z,g.z,CAM.tr,dt);
@@ -1325,11 +1343,11 @@ function tap(x,y){
   PL.tap={x:tx,z:tz};emit(tx,PL.y+.15,tz,{life:.5,size:.6,c:[1,.75,.4]});}
 function blockedWater(x,z){const wd=Math.abs(x-brookX(z));if(wd<2.55){if(S.stones&&Math.abs(z-2)<1.4)return false;return true;}return d2(x,z,POND.x,POND.z)<POND.r+.45;}
 function movePlayer(dx,dz){let nx=PL.x+dx,nz=PL.z+dz;
-  if(G.noclip){const r=Math.hypot(nx,nz);if(r>46){nx*=46/r;nz*=46/r;}PL.x=nx;PL.z=nz;return;}
+  if(G.noclip){if(edgeDist(nx,nz)>1.5){const w=walkClamp(nx,nz);nx=w[0];nz=w[1];}PL.x=nx;PL.z=nz;return;}
   if(blockedWater(nx,nz)){if(!blockedWater(nx,PL.z))nz=PL.z;else if(!blockedWater(PL.x,nz))nx=PL.x;else{nx=PL.x;nz=PL.z;}}
   for(let pass=0;pass<2;pass++)for(const c of COL){const ex=nx-c.x,ez=nz-c.z,R=c.r+.33;const q=ex*ex+ez*ez;if(q<R*R){const d=Math.sqrt(q)||.001;nx=c.x+ex/d*R;nz=c.z+ez/d*R;}}
   if(MATE.vis){const ex=nx-MATE.x,ez=nz-MATE.z,q=ex*ex+ez*ez;if(q<.36&&q>1e-6){const d=Math.sqrt(q);nx=MATE.x+ex/d*.6;nz=MATE.z+ez/d*.6;}}
-  const r=Math.hypot(nx,nz);if(r>43.4){nx*=43.4/r;nz*=43.4/r;}
+  {const w=walkClamp(nx,nz);nx=w[0];nz=w[1];}
   if(G.gateOpen<.5&&nz<-38.8&&Math.abs(nx)<3.4)nz=-38.8;
   if(blockedWater(nx,nz)){nx=PL.x;nz=PL.z;}
   PL.x=nx;PL.z=nz;}
@@ -1389,7 +1407,7 @@ function doFlare(){
   ringFx(PL.x,PL.y+.12,PL.z,7.2*lr,p.ring);burst(_lp.x,_lp.y,_lp.z,26,p.spark,{spd:5,up:2.5,size:.22,life:.9,grav:-.5});
   bloomNear(PL.x,PL.z,7*lr);
   for(const t of FT){if(t.ok()&&d2(PL.x,PL.z,t.x,t.z)<t.r*lr){t.act();break;}}
-  sisFlare(PL.x,PL.z);
+  sisFlare(PL.x,PL.z);hmFlare(PL.x,PL.z);
   G.holdNear=0;
   if(NET.peer){share({t:'fl'});G.myFlareAt=nowS();if(MATE.vis&&nowS()-G.mateFlareAt<.9&&d2(PL.x,PL.z,MATE.x,MATE.z)<9)twinFlare();}
 }
@@ -1407,14 +1425,14 @@ function flowersUpdate(dt){comboT-=dt;if(comboT<0)combo=0;let dirty=false;
   if(dirty){petalIM.instanceMatrix.needsUpdate=true;budIM.instanceMatrix.needsUpdate=true;}}
 
 /* ================= blooms (permanent colour) ================= */
-const BL=[];for(let i=0;i<12;i++)BL.push({x:0,z:0,r:0,a:0,tg:0});
+const BL=[];for(let i=0;i<16;i++)BL.push({x:0,z:0,r:0,a:0,tg:0});
 function bloom(i,x,z,r,tg,instant){const b=BL[i];b.x=x;b.z=z;b.r=r;b.tg=tg;if(instant)b.a=tg;}
 bloom(3,P.hut[0]+.9,P.hut[1]+2.6,3.4,1,true);
 bloom(4,P.ribbet[0],P.ribbet[1],2.3,1,true);
 bloom(5,P.heart[0],P.heart[1],2.6,.55,true);
 function setFoxPresent(on){const f=NPC.fox;f.absent=!on;f.ch.g.visible=!!on;bloom(8,P.fox[0],P.fox[1],2.2,on?1:0,true);}
 setFoxPresent(NIGHT);
-function bloomUpdate(dt){for(let i=0;i<12;i++){const b=BL[i];b.a=damp(b.a,b.tg,1.4,dt);U.uBloom.value[i].set(b.x,b.z,b.r,b.a);}}
+function bloomUpdate(dt){for(let i=0;i<16;i++){const b=BL[i];b.a=damp(b.a,b.tg,1.4,dt);U.uBloom.value[i].set(b.x,b.z,b.r,b.a);}}
 
 /* ================= story beats ================= */
 function progress(){G.lastProg=G.time;G.hintAt=G.time+80;newMark(true);}
@@ -1477,10 +1495,10 @@ function awaken(remote){if(S.awake)return;if(G.rek)G.rek.done=true;chargeStop();
   after(2.6,()=>zone('Emberwood has awakened',MATE.vis?'Together · Chapter I':'Chapter I'));
   after(8.2,()=>{CAM.mode='explore';CAM.tr=1.2;CAM.pr=1.1;G.mode='play';G.rek=null;PL.faceT=null;emote(NPC.bo.anchor,'!','#ffd36b');});
   after(10.5,()=>{if(!S.mem[3])toast('<span class="d f"></span><span>Bo is waving from home</span>',3400);});}
-function awakenInstant(){S.awake=true;U.uWake.value.z=220;U.uRim.value=0;G.envK=1;applyEnv(1);
+function awakenInstant(){S.awake=true;U.uWake.value.z=56;U.uRim.value=0;G.envK=1;applyEnv(1);
   for(let i=0;i<FL.length;i++){const f=FL[i];if(!f.open){f.open=true;f.t=1;setFlower(i);_fc.set(0xffd36b);budIM.setColorAt(i,_fc);}}
   petalIM.instanceMatrix.needsUpdate=true;budIM.instanceMatrix.needsUpdate=true;budIM.instanceColor.needsUpdate=true;
-  for(const id in NPC)if(NPC[id].sleep)wakeNPC(NPC[id],true);}
+  for(const id in NPC)if(NPC[id].sleep&&!NPC[id].hm)wakeNPC(NPC[id],true);}
 function wakeNPC(n,instant){if(!n.sleep)return;n.sleep=false;if(!instant){n.jump=1;emote(n.anchor,'!','#ffd36b');}}
 function collectMem(i,instant,remote){if(S.mem[i]&&!instant)return;S.mem[i]=true;const m=MEMS[i];if(m.m)m.m.visible=false;
   if(!instant){save();progress();if(!remote)share({t:'mem',i});SFX.memory();if(m.m)burst(m.x,m.m.position.y,m.z,30,0xcfe8ff,{spd:2.5,up:2,size:.2,life:1.3,grav:-.4});
@@ -1507,7 +1525,7 @@ function talkUpdate(dt){if(!TALK.who)return;const a=TALK.who.anchor();if(d2(PL.x
   if(TALK.typing){const prev=Math.floor(TALK.shown);TALK.shown+=dt*36;const n=Math.min(TALK.full.length,Math.floor(TALK.shown));if(n!==prev){bub.querySelector('.tx').textContent=TALK.full.slice(0,n);TALK.bl-=n-prev;if(TALK.bl<=0&&TALK.full[n-1]!==' '){SFX.blip(TALK.who.voice);TALK.bl=2;}}
     if(n>=TALK.full.length){TALK.typing=false;TALK.hold=Math.max(1.8,TALK.full.length*.055)+.5;}}
   else{TALK.hold-=dt;if(TALK.hold<=0)nextLine();}}
-function talkTo(o){
+function talkTo(o){if(o.talk){o.talk(o);return;}
   if(o.sleep){o.si=((o.si||0)+1)%DLG[o.id].sleep.length;o.wob=1;talk(o,[DLG[o.id].sleep[o.si]],{sleep:true});return;}
   const n=S.talks[o.id]||0;S.talks[o.id]=n+1;save();
   if(o.id==='ribbet'){talk(o,ribbetLines(n));return;}
@@ -1541,7 +1559,7 @@ IT.push({p:()=>[NOTE_POS[0],gy(P.hut[0],P.hut[1])+2.3,NOTE_POS[1]],r:2.8,ok:()=>
 /* the signpost: real directions at the crossroads */
 const SIGN={id:'sign',name:'Signpost',col:'#d9a46a',voice:{w:'triangle',f:260,r:.04},anchor:()=>[P.sign[0],gy(P.sign[0],P.sign[1])+2.1,P.sign[1]]};
 IT.push({p:()=>[P.sign[0],gy(P.sign[0],P.sign[1])+2.2,P.sign[1]],r:2.4,ok:()=>!TALK.who,act:()=>talk(SIGN,['North: the Elder Tree, then the North Gate.','East: Moth Hollow.','West: Stillwater Brook and the old chapel.'])});
-function goalText(){
+function goalText(){if(hmActive())return hmGoalText();
   if(!S.note&&!S.s1&&!S.pip)return'Read the note pinned to the Keeper’s door.';
   if(!S.s1)return'Light the first wayshrine, north along the path. Hold to flare your lantern beside it.';
   if(!S.pip)return'Something small waits in Moth Hollow, east of the signpost.';
@@ -1615,7 +1633,7 @@ function triggers(dt){if(G.mode!=='play')return;
     if(id==='ribbet'&&!o.greeted&&d<4.6&&!TALK.who){o.greeted=true;talkTo(o);}}
   if(G.ready&&!S.awake&&!G.rek&&d2(PL.x,PL.z,P.heart[0],P.heart[1])<5.3)startRekindle();
   if(!S.awake&&!G.ready&&d2(PL.x,PL.z,P.heart[0],P.heart[1])<5.5){G.hbT=(G.hbT||0)-dt;if(G.hbT<=0){SFX.heartbeat();G.hbT=2.6;if(PIP.on&&!G.pipQ){G.pipQ=1;emote(pipAnchor,'?','#d8c8ff');}}}
-  if(S.awake&&!G.endShown&&PL.z<-39.3&&Math.abs(PL.x)<3)showEnd();
+  if(S.awake&&!G.endShown&&!S.c1end&&PL.z<-39.3&&Math.abs(PL.x)<3){S.c1end=true;save();showEnd();}
   if(G.endShown&&PL.z>-34)G.endShown=false;
   let near=null;for(const t of FT)if(t.ok()&&d2(PL.x,PL.z,t.x,t.z)<t.r&&(t!==FT[2]||S.pip)&&(t!==FT[3]||S.pip)){near=t;break;}
   G.holdNear=near?G.holdNear+dt:0;}
@@ -1651,11 +1669,11 @@ function pipUpdate(dt){if(!PIP.on)return;const t=G.time;let tx,ty,tz;const ox=PI
   pipC.g.position.set(PIP.x,PIP.y,PIP.z);const vx=PIP.x-ox,vz=PIP.z-oz;if(Math.abs(vx)+Math.abs(vz)>1e-4)pipC.g.rotation.y=angDamp(pipC.g.rotation.y,Math.atan2(vx,vz),8,dt);
   const f=Math.sin(t*26)*.95;pipC.wl.rotation.z=f;pipC.wr.rotation.z=-f;
   halo(PIP.x,PIP.y,PIP.z,.9,0xc9b5ff,.55);if(Math.random()<dt*6)emit(PIP.x,PIP.y,PIP.z,{vy:-.2,life:.8,size:.07,c:[.8,.72,1]});}
-function wakeUpdate(dt){if(!G.wave)return;G.wave.t+=dt;const k=easeInOut(clamp(G.wave.t/6.5,0,1));const R=k*95;U.uWake.value.z=R;U.uRim.value=1-ss(.65,1,k);
+function wakeUpdate(dt){if(!G.wave)return;G.wave.t+=dt;const k=easeInOut(clamp(G.wave.t/6.5,0,1));const R=k*56;U.uWake.value.z=R;U.uRim.value=1-ss(.65,1,k);
   G.envK=clamp(G.wave.t/5.5,0,1);let dirty=false;
   for(let i=0;i<FL.length;i++){const f=FL[i];if(!f.open&&d2(f.x,f.z,P.heart[0],P.heart[1])<R)bloomFlower(i,true);}
-  for(const id in NPC){const o=NPC[id];if(o.sleep&&d2(o.x,o.z,P.heart[0],P.heart[1])<R)wakeNPC(o);}
-  if(G.wave.t>7.5){G.wave=null;U.uWake.value.z=220;U.uRim.value=0;}}
+  for(const id in NPC){const o=NPC[id];if(o.sleep&&!o.hm&&d2(o.x,o.z,P.heart[0],P.heart[1])<R)wakeNPC(o);}
+  if(G.wave.t>7.5){G.wave=null;U.uWake.value.z=56;U.uRim.value=0;}}
 let envLast=-1;const _c1=new THREE.Color();
 function applyEnv(k){const a=ENV.c,b=ENV.w;hemi.color.copy(a.sky).lerp(b.sky,k);hemi.groundColor.copy(a.gnd).lerp(b.gnd,k);hemi.intensity=lerp(a.hemi,b.hemi,k);
   sun.color.copy(a.dir).lerp(b.dir,k);sun.intensity=lerp(a.dirI,b.dirI,k);scene.fog.color.copy(a.fog).lerp(b.fog,k);scene.background.copy(scene.fog.color);
@@ -1663,7 +1681,7 @@ function applyEnv(k){const a=ENV.c,b=ENV.w;hemi.color.copy(a.sky).lerp(b.sky,k);
   mtMat1.color.copy(a.mt1).lerp(b.mt1,k);mtMat2.color.copy(a.mt2).lerp(b.mt2,k);}
 function envUpdate(){const k=G.envOverride==null?G.envK:G.envOverride;if(Math.abs(k-envLast)>.002){applyEnv(k);envLast=k;}}
 function ambient(dt){const t=G.time;
-  if(!S.awake){if(Math.random()<dt*7)emit(PL.x+rr(-9,9),PL.y+rr(.5,3.5),PL.z+rr(-9,7),{vx:rr(-.2,.2),vy:rr(-.05,.15),life:rr(3,5),size:.1,c:[.42,.5,.7],wob:.4});}
+  if(!regionAwake()){if(Math.random()<dt*7)emit(PL.x+rr(-9,9),PL.y+rr(.5,3.5),PL.z+rr(-9,7),{vx:rr(-.2,.2),vy:rr(-.05,.15),life:rr(3,5),size:.1,c:[.42,.5,.7],wob:.4});}
   else{if(Math.random()<dt*6)emit(PL.x+rr(-9,9),PL.y+rr(.4,3),PL.z+rr(-9,7),{vx:rr(-.3,.3),vy:rr(0,.2),life:rr(3,5),size:.11,c:[1,.85,.45],wob:.6});
     if(Math.random()<dt*2.2){const c=rgb(pick([0xff6fae,0xffd36b,0x6fd8ff,0xb48cff]));emit(PL.x+rr(-8,8),PL.y+rr(.6,2.2),PL.z+rr(-8,6),{vx:rr(-.6,.6),vz:rr(-.6,.6),vy:rr(-.05,.1),life:rr(5,8),size:.2,c,wob:1.4,fl:1});}
     G.birdT=(G.birdT||2)-dt;if(G.birdT<=0){SFX.bird();G.birdT=rr(1.4,4.2);}}
@@ -1673,7 +1691,7 @@ function ambient(dt){const t=G.time;
 function audioUpdate(dt){if(!AU.ctx)return;const wd=Math.abs(PL.x-brookX(PL.z));AU.water.g.gain.setTargetAtTime(settings.sound?clamp(1-wd/14,0,1)*.11:0,AU.ctx.currentTime,.3);}
 /* hint wisp: if the player wanders without progress, a firefly drifts toward the next goal */
 let wisp=null;
-function goalPos(){if(!S.note&&!S.s1&&!S.pip)return NOTE_POS;if(!S.s1)return P.s1;if(!S.pip)return P.cocoon;if(!S.s2)return P.s2;if(!S.stones)return[BX2+3,2];if(!S.s3)return P.s3;if(!S.awake)return P.heart;if(!S.mem[3])return P.bo;return P.gate;}
+function goalPos(){if(hmActive())return hmGoalPos();if(!S.note&&!S.s1&&!S.pip)return NOTE_POS;if(!S.s1)return P.s1;if(!S.pip)return P.cocoon;if(!S.s2)return P.s2;if(!S.stones)return[BX2+3,2];if(!S.s3)return P.s3;if(!S.awake)return P.heart;if(!S.mem[3])return P.bo;return P.gate;}
 function hintUpdate(dt){if(G.mode==='play'&&!wisp&&G.time>G.hintAt){const g=goalPos();if(d2(PL.x,PL.z,g[0],g[1])>5){wisp={sx:_lp.x,sz:_lp.z,tx:g[0],tz:g[1],t:0,d:clamp(d2(PL.x,PL.z,g[0],g[1])/7,1.6,4.5)};SFX.hint();}G.hintAt=G.time+28;}
   if(wisp){wisp.t+=dt/wisp.d;const k=easeInOut(Math.min(1,wisp.t));const x=lerp(wisp.sx,wisp.tx,k),z=lerp(wisp.sz,wisp.tz,k),y=gy(x,z)+1.5+Math.sin(k*Math.PI)*3;
     halo(x,y,z,.9,0x9fe8ff,.8);if(Math.random()<dt*30)emit(x,y,z,{vx:rr(-.3,.3),vy:rr(-.3,.3),vz:rr(-.3,.3),life:1.1,size:.1,c:[.6,.9,1]});
@@ -1688,9 +1706,9 @@ function uiUpdate(dt){mateUI();hud();
     bub.style.transform=`translate(${(x-w/2).toFixed(1)}px,${(y-h).toFixed(1)}px)`;bub.style.setProperty('--tx',clamp(s.x-x+w/2,14,w-14).toFixed(0)+'px');}
   for(let i=EMO.length-1;i>=0;i--){const e=EMO[i];e.t+=dt;if(e.t>1.7){e.el.remove();EMO.splice(i,1);continue;}const a=e.a();const s=scr(a[0],a[1],a[2]);const k=e.t/1.7;e.el.style.transform=`translate(${(s.x-6).toFixed(1)}px,${(s.y-24-k*26).toFixed(1)}px) scale(${(.6+Math.min(1,e.t*6)*.5).toFixed(2)})`;e.el.style.opacity=(k<.7?1:1-(k-.7)/.3).toFixed(2);}
   const ps=scr(PL.x,PL.y+1.1,PL.z);
-  let rv=-1;if(G.rek&&G.rek.ready&&!G.rek.done)rv=G.rek.p;else if(showUI&&G.energy<.985)rv=G.energy;
-  if(rv>=0){ringEl.style.transform=`translate(${ps.x}px,${ps.y}px)`;ringEl.style.opacity='1';ringFg.setAttribute('stroke-dashoffset',(RC*(1-rv)).toFixed(1));ringFg.style.stroke=G.rek?'#ffd36b':(G.energy<.3?'#8c93b3':'#ffb347');}else ringEl.style.opacity='0';
-  const hs=(showUI&&G.holdNear>2.2&&G.flares<5)||(G.rek&&G.rek.ready&&!G.rek.done&&G.rek.p<.05);
+  let rv=-1;if(G.rek&&G.rek.ready&&!G.rek.done)rv=G.rek.p;else if(G.hring&&G.hring.ready&&!G.hring.done)rv=G.hring.p;else if(showUI&&G.energy<.985)rv=G.energy;
+  if(rv>=0){ringEl.style.transform=`translate(${ps.x}px,${ps.y}px)`;ringEl.style.opacity='1';ringFg.setAttribute('stroke-dashoffset',(RC*(1-rv)).toFixed(1));ringFg.style.stroke=(G.rek||G.hring)?'#ffd36b':(G.energy<.3?'#8c93b3':'#ffb347');}else ringEl.style.opacity='0';
+  const hs=(showUI&&G.holdNear>2.2&&G.flares<5)||(G.rek&&G.rek.ready&&!G.rek.done&&G.rek.p<.05)||(G.hring&&G.hring.ready&&!G.hring.done&&G.hring.p<.05);
   holdEl.classList.toggle('on',!!hs);if(hs)holdEl.style.transform=`translate(${ps.x}px,${ps.y-62}px)`;
   $('#jbtn').classList.toggle('on',G.mode==='play'||G.mode==='story'||G.mode==='cine');
 }
@@ -1704,18 +1722,24 @@ const FRIENDS=[{id:'mate',n:'',x:'A fellow lantern-keeper. Two lights reach furt
   {id:'bo',n:'Bo',x:'Postbird of Emberwood. Carried the last letter the Keeper ever wrote.',k:()=>S.met.bo},
   {id:'fox',n:'Nocturne',x:'A fox made of starlight. Only walks at night.',k:()=>S.met.fox}];
 function renderJournal(){const b=$('#jbody');let h='';
-  $('#jsub').textContent=S.awake?'Emberwood · awake':'Emberwood · asleep';
+  $('#jsub').textContent=inHMish(PL.x,PL.z)?(S.h_bell?'Hollowmere · awake':'Hollowmere · asleep'):(S.awake?'Emberwood · awake':'Emberwood · asleep');
   if(jTab==='together'){renderParty(b,'journal');return;}
   if(jTab==='map'){b.innerHTML='<div class="mapwrap"><canvas id="mapc" width="180" height="180" aria-label="Map of Emberwood"></canvas></div><div class="mapkey"><span><i class="f"></i>Lit shrine</span><span><i></i>Sleeping shrine</span><span style="color:'+wick.pal.ui+'">\u2691 You</span>'+(MATE.vis?'<span style="color:'+mate.pal.ui+'">\u2691 '+esc(mateName())+'</span>':'')+'</div>';drawMap();return;}
-  if(jTab==='mem'){h+='<div class="goal"><b>Now</b><span>'+esc(goalText())+'</span></div><div class="prog"><span>'+[1,2,3].map(i=>'<i class="'+(S['s'+i]?'f':'')+'"></i>').join('')+' Wayshrines</span><span><i class="'+(S.awake?'f':'')+'"></i> The Heart</span></div>';
-    MEM_T.forEach((m,i)=>{const g=S.mem[i];h+='<div class="entry '+(g?'got':'lock')+'"><span class="ic"></span><h4>'+(g?esc(m.t):'A memory not yet found')+'</h4><p>'+(g?esc(m.x):'· · ·')+'</p></div>';});}
-  else if(jTab==='friends'){FRIENDS.forEach(f=>{const g=!!f.k();h+='<div class="entry '+(g?'got':'lock')+'"><span class="ic"></span><h4>'+(g?esc(f.id==='mate'?(NET.peer?mateName():(S.mateName||'A fellow keeper')):f.n):'Someone you haven’t met')+'</h4><p>'+(g?esc(f.x):'· · ·')+'</p></div>';});}
+  if(jTab==='mem'){h+='<div class="goal"><b>Now</b><span>'+esc(goalText())+'</span></div>'+(hmActive()?hmJournalProg():'<div class="prog"><span>'+[1,2,3].map(i=>'<i class="'+(S['s'+i]?'f':'')+'"></i>').join('')+' Wayshrines</span><span><i class="'+(S.awake?'f':'')+'"></i> The Heart</span></div>');
+    if(S.h_seen)h+='<div class="jsec">Emberwood</div>';
+    MEM_T.forEach((m,i)=>{const g=S.mem[i];h+='<div class="entry '+(g?'got':'lock')+'"><span class="ic"></span><h4>'+(g?esc(m.t):'A memory not yet found')+'</h4><p>'+(g?esc(m.x):'· · ·')+'</p></div>';});
+    if(S.h_seen)h+=hmJournalMem();}
+  else if(jTab==='friends'){FRIENDS.filter(f=>!f.ch||S.h_seen).forEach(f=>{const g=!!f.k();h+='<div class="entry '+(g?'got':'lock')+'"><span class="ic"></span><h4>'+(g?esc(f.id==='mate'?(NET.peer?mateName():(S.mateName||'A fellow keeper')):f.n):'Someone you haven’t met')+'</h4><p>'+(g?esc(f.x):'· · ·')+'</p></div>';});}
   else if(jTab==='secrets'){const bc=bellCount();const sec=[['Lost Bells',bc+' of '+BELLS_TOTAL+' found in Emberwood.'+(S.bell?' One rang softly near home.':' Listen for a tinkle.')+(S.duet?' One rose from Mirror Pond on a song for two.':'')+(S.sisters?' One answered the Sister Lights.':'')+(bc<BELLS_TOTAL?' Two of them ring only for two keepers.':''),bc>0],['The Mural',S.mural?'A hand covering a lantern. “Enough.”':'Something is carved where only small eyes can see.',S.mural],['The night visitor',S.fox?'Nocturne, the starlight fox.':'Some things only walk when the real sun sleeps.',S.fox],['The Duet',S.duet?'Two voices on two stones. Mirror Pond remembered its song.':'Two stones by Mirror Pond hum alone. Some songs need two voices.',S.duet],['Sister Lights',S.sisters?'Two lanterns far apart, woken in the same breath: one on the west cliff, one hidden in the east woods.':'A lantern waits on the west cliff, out of reach. Its sister hides from ordinary eyes.',S.sisters],['Twin Flare',S.twin?'Two lanterns flared in the same breath, and the light reached twice as far.':'Two lanterns, one moment.',S.twin]];
-    sec.forEach(s=>{h+='<div class="entry '+(s[2]?'got':'lock')+'"><span class="ic"></span><h4>'+esc(s[0])+'</h4><p>'+esc(s[1])+'</p></div>';});}
+    if(S.h_seen)h+='<div class="jsec">Emberwood</div>';
+    sec.forEach(s=>{h+='<div class="entry '+(s[2]?'got':'lock')+'"><span class="ic"></span><h4>'+esc(s[0])+'</h4><p>'+esc(s[1])+'</p></div>';});
+    if(S.h_seen)h+=hmJournalSecrets();}
   else{h+='<div class="row"><div>Sound<small>Music, footsteps and voices</small></div><button class="opt'+(settings.sound?' on':'')+'" id="oSound">'+(settings.sound?'On':'Off')+'</button></div>';
     h+='<div class="row"><div>Pixel look<small>Chunky retro pixels or a crisp picture</small></div><button class="opt'+(settings.retro?' on':'')+'" id="oPix">'+(settings.retro?'Retro':'Crisp')+'</button></div>';
+    h+=journeyRows();
     h+='<div class="row"><div>Start over<small>Erase this journal and begin again</small></div><button class="opt danger" id="oReset">Reset</button></div>';}
   b.innerHTML=h;
+  journeyBind();
   const os=$('#oSound');if(os)os.onclick=()=>{settings.sound=!settings.sound;store.set(SETS,settings);audioInit();if(AU.master)AU.master.gain.setTargetAtTime(settings.sound?.85:0,AU.ctx.currentTime,.05);renderJournal();};
   const op=$('#oPix');if(op)op.onclick=()=>{settings.retro=!settings.retro;store.set(SETS,settings);resize();renderJournal();};
   const or=$('#oReset');if(or)or.onclick=()=>{if(or.dataset.c){store.del(SAVE);location.reload();}else{or.dataset.c='1';or.textContent='Sure?';}};}
@@ -1725,9 +1749,29 @@ document.querySelectorAll('.jtab').forEach(b=>b.addEventListener('click',()=>{jT
 $('#jclose').addEventListener('click',closeJournal);$('#jbtn').addEventListener('click',()=>{audioInit();openJournal();});
 (function(){let sy=null;const j=$('#journal');j.addEventListener('pointerdown',e=>{if(!e.target.closest('.jbody'))sy=e.clientY;});j.addEventListener('pointerup',e=>{if(sy!=null&&e.clientY-sy>50)closeJournal();sy=null;});})();
 
+/* ================= journey code ================= */
+const JC_PRE='LF1.';
+function jcSum(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return(h>>>0).toString(36).slice(-4).padStart(4,'0');}
+function jcB64(s){return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function jcUnB64(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return decodeURIComponent(escape(atob(s)));}
+function journeyCode(){const d=Object.assign({},sanitizeSave(S),{mem:S.mem.slice()});delete d.talks;const body=jcB64(JSON.stringify(d));return JC_PRE+body+'.'+jcSum(body);}
+function journeyRead(code){code=String(code||'').replace(/\s+/g,'');if(code.indexOf(JC_PRE)!==0)return null;const rest=code.slice(JC_PRE.length),dot=rest.lastIndexOf('.');if(dot<1)return null;
+  const body=rest.slice(0,dot),sum=rest.slice(dot+1);if(jcSum(body)!==sum)return null;try{const d=JSON.parse(jcUnB64(body));return d&&typeof d==='object'?sanitizeSave(d):null;}catch(e){return null;}}
+function journeyLoad(code){const d=journeyRead(code);if(!d)return'That code doesn’t look right. Copy it again, all of it.';if(!G.slot)return'Only the host keeps the journey. Load it when you are not visiting a friend.';
+  store.set(G.slot,d);setTimeout(()=>location.reload(),900);return'';}
+function journeyRows(){return'<div class="row"><div>Journey code<small>Carry your journey to another phone or link</small></div><button class="opt" id="oJCopy">Copy</button></div>'+
+  '<div class="row jcrow"><input class="pin jcin" id="jcIn" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Paste a journey code"><button class="opt" id="oJLoad">Load</button></div><div class="pmsg" id="jcMsg"></div>';}
+function journeyBind(){const c=$('#oJCopy'),l=$('#oJLoad'),msg=t=>{const m=$('#jcMsg');if(m)m.textContent=t;};
+  if(c)c.onclick=()=>{copyText(journeyCode()).then(ok=>msg(ok?'Copied. Keep it somewhere safe, or send it to yourself.':journeyCode()));};
+  if(l)l.onclick=()=>{const v=$('#jcIn').value;if(l.dataset.c!==v){l.dataset.c=v;l.textContent='Sure?';msg('This replaces the journey on this phone.');return;}const e=journeyLoad(v);msg(e||'Journey loaded. One moment…');l.textContent='Load';l.dataset.c='';};}
 /* ================= end card ================= */
-function showEnd(){G.endShown=true;G.mode='end';CAM.mode='hero';CAM.heroP=[PL.x,PL.z];CAM.t=0;CAM.tr=1.1;CAM.pr=.9;{const c=heroCamXZ(heroShot(PL.x,PL.y,PL.z,0));hideCorridor(c[0],c[1],PL.x,PL.z);}SFX.gate();const fr=FRIENDS.filter(f=>f.k()).length;const sec=(S.mural?1:0)+(S.fox?1:0)+(S.duet?1:0)+(S.twin?1:0)+(S.sisters?1:0);const mins=Math.max(1,Math.round(S.t/60));
-  $('#stats').innerHTML=[[S.mem.filter(Boolean).length+'/4','Memories'],[sec+'/5','Secrets'],[bellCount()+'/'+BELLS_TOTAL,'Lost Bells'],[fr+'/'+FRIENDS.length,'Friends']].map(s=>'<div><b>'+s[0]+'</b><span>'+s[1]+'</span></div>').join('');
+function showEnd(ch){ch=ch||1;G.endShown=true;G.mode='end';CAM.mode='hero';CAM.heroP=[PL.x,PL.z];CAM.t=0;CAM.tr=1.1;CAM.pr=.9;{const c=heroCamXZ(heroShot(PL.x,PL.y,PL.z,0));hideCorridor(c[0],c[1],PL.x,PL.z);}SFX.gate();const e1=$('#end');
+  if(ch===2){e1.querySelector('.kick').textContent='Chapter II complete';e1.querySelector('h2').textContent='The bell of Hollowmere';e1.querySelector('p').textContent='The village is awake, and it remembers why it slept. Mist still hides the lake road, and somewhere above it, Ash is climbing.';}
+  else{e1.querySelector('.kick').textContent='Chapter I complete';e1.querySelector('h2').textContent='The road to Hollowmere';e1.querySelector('p').textContent='The gate stands open. Beyond it, a village is still asleep, and a letter says not to climb the mountain yet.';}
+  const F=FRIENDS.filter(f=>ch===2?f.ch===2:!f.ch),fr=F.filter(f=>f.k()).length;
+  const sec=ch===2?(S.h_ledger?1:0)+(S.h_cat?1:0)+(S.h_lamps?1:0):(S.mural?1:0)+(S.fox?1:0)+(S.duet?1:0)+(S.twin?1:0)+(S.sisters?1:0);
+  const mem=ch===2?[S.h_m5,S.h_m6,S.h_m7].filter(Boolean).length+'/3':S.mem.filter(Boolean).length+'/4';
+  $('#stats').innerHTML=[[mem,'Memories'],[sec+(ch===2?'/3':'/5'),'Secrets'],[ch===2?hmBellCount()+'/'+HM_BELLS:bellCount()+'/'+BELLS_TOTAL,'Lost Bells'],[fr+'/'+F.length,ch===2?'Villagers':'Friends']].map(s=>'<div><b>'+s[0]+'</b><span>'+s[1]+'</span></div>').join('');
   const e=$('#end');e.hidden=false;void e.offsetWidth;e.classList.remove('out');}
 $('#bKeep').addEventListener('click',()=>{CAM.mode='explore';CAM.tr=1.4;CAM.pr=1.2;restoreHidden();const e=$('#end');e.classList.add('out');setTimeout(()=>{e.hidden=true;},1200);G.mode='play';});
 
@@ -1737,15 +1781,15 @@ function report(e,where){G.errs++;const m=(where||'?')+': '+((e&&e.message)||Str
 function run(fn,a,b){try{fn(a,b);}catch(e){report(e,fn.name||'system');}}
 window.addEventListener('error',e=>report(e.error||e.message,'window'));
 window.addEventListener('unhandledrejection',e=>report(e.reason,'promise'));
-const SAVE_FLAGS=['s1','s2','s3','pip','stones','awake','bell','mural','fox','duet','twin','note','sisters'];
+const SAVE_FLAGS=['s1','s2','s3','pip','stones','awake','bell','mural','fox','duet','twin','note','sisters','c1end'];
 function sanitizeSave(d){const o={};if(!d||typeof d!=='object')return o;
   for(const k of SAVE_FLAGS)o[k]=!!d[k];
   o.mem=Array.isArray(d.mem)?[0,1,2,3].map(i=>!!d.mem[i]):[false,false,false,false];
   o.met=(d.met&&typeof d.met==='object')?Object.assign({},d.met):{};
   o.talks=(d.talks&&typeof d.talks==='object')?Object.assign({},d.talks):{};
   o.t=isFinite(d.t)?+d.t:0;o.mateName=typeof d.mateName==='string'?d.mateName.slice(0,12):'';o.v=SAVE_V;return o;}
-function worldKey(){return[S.s1,S.s2,S.s3,S.pip,S.stones,S.awake,S.mem[0],S.mem[1],S.mem[2],S.mem[3],S.bell,S.mural,S.duet,S.twin,S.sisters].map(v=>v?1:0).join('');}
-const COL_STATIC=COL.length;   // colliders that exist before any story event; later ones (lit shrines, woken sisters) are state, not world
+function worldKey(){return[S.s1,S.s2,S.s3,S.pip,S.stones,S.awake,S.mem[0],S.mem[1],S.mem[2],S.mem[3],S.bell,S.mural,S.duet,S.twin,S.sisters].map(v=>v?1:0).join('')+HM_FLAGS.map(k=>S[k]?1:0).join('');}
+let COL_STATIC=0;   // set by boot once the whole world is built: colliders added later (lit shrines, woken sisters) are state, not world
 function worldFingerprint(){let h=2166136261;const mix=v=>{h^=Math.round(v*1000)|0;h=Math.imul(h,16777619);};
   for(const f of FL){mix(f.x);mix(f.z);}for(const t of TREES){mix(t.x);mix(t.z);}mix(COL_STATIC);mix(GRASS.length);return(h>>>0).toString(16)+':'+FL.length;}
 
@@ -1759,7 +1803,7 @@ const IN_CLAUDE=/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostna
 const QS=new URLSearchParams(location.search);
 const LOCAL_NET=false;
 const CO_OK=!IN_CLAUDE&&(LOCAL_NET||(!!window.LFNet&&typeof RTCPeerConnection!=='undefined'));
-const PROTO=3,APPID='lanternfall-emberwood-twolights',ALPH='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const PROTO=4,APPID='lanternfall-emberwood-twolights',ALPH='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const NET={on:false,role:null,code:'',tr:null,peer:null,synced:false,everSynced:false,sendT:0,seq:0,rseq:-1,mateName:'',joinTimer:0,
   avgI:.05,jit:.01,lastArr:0,delay:.1,rtt:0,pingT:0,ckT:0,needT:0,lastFl:-1,idleT:0,hiSent:{}};
 const MATE={vis:false,x:0,z:0,y:0,face:0,spd:0,ph:0,sq:0,sqV:0,moving:false,jump:0,jA:1,seed:2.1,boost:0,flags:0,buf:[],lastSt:0,away:false,pop:0,pip:null,link:false,zt:0,rt:0};
@@ -1830,7 +1874,7 @@ function netFail(kind){const guest=NET.role==='guest';
   if(!party.classList.contains('on'))openParty('err');else partyRefresh();}
 
 function snapData(){let fl='';for(let i=0;i<FL.length;i++)fl+=FL[i].open?'1':'0';
-  return{t:'snap',studio:!!G.studio,S:{s1:S.s1,s2:S.s2,s3:S.s3,pip:S.pip,stones:S.stones,awake:S.awake,mem:S.mem.slice(),bell:S.bell,mural:S.mural,duet:S.duet,twin:S.twin,sisters:S.sisters},fl,night:NIGHT,fp:worldFingerprint(),pos:[Math.round(PL.x*100)/100,Math.round(PL.z*100)/100]};}
+  return{t:'snap',studio:!!G.studio,S:{s1:S.s1,s2:S.s2,s3:S.s3,pip:S.pip,stones:S.stones,awake:S.awake,mem:S.mem.slice(),bell:S.bell,mural:S.mural,duet:S.duet,twin:S.twin,sisters:S.sisters,c1end:S.c1end,hm:HM_FLAGS.filter(k=>S[k])},fl,night:NIGHT,fp:worldFingerprint(),pos:[Math.round(PL.x*100)/100,Math.round(PL.z*100)/100]};}
 function syncTo(sn){const w=(sn&&sn.S)||{};
   for(let i=0;i<3;i++)if(w['s'+(i+1)]&&!S['s'+(i+1)])lightShrine(i,true);
   if(w.pip&&!S.pip){S.pip=true;PIP.on=true;pipC.g.visible=true;cocoon.visible=false;PIP.x=PL.x;PIP.y=PL.y+2;PIP.z=PL.z;bloom(6,P.cocoon[0],P.cocoon[1],4.2,1,true);}
@@ -1840,6 +1884,8 @@ function syncTo(sn){const w=(sn&&sn.S)||{};
   if(w.mural)S.mural=true;if(w.twin)S.twin=true;
   if(w.duet&&!S.duet)duetInstant();
   if(w.sisters&&!S.sisters)sistersInstant();
+  if(w.c1end)S.c1end=true;
+  if(Array.isArray(w.hm))hmSync(w.hm);
   if(w.awake&&!S.awake)awakenInstant();
   if(typeof sn.fl==='string'&&sn.fl.length===FL.length){let dirty=false;for(let i=0;i<FL.length;i++){if(sn.fl[i]==='1'&&!FL[i].open){const f=FL[i];f.open=true;f.t=1;f.anim=false;setFlower(i);_fc.set(0xffd36b);budIM.setColorAt(i,_fc);dirty=true;}}
     if(dirty){petalIM.instanceMatrix.needsUpdate=true;budIM.instanceMatrix.needsUpdate=true;budIM.instanceColor.needsUpdate=true;}}
@@ -1876,6 +1922,7 @@ function onEv(e){if(!e||typeof e!=='object')return;
     case 'twin':if(!S.twin){S.twin=true;save();}break;
     case 'sis':if(n(e.i)>=0&&e.i<2)sisLight(e.i,true);break;
     case 'sisters':sistersComplete(true);break;
+    case 'hm':hmEvent(e);break;
   }}
 
 /* --- anti-lag: own keeper is local-first; partner arrives over an unordered lossy channel and plays back through an adaptive jitter buffer --- */
@@ -1894,7 +1941,7 @@ function sampleMate(){const B=MATE.buf;if(!B.length)return null;const rt=nowS()-
       return a;}}
   return B[B.length-1];}
 function netUpdate(dt){if(!NET.peer||!NET.tr||G.mode==='title')return;
-  const fl=((G.rek&&G.rek.ready&&isHolding())?1:0)|(G.journal?2:0)|((G.mode==='story'||G.mode==='cine')?4:0);
+  const fl=((((G.rek&&G.rek.ready)||(G.hring&&G.hring.ready))&&isHolding())?1:0)|(G.journal?2:0)|((G.mode==='story'||G.mode==='cine')?4:0);
   const moving=PL.spd>.05||fl!==NET.lastFl;NET.idleT=moving?0:NET.idleT+dt;
   NET.sendT-=dt;if(NET.sendT<=0){NET.sendT=NET.idleT>.5?1/6:1/20;NET.lastFl=fl;const r2=v=>Math.round(v*100)/100;
     const a=[++NET.seq,r2(PL.x),r2(PL.z),r2(PL.face),r2(PL.spd),fl];if(pipSim()&&PIP.on)a.push(r2(PIP.x),r2(PIP.y),r2(PIP.z));NET.tr.fast(a,NET.peer);}
@@ -1910,7 +1957,7 @@ function mateArrive(x,z,f){MATE.vis=true;MATE.x=x;MATE.z=z;MATE.face=f;MATE.pop=
   after(.9,()=>{toast('<span class="d f"></span><span>'+esc(mateName())+' joined · Two Lights</span>',3000);emote(mateAnchor,'♥',mate.pal.ui);});
   after(4.2,giftTell);
   partyRefresh();setTimeout(()=>{if(party.classList.contains('on')&&NET.peer)closeParty();},1600);}
-function mateGone(quiet){if(!MATE.vis)return;MATE.vis=false;mate.flame.getWorldPosition(_mp);burst(_mp.x,_mp.y,_mp.z,30,mate.pal.spark,{spd:3,up:2,size:.2,life:1});
+function mateGone(quiet){if(!MATE.vis)return;hmMateGone();MATE.vis=false;mate.flame.getWorldPosition(_mp);burst(_mp.x,_mp.y,_mp.z,30,mate.pal.spark,{spd:3,up:2,size:.2,life:1});
   mate.g.visible=false;MATE.buf=[];mateL.intensity=0;U.uP2.value.z=0;MATE.link=false;
   if(!quiet){SFX.leave();toast('<span class="d"></span><span>'+esc(mateName())+'’s lantern drifted away</span>',3200);}}
 let linkLast=-1;
@@ -2047,7 +2094,7 @@ function hud(){const on=NET.on&&G.mode!=='title';let txt='',wait=false,col='#ffd
 pill.addEventListener('click',()=>{audioInit();openParty(null);});
 
 /* --- journal map with flags --- */
-function drawMap(cv){const c=cv||document.getElementById('mapc');if(!c)return;const g=c.getContext('2d');const N=c.width,K=N/100,o=N/2;const X=x=>o+x*K,Y=z=>o+z*K;const aw=S.awake;
+function drawMap(cv){const c=cv||document.getElementById('mapc');if(!c)return;if(inHMish(PL.x,PL.z)){drawMapHM(c);return;}const g=c.getContext('2d');const N=c.width,K=N/100,o=N/2;const X=x=>o+x*K,Y=z=>o+z*K;const aw=S.awake;
   g.fillStyle='#14132a';g.fillRect(0,0,N,N);
   g.fillStyle=aw?'#1f4d3a':'#262c40';g.beginPath();g.arc(o,o,49*K,0,TAU);g.fill();
   g.fillStyle=aw?'#2f6b45':'#2f3850';g.beginPath();g.arc(o,o,44.5*K,0,TAU);g.fill();
@@ -2222,6 +2269,435 @@ function sisUpdate(dt){const t=G.time;
     s.wasOn=calling;}}
 /* the camera leans toward the Far Sister when you come near the west cliff, so it is noticed (law GUIDE-2) */
 POIS.push({p:[SIS[0].x+3,SIS[0].z],ok:()=>!S.sisters});
+/* ================= Hollowmere: the village ================= */
+const HP={arch:[.6,-60.8],oven:[8.6,-64.6],bakery:[12,-66.8],tobin:[7.6,-65.6],post:[-6.4,-69],pell:[-3.4,-67.2],
+  apo:[-10,-89.5],sol:[-6.6,-87.2],kettle:[-5.6,-86.2],ledger:[-6.2,-92.2],tree:[18.4,-86.4],wren:[15.8,-83.6],
+  tower:[5.5,-95.5],mara:[5.5,-91.6],well:[4,-80],road:[18.6,-100.6],
+  letters:[[1.6,-77.2],[16.6,-80.2],[-9.6,-84.4]],crate:[11.2,-83.6],m5:[15.2,-63.4],m6:[-14.2,-93.6]};
+const HB=new Builder();
+const hrand=mulberry(424242),hrr=(a,b)=>a+(b-a)*hrand(),hpick=a=>a[Math.floor(hrand()*a.length)];
+/* a cosy house: plaster walls, timber corners, a steep coloured roof, a door and a warm window */
+function house(x,z,w,d,h,roof,wall,door){const b=gy(x,z);
+  HB.add(GB.box,[x,b+.15,z],0,[w+.5,.4,d+.5],C.stoneD);HB.add(GB.box,[x,b+.25+h/2,z],0,[w,h,d],wall||C.plaster);
+  for(const sx of[-1,1])for(const sz of[-1,1])HB.add(GB.box,[x+sx*w/2,b+.25+h/2,z+sz*d/2],0,[.24,h+.1,.24],C.woodD);
+  HB.add(GB.box,[x,b+.3+h,z],0,[w+.3,.2,d+.3],C.woodD);
+  HB.add(GB.cone4,[x,b+.4+h+Math.max(w,d)*.42,z],[0,Math.PI/4,0],[Math.max(w,d)*.82,Math.max(w,d)*.85,Math.max(w,d)*.82],roof);
+  HB.add(GB.box,[x+w*.22,b+.5+h+Math.max(w,d)*.55,z-d*.18],0,[.5,1.3,.5],C.stoneD);
+  const[fx,fz]=door==='w'?[-1,0]:door==='e'?[1,0]:door==='n'?[0,-1]:[0,1];
+  const dx=x+fx*(w/2+.06),dz=z+fz*(d/2+.06),rot=fx?Math.PI/2:0;
+  HB.add(GB.box,[dx,b+1.1,dz],[0,rot,0],[1,1.6,.12],0x7a4a3a);HB.add(GB.box,[dx+(fx?0:.95),b+1.6,dz+(fx?.95:0)],[0,rot,0],[.75,.65,.1],0xffe7a8);
+  HB.add(GB.box,[x-(fx?0:.95),b+1.6,z+fz*(d/2+.06)-(fx?.95:0)+(fx?0:0)],[0,rot,0],[.75,.65,.1],0xffe7a8);
+  COL.push({x,z,r:Math.max(w,d)*.62});return b;}
+const HOUSES=[];
+(function(){
+  /* village arch at the end of the old road */
+  {const[x,z]=HP.arch;const b=gy(x,z);for(const sx of[-1,1]){HB.add(GB.cyl8,[x+sx*2.6,b+1.9,z],0,[.22,3.8,.22],C.woodD);COL.push({x:x+sx*2.6,z,r:.35});}
+    HB.add(GB.box,[x,b+3.7,z],0,[6.2,.3,.4],C.woodD);HB.add(GB.box,[x,b+3.15,z],0,[3.6,.6,.12],C.wood);
+    for(let i=0;i<9;i++)HB.add(GB.box,[x-1.5+i*.375,b+3.15,z+.07],0,[.22,.3,.04],i%2?C.gold:0xfff1d6,.02);}
+  HOUSES.push({id:'bakery',b:house(HP.bakery[0],HP.bakery[1],4.4,4,2.6,0xe2683c,0xf3dcb8,'w'),x:HP.bakery[0],z:HP.bakery[1]});
+  HOUSES.push({id:'post',b:house(HP.post[0],HP.post[1],4,3.8,2.5,0x3d7bd6,0xe9dcc6,'e'),x:HP.post[0],z:HP.post[1]});
+  HOUSES.push({id:'apo',b:house(HP.apo[0],HP.apo[1],4.2,4.2,2.7,0x8a5ad6,0xe6d6c6,'e'),x:HP.apo[0],z:HP.apo[1]});
+  [[-13.2,-76.5,3.6,3.4,2.3,0x2fb3c4,'e'],[16.8,-96,3.6,3.6,2.4,0xff6f9f,'w'],[-3,-98.6,3.8,3.4,2.4,0x22a37f,'s'],[18.8,-71,3.4,3.6,2.3,0xffc23d,'w'],[-15.6,-84,3,3,2.1,0xe0454e,'e']]
+    .forEach((h,i)=>HOUSES.push({id:'h'+i,b:house(h[0],h[1],h[2],h[3],h[4],h[5],null,h[6]),x:h[0],z:h[1]}));
+  /* bakery oven: a brick dome by the door */
+  {const[x,z]=HP.oven;const b=gy(x,z);HB.add(GB.box,[x,b+.45,z],0,[1.6,.9,1.6],0xa0523c);HB.add(GB.sph,[x,b+1.05,z],0,[.85,.75,.85],0xb8633f);HB.add(GB.box,[x-.55,b+.85,z],0,[.4,.55,.7],0x2a1a1a);HB.add(GB.cyl6,[x+.3,b+1.9,z+.2],0,[.14,.7,.14],0x8a4a32);COL.push({x,z,r:1});}
+  /* post office: mail sacks and a sign */
+  {const[x,z]=HP.post;const b=gy(x,z);HB.add(GB.sph,[x+2.6,b+.35,z+1.4],0,[.45,.4,.45],0xd8c8a0);HB.add(GB.sph,[x+2.9,b+.3,z+.7],0,[.38,.34,.38],0xcab890);HB.add(GB.box,[x+2.1,b+2.9,z],0,[.1,.5,1.3],C.red);}
+  /* apothecary: a table with the Sleepwell kettle, a moon garden, the ledger board */
+  {const[x,z]=HP.kettle;const b=gy(x,z);HB.add(GB.box,[x,b+.75,z],0,[1.2,.08,.8],C.wood);for(const sx of[-1,1])HB.add(GB.box,[x+sx*.5,b+.38,z],0,[.08,.75,.6],C.woodD);
+    HB.add(GB.sph,[x,b+.98,z],0,[.24,.2,.24],0x6a5aa0);HB.add(GB.cyl6,[x+.22,b+1.02,z],[0,0,-1],[.04,.25,.04],0x6a5aa0);COL.push({x,z,r:.7});
+    const[lx,lz]=HP.ledger;const lb=gy(lx,lz);HB.add(GB.cyl6,[lx,lb+.8,lz],0,[.06,1.6,.06],C.woodD);HB.add(GB.box,[lx,lb+1.5,lz],[0,.3,0],[1.1,.75,.08],0xe8dcc0);COL.push({x:lx,z:lz,r:.3});
+    for(let i=0;i<9;i++){const a=i/9*TAU,r=hrr(1,2.2);HB.add(GB.sph,[-13.4+Math.cos(a)*r,gy(-13.4,-92)+.25,-92+Math.sin(a)*r],0,hrr(.16,.24),hpick([0xb48cff,0xd8c8ff,0x9fd8ff]),.03);}}
+  /* the well in the square */
+  {const[x,z]=HP.well;const b=gy(x,z);HB.add(new THREE.CylinderGeometry(1.15,1.25,.9,10),[x,b+.45,z],0,1,C.stone);HB.add(new THREE.CylinderGeometry(.92,.92,.12,10),[x,b+.86,z],0,1,0x1a1a26,0);
+    for(const sx of[-1,1])HB.add(GB.box,[x+sx*1.05,b+1.5,z],0,[.14,2.1,.14],C.woodD);HB.add(GB.cyl8,[x,b+2.3,z],[0,0,Math.PI/2],[.08,2.3,.08],C.wood);HB.add(GB.cone4,[x,b+3,z],[0,Math.PI/4,0],[1.7,1,1.7],0xc84a5a);COL.push({x,z,r:1.35});}
+  /* market stalls with striped awnings */
+  [[-1.9,-76.6,.4,0xff6f9f],[9.8,-82.2,-.3,0x35d6e8],[8.2,-74.4,.6,0xffc23d],[.4,-85.4,-.5,0x9d7bff]].forEach(([x,z,r,c])=>{const b=gy(x,z);
+    HB.add(GB.box,[x,b+.5,z],[0,r,0],[2,1,1],C.wood);for(const sx of[-1,1])HB.add(GB.box,[x+Math.cos(r)*sx*.95,b+1.25,z-Math.sin(r)*sx*.95],[0,r,0],[.1,2.5,.1],C.woodD);
+    for(let i=0;i<4;i++)HB.add(GB.box,[x+Math.cos(r)*(-.75+i*.5),b+2.45,z-Math.sin(r)*(-.75+i*.5)],[.35,r,0],[.5,.06,1.3],i%2?c:0xfff1d6,.02);
+    for(let i=0;i<5;i++)HB.add(GB.sph,[x+Math.cos(r)*(-.7+i*.35),b+1.08,z-Math.sin(r)*(-.7+i*.35)],0,.14,hpick([0xff4f9b,0xffc43d,0x7fd85a,0xff7a59]),.03);COL.push({x,z,r:1.1});});
+  /* crates by the blue stall (a Lost Bell hides among them) */
+  {const[x,z]=HP.crate;const b=gy(x,z);HB.add(GB.box,[x,b+.35,z],[0,.3,0],[.8,.7,.8],0xa8784a);HB.add(GB.box,[x+.85,b+.3,z+.4],[0,-.2,0],[.7,.6,.7],0x9a6a40);HB.add(GB.box,[x+.3,b+.95,z+.15],[0,.6,0],[.55,.5,.55],0xb08050);COL.push({x:x+.4,z:z+.2,r:.9});}
+  /* the lake road: an arch half lost in mist */
+  {const[x,z]=HP.road;const b=gy(x,z);const a=-.75;for(const s of[-1,1]){const px=x+Math.cos(a)*s*2.3,pz=z-Math.sin(a)*s*2.3;HB.add(GB.cyl8,[px,gy(px,pz)+1.6,pz],0,[.2,3.2,.2],C.woodD);COL.push({x:px,z:pz,r:.35});}
+    HB.add(GB.box,[x,b+3.15,z],[0,a,0],[5,.26,.34],C.woodD);HB.add(GB.box,[x,b+2.6,z],[0,a,0],[2.4,.5,.1],0x9fd8ff);}
+  /* fences, barrels and flower boxes for life */
+  for(let i=0;i<6;i++){const x=-8.5-i*.9,z=-64.6-i*.15;HB.add(GB.box,[x,gy(x,z)+.4,z],0,[.1,.8,.1],C.woodD);if(i<5)HB.add(GB.box,[x-.45,gy(x,z)+.55,z],0,[.9,.07,.06],C.wood);}
+  [[14.4,-69.6],[-3.2,-71.6],[7.8,-90.2],[-6.4,-93.6],[2.2,-63.6]].forEach(([x,z])=>{HB.add(GB.cyl8,[x,gy(x,z)+.42,z],0,[.36,.84,.36],0x8a5a3c);HB.add(GB.cyl8,[x,gy(x,z)+.86,z],0,[.37,.04,.37],0x5a3a2a);COL.push({x,z,r:.42});});
+})();
+/* the bell tower: stone base, timber belfry, a great bell that has no clapper */
+const TOWER=(function(){const[x,z]=HP.tower;const b=gy(x,z);
+  HB.add(GB.box,[x,b+.25,z],0,[5,.5,5],C.stoneD);HB.add(GB.box,[x,b+4,z],0,[4,7.5,4],C.stone);
+  for(const sx of[-1,1])for(const sz of[-1,1])HB.add(GB.box,[x+sx*2,b+4,z+sz*2],0,[.5,7.6,.5],C.stoneD);
+  HB.add(GB.box,[x,b+1.3,z+2.04],0,[1.3,2.4,.12],0x5a3a2a);HB.add(GB.box,[x,b+2.7,z+2.06],0,[1.5,.24,.14],C.stoneD);
+  for(let i=0;i<3;i++)HB.add(GB.box,[x,b+4.4+i*1.5,z+2.03],0,[.5,.7,.06],0x1a1a26,0);
+  HB.add(GB.box,[x,b+7.9,z],0,[4.6,.35,4.6],C.woodD);
+  for(const sx of[-1,1])for(const sz of[-1,1])HB.add(GB.box,[x+sx*1.9,b+9.4,z+sz*1.9],0,[.32,2.9,.32],C.woodD);
+  HB.add(GB.box,[x,b+10.95,z],0,[4.7,.3,4.7],C.woodD);HB.add(GB.cone4,[x,b+12.7,z],[0,Math.PI/4,0],[3.9,3.4,3.9],0xd0446f);HB.add(GB.sph,[x,b+14.5,z],0,.22,C.gold);
+  HB.add(GB.cyl6,[x,b+10.4,z],0,[.06,.8,.06],C.dark);
+  const bell=new THREE.Group();bell.position.set(x,b+10.2,z);scene.add(bell);
+  const bm=new THREE.Mesh(new THREE.CylinderGeometry(.55,1.15,1.5,12,1,true),M(0xc9a040,{shiny:60}));bm.material.side=THREE.DoubleSide;bm.position.y=-.75;bell.add(bm);
+  const lip=new THREE.Mesh(new THREE.TorusGeometry(1.12,.08,6,16),M(0xb08a30));lip.rotation.x=Math.PI/2;lip.position.y=-1.48;bell.add(lip);
+  const clap=new THREE.Mesh(GB.sph,M(0x4a4a5a));clap.scale.setScalar(.22);clap.position.y=-1.35;clap.visible=false;bell.add(clap);
+  const rope=new THREE.Mesh(GB.cyl6,M(0xd8c8a0));rope.scale.set(.03,7.6,.03);rope.position.set(x+.6,b+5.6,z+2.3);scene.add(rope);
+  COL.push({x,z,r:2.9});return{x,z,b,bell,clap,rope,swing:0,ring:0};})();
+/* trees of the village, the big tree in the green, a ring of pines around the valley */
+const HTREES=[];
+(function(){const add=(x,z,type,s,ring)=>{HTREES.push({x,z,type,s,ry:hrand()*TAU,ring});if(!ring)COL.push({x,z,r:.42*s+.12});};
+  add(HP.tree[0],HP.tree[1],'round',1.75,false);
+  [[-15.6,-70.4,'blossom'],[22,-78,'round'],[-17.4,-90,'round'],[13.6,-104,'pine'],[-7.6,-102.6,'blossom'],[23.2,-90.6,'pine'],[-11,-63.6,'birch'],[21.6,-64.6,'round'],[1.6,-104.6,'pine']]
+    .forEach(([x,z,t])=>{if(Math.hypot(x-HM.x,z-HM.z)<HM.r-.6)add(x,z,t,hrr(1,1.35),false);});
+  for(let i=0;i<150;i++){const a=hrand()*TAU,d=hrr(HM.r+1.6,HM.r+13);const x=HM.x+Math.cos(a)*d,z=HM.z+Math.sin(a)*d;
+    if(z>-64&&Math.abs(x)<7)continue;if(d2(x,z,HP.road[0]+3,HP.road[1]-3)<6)continue;if(Math.abs(x-brookX(z))<3.4)continue;if(Math.hypot(x,z)<47)continue;
+    if(HTREES.some(t=>t.ring&&Math.hypot(t.x-x,t.z-z)<2.4))continue;add(x,z,hrand()<.6?'pine':'round',hrr(1.1,1.8),true);}})();
+const hTrunkIM=mkIM(trunkGeo,trunkMat,HTREES,t=>{const b=gy(t.x,t.z);const birch=t.type==='birch';return[mtx([t.x,b-.1,t.z],[0,t.ry,0],birch?[t.s*.62,t.s*1.25,t.s*.62]:[t.s,t.s*(t.type==='pine'?.8:1),t.s]),birch?'#ece6da':hpick(['#8a5a3c','#7a4e36','#94603e'])];});
+const hRoundIM=mkIM(roundGeo,canopyMat,HTREES.filter(t=>t.type!=='pine'),t=>{const b=gy(t.x,t.z);const birch=t.type==='birch';const pal=PAL[t.type==='blossom'?'blossom':birch?'birch':'round'];return[birch?mtx([t.x,b+1.2*t.s,t.z],[0,t.ry,0],t.s*.72):mtx([t.x,b-.1,t.z],[0,t.ry,0],t.s),hpick(pal)];});
+const hPineIM=mkIM(pineGeo,canopyMat,HTREES.filter(t=>t.type==='pine'),t=>{const b=gy(t.x,t.z);return[mtx([t.x,b-.1,t.z],[0,t.ry,0],[t.s,t.s*hrr(.95,1.25),t.s]),hpick(PAL.pine)];});
+/* Emberwood's outer ring of trees must not grow on the old road or in the village */
+(function(){let n=0;for(const t of TREES){if(!t.ring||edgeDist(t.x,t.z)>1.2)continue;trunkIM.setMatrixAt(t.ti,_zero);(t.type==='pine'?pineIM:roundIM).setMatrixAt(t.ci,_zero);n++;}
+  if(n){trunkIM.instanceMatrix.needsUpdate=true;roundIM.instanceMatrix.needsUpdate=true;pineIM.instanceMatrix.needsUpdate=true;}})();
+const HMIM=[hTrunkIM,hRoundIM,hPineIM];
+/* only drawn when you are near the old road or in the village, so Emberwood costs nothing extra */
+function hmCull(){const on=PL.z<-24||camera.position.z<-30;if(on!==hmCull.on){hmCull.on=on;for(const im of HMIM)im.visible=on;}}
+/* grass and a few bushes in the village (its own seed, so Emberwood never changes) */
+(function(){const GR=[];let t=0;while(GR.length<1700&&t++<12000){const a=hrand()*TAU,d=Math.sqrt(hrand())*(HM.r+.5);const x=HM.x+Math.cos(a)*d,z=HM.z+Math.sin(a)*d;
+    if(pathDist(x,z)<1.4||d2(x,z,4,-80)<9.6||d2(x,z,5.5,-91)<4.6)continue;if(COL.some(c=>d2(x,z,c.x,c.z)<c.r+.3))continue;GR.push({x,z});}
+  for(let z=-62;z>-47;z-=.55)for(let k=0;k<3;k++){const x=hrr(-6,6);if(Math.abs(x)>1.6)GR.push({x,z:z+hrr(-.3,.3)});}
+  HMIM.push(mkIM(grassGeo,grassMat,GR,g=>[mtx([g.x,gy(g.x,g.z)-.03,g.z],[0,hrand()*TAU,hrr(-.15,.15)],[hrr(.8,1.4),hrr(.35,.85),1]),hpick(['#4fb046','#66bd48','#3a9f58','#2aa883','#86c24a','#45b06e'])]));
+  const BU=[];for(let i=0;i<46;i++){const a=hrand()*TAU,d=hrr(4,HM.r-.5);const x=HM.x+Math.cos(a)*d,z=HM.z+Math.sin(a)*d;if(pathDist(x,z)<2||d2(x,z,4,-80)<10||COL.some(c=>d2(x,z,c.x,c.z)<c.r+1))continue;BU.push({x,z,s:hrr(.55,.95)});}
+  HMIM.push(mkIM(bushGeo,bushIM.material,BU,b=>[mtx([b.x,gy(b.x,b.z)-.05,b.z],[0,hrand()*TAU,0],b.s),hpick(['#2e9e5e','#3cb371','#1f9a86','#58b84a'])]));})();
+/* street lamps: four tall lamplighter's lamps (a secret for two), and low lamps by the doors */
+const LAMPS=[[-2.6,-62.4],[13.8,-72.8],[-7.2,-80.6],[12.6,-90.6]].map(([x,z],i)=>{const b=gy(x,z);
+  HB.add(GB.cyl6,[x,b+2.4,z],0,[.1,4.8,.1],C.dark);HB.add(GB.box,[x+.35,b+4.7,z],0,[.8,.08,.08],C.dark);
+  HB.add(GB.box,[x+.7,b+4.25,z],0,[.36,.06,.36],C.dark);HB.add(GB.cone4,[x+.7,b+4.62,z],[0,Math.PI/4,0],[.32,.3,.32],C.dark);COL.push({x,z,r:.3});
+  const glass=new THREE.Mesh(GB.box,new THREE.MeshBasicMaterial({color:0x4a4658}));glass.scale.set(.28,.42,.28);glass.position.set(x+.7,b+4.42,z);scene.add(glass);
+  return{i,x,z,b,lx:x+.7,ly:b+4.42,glass,on:false,k:0};});
+/* the mist on the lake road (Chapter III) */
+const lakeMist=(function(){const[x,z]=HP.road;const b=gy(x,z);const m=new THREE.Mesh(new THREE.PlaneGeometry(4.2,3.2),gateBarrier.material.clone());m.material.uniforms={uT:U.uTime,uO:{value:1}};
+  m.position.set(x+.15,b+1.6,z-.15);m.rotation.y=-.75;scene.add(m);return m;})();
+/* the merged village mesh */
+const hmStatic=new THREE.Mesh(HB.geo(),staticMesh.material);scene.add(hmStatic);
+ZONES.push({id:'oldroad',n:'The Old Road',s:'Between the hills',t:(x,z)=>z<-44&&z>-58&&Math.abs(x)<5},
+  {id:'hollowmere',n:'Hollowmere',s:'The village that chose to sleep',t:(x,z)=>z<-60&&d2(x,z,HM.x,HM.z)<HM.r},
+  {id:'square',n:'Market Square',s:'Where every road meets',t:(x,z)=>d2(x,z,4,-80)<6},
+  {id:'belltower',n:'The Bell Tower',s:'Silent since the Night of Lanterns',t:(x,z)=>d2(x,z,HP.tower[0],HP.tower[1])<7.5});
+/* ================= Hollowmere: villagers ================= */
+function makeVillager(o){const g=new THREE.Group(),b=new THREE.Group();g.add(b);const k=o.k||1;
+  part(b,GS.cone,M(o.robe),[0,.5*k,0],[o.wide||.48,1.0*k,o.wide||.48]);part(b,GS.cyl,M(o.belt),[0,.38*k,0],[(o.wide||.48)*.74,.06,(o.wide||.48)*.74]);
+  if(o.apron)part(b,GS.box,M(0xf6f1e6),[0,.42*k,.24],[.4,.6*k,.05],[-.18,0,0]);
+  if(o.bag){part(b,GS.box,M(0x8a5a3c),[-.32,.5*k,.12],[.14,.3,.34]);part(b,GS.box,M(0x6b3f2a),[0,.8*k,0],[.5,.04,.52],[0,0,.7]);}
+  const head=new THREE.Group();head.position.y=(o.hy||1.12)*k;b.add(head);
+  part(head,GS.sph,M(o.skin||0xf2c9a0),[0,0,0],o.hs||.32);part(head,GS.sph,M(0xff9db0),[-.18,-.07,.24],[.05,.035,.03]);part(head,GS.sph,M(0xff9db0),[.18,-.07,.24],[.05,.035,.03]);
+  const ey=eyes(head,.03,(o.hs||.32)*.86,.11,.046);
+  if(o.hat==='chef'){part(head,GS.cyl,M(0xfafafa),[0,.3,0],[.26,.18,.26]);part(head,GS.sph,M(0xfafafa),[0,.48,0],[.34,.2,.34]);}
+  if(o.hat==='cap'){part(head,GS.sph,M(o.capc),[0,.17,-.02],[.33,.2,.33]);part(head,GS.box,M(o.capc),[0,.12,.28],[.3,.04,.18]);}
+  if(o.hair==='buns'){for(const sx of[-1,1])part(head,GS.sph,M(o.hairc),[sx*.3,.12,-.05],.12);part(head,GS.sph,M(o.hairc),[0,.1,-.06],[.33,.28,.32]);}
+  if(o.hair==='bun'){part(head,GS.sph,M(o.hairc),[0,.1,-.05],[.33,.28,.32]);part(head,GS.sph,M(o.hairc),[0,.3,-.2],.14);part(head,GS.tor,M(0x3a2a33),[-.1,.02,.29],.065);part(head,GS.tor,M(0x3a2a33),[.1,.02,.29],.065);}
+  if(o.hair==='braid'){part(head,GS.sph,M(o.hairc),[0,.1,-.05],[.34,.28,.33]);for(let i=0;i<4;i++)part(head,GS.sph,M(o.hairc),[.18,-.18-i*.15,-.2+i*.02],.09-i*.008);}
+  if(o.scarf)part(b,GS.cyl,M(o.scarf),[0,.92*k,0],[.24,.1,.24]);
+  const arm=new THREE.Group();arm.position.set(.3,.72*k,.1);b.add(arm);part(arm,GS.cyl,M(o.robe),[0,-.15,.1],[.07,.4,.07],[.6,0,0]);
+  if(o.tray){part(arm,GS.box,M(0x8a6a4a),[0,-.25,.42],[.6,.04,.4]);for(let i=0;i<3;i++)part(arm,GS.sph,M(0xd89a50),[-.18+i*.18,-.18,.42],[.1,.06,.13]);}
+  if(o.kettle)part(arm,GS.sph,M(0x6a5aa0),[0,-.3,.36],[.16,.13,.16]);
+  return{g,b,head,eyes:ey,arm,bt:1,bl:0};}
+const HV={
+  tobin:{name:'Tobin',col:'#ffb36b',pos:HP.tobin,ry:-1.25,h:1.85,voice:{w:'square',f:140,r:.22},m:{robe:0xd88a4a,belt:0x6b3f2a,apron:1,hat:'chef',wide:.56,tray:1}},
+  pell:{name:'Pell',col:'#7fb6ff',pos:HP.pell,ry:1.9,h:1.75,voice:{w:'triangle',f:330,r:.25},m:{robe:0x3d6fd6,belt:0xffc43d,hat:'cap',capc:0xe0454e,bag:1}},
+  wren:{name:'Wren',col:'#ffd36b',pos:HP.wren,ry:.9,h:1.3,voice:{w:'square',f:720,r:.35},m:{robe:0xffc23d,belt:0x2fb3c4,k:.72,hy:1.08,hs:.3,hair:'buns',hairc:0x6b3f2a,skin:0xe9b48c}},
+  sol:{name:'Sol',col:'#c9a6ff',pos:HP.sol,ry:-2.1,h:1.7,voice:{w:'sine',f:420,r:.2},m:{robe:0x7a5ad0,belt:0xd8c8ff,hair:'bun',hairc:0xe8e6ee,scarf:0xb48cff,kettle:1}},
+  mara:{name:'Mara',col:'#5fe0b0',pos:HP.mara,ry:0,h:1.8,voice:{w:'triangle',f:520,r:.18},m:{robe:0x2a9d6f,belt:0xfff1d6,hair:'braid',hairc:0x3a2a33,scarf:0xff6f9f,skin:0xe9b48c}}};
+const HV_LINES={
+  tobin:{sleep:['…is the bread rising… is anything rising…','…one more cup… then I’ll sleep…','…cold oven… cold, cold oven…'],
+    wake:['HOT! Hot hot… oh. Oh! My oven!','Little keeper, you lit it. Nobody’s lit anything in weeks.'],
+    awake:[['We all drank Sol’s tea that night. Even me.','Nobody wanted to hear the singing stop.'],['Bread’s on me when the bell rings. Every loaf.']]},
+  pell:{sleep:['…return to sender… return to… sender…','…three letters… the wind took three letters…','…can’t deliver what nobody wants to open…'],
+    wake:['My letters! All three! You walked them home.','Mail is a promise. I broke three. You kept them.'],
+    awake:[['Letters kept coming that nobody wanted to open.','So we closed our eyes instead.'],['There’s one for Mara, from her brother Ash. I never had the heart.']]},
+  wren:{sleep:['…ninety-eight… ninety-nine… where’s my kite…','…the tree ate it… the big tree ate my kite…','…Mum says sleep is a long hug…'],
+    wake:['MY KITE! You got it down!','I knew a keeper would come. I told everyone.'],
+    awake:[['Mum said sleeping is like a long hug.','I didn’t want a hug. I wanted my kite.'],['Grown-ups did something to the bell. I saw them at the well.']]},
+  sol:{sleep:['…one cup… one long night…','…forty-one… forty-two… no. Forty-one…','…breathe it in, dear… it helps…'],
+    wake:['Oh… the mist. You blew it all away.','I made the Sleepwell. Forty-one cups. They asked me to.'],
+    awake:[['The Keeper asked me too. He said it was only for a while.','He said he would wake us. He didn’t.'],['Read my ledger if you like. I wrote everything down.']]},
+  mara:{sleep:['…ring it, Ash… ring it so I can find you…','…they took its tongue… I let them…','…the rope is so cold…'],
+    wake:['The clapper! They dropped it in the well, didn’t they.','I let them. I wanted to sleep until Ash came home.','Hold your lantern high by the door. I’ll find the rope.'],
+    awake:[['Hollowmere is awake. And Ash is still up on the mountain.','The lake road climbs toward him. When the mist lifts, so will we.'],['Ring it again some evening. It likes company.']]}};
+const CLAPPER_LINES=['We dropped the bell’s clapper down the well, so it could never wake us.','Mara still waits by the tower. Raise it, and bring it to her.'];
+for(const id in HV){const v=HV[id];const o=addNPC(id,{name:v.name,col:v.col,x:v.pos[0],z:v.pos[1],h:v.h,ry:v.ry,ch:makeVillager(v.m),sleep:true,voice:v.voice,hm:true});
+  o.anchor=()=>[o.x,o.y0+o.h+(o.jy||0),o.z];o.talk=hvTalk;
+  IT.push({p:()=>{const a=o.anchor();return[a[0],a[1]+.25,a[2]];},r:2.6,ok:()=>!o.absent,act:()=>talkTo(o)});COL.push({x:o.x,z:o.z,r:.5});}
+function hvTalk(o){const L=HV_LINES[o.id];
+  if(o.sleep){o.si=((o.si||0)+1)%L.sleep.length;o.wob=1;talk(o,[L.sleep[o.si]],{sleep:true});return;}
+  if(o.id==='mara'&&S.h_bell&&!S.h_m7){talk(o,['Before you go. Ash left this on the tower stairs the night he climbed.','It has your Keeper’s seal on it.'],{done:()=>hmSet('h_m7')});return;}
+  if(o.id!=='mara'&&hmAwakeCount()>=4&&!S.h_clap){talk(o,CLAPPER_LINES);return;}
+  const n=S.talks[o.id]||0;S.talks[o.id]=n+1;save();talk(o,L.awake[Math.min(n,L.awake.length-1)]);o.jump=.6;}
+/* ================= Hollowmere: story ================= */
+const HM_FLAGS=['h_seen','h_tobin','h_l1','h_l2','h_l3','h_pell','h_kite','h_wren','h_sol','h_clap','h_mara','h_bell','h_end','h_m5','h_m6','h_m7','h_b1','h_cat','h_lamps','h_ledger'];
+SAVE_FLAGS.push(...HM_FLAGS);
+const HM_BELLS=3;
+function hmActive(){return inHMish(PL.x,PL.z)||(!!S.h_seen&&S.awake&&!!S.mem[3]);}
+function regionAwake(){return inHMish(PL.x,PL.z)?!!S.h_bell:!!S.awake;}
+function hmAwakeCount(){return(S.h_tobin?1:0)+(S.h_pell?1:0)+(S.h_wren?1:0)+(S.h_sol?1:0);}
+function hmLayers(){return S.h_bell?4:Math.min(3,hmAwakeCount());}
+function lettersCount(){return(S.h_l1?1:0)+(S.h_l2?1:0)+(S.h_l3?1:0);}
+function hmBellCount(){return(S.h_b1?1:0)+(S.h_cat?1:0)+(S.h_lamps?1:0);}
+const hmBellLine=()=>'Lost Bell · '+hmBellCount()+' of '+HM_BELLS+' in Hollowmere';
+
+/* --- things you can carry, find or light --- */
+const KITE=(function(){const g=new THREE.Group();const s=new THREE.Mesh(new THREE.PlaneGeometry(.9,1.1),new THREE.MeshPhongMaterial({color:0xff4f9b,side:THREE.DoubleSide,emissive:0x3a0a20}));s.rotation.z=Math.PI/4;g.add(s);
+  const st=new THREE.Mesh(new THREE.PlaneGeometry(.06,1.1),new THREE.MeshBasicMaterial({color:0xfff1d6,side:THREE.DoubleSide}));st.rotation.z=Math.PI/4;st.position.z=.01;g.add(st);
+  for(let i=0;i<4;i++){const t=new THREE.Mesh(GB.box,M(i%2?0xffc43d:0x35d6e8,{glow:1}));t.scale.set(.14,.06,.02);t.position.set(.15*i,-.75-i*.22,0);g.add(t);}
+  g.position.set(HP.tree[0]-.6,gy(HP.tree[0],HP.tree[1])+5.6,HP.tree[1]+1.2);g.rotation.set(.3,.6,.2);scene.add(g);return{g,fall:-1,ground:false};})();
+const LETTERS=HP.letters.map(([x,z],i)=>{const g=new THREE.Group();const p=new THREE.Mesh(new THREE.PlaneGeometry(.42,.3),new THREE.MeshBasicMaterial({color:0xf1e3c2,side:THREE.DoubleSide}));g.add(p);
+  const seal=new THREE.Mesh(GB.sph,new THREE.MeshBasicMaterial({color:0xe0454e}));seal.scale.setScalar(.04);seal.position.z=.01;g.add(seal);g.position.set(x,gy(x,z)+.6,z);scene.add(g);return{i,x,z,g,k:'h_l'+(i+1)};});
+const CLAPPER=(function(){const g=new THREE.Group();const s=new THREE.Mesh(GB.sph,M(0x5a5a6a,{shiny:50}));s.scale.setScalar(.22);g.add(s);const r=new THREE.Mesh(GB.cyl6,M(0x5a5a6a));r.scale.set(.05,.7,.05);r.position.y=.4;g.add(r);
+  const[x,z]=HP.well;g.position.set(x,gy(x,z)-1,z);g.visible=false;scene.add(g);return{g,rise:-1};})();
+const OVEN={glow:0,x:HP.oven[0],z:HP.oven[1],y:gy(HP.oven[0],HP.oven[1])+.85};
+const MIST={k:1,hits:0,x:HP.sol[0]+.4,z:HP.sol[1]+.4};
+G.carry=null;G.mateCarry=null;
+
+/* --- the one place every Chapter II change happens (law COOP-4: flags only move forward) --- */
+function hmSet(k,remote,instant){if(HM_FLAGS.indexOf(k)<0||S[k])return;S[k]=true;
+  const fx=HMFX[k];if(fx)fx(!!remote,!!instant);
+  if(!instant){save();progress();if(!remote)share({t:'hm',k});}
+  setLayers();}
+function hmEvent(e){if(typeof e.k==='string'&&HM_FLAGS.indexOf(e.k)>=0){hmSet(e.k,true);return;}
+  if(e.c==='kite'||e.c==='clapper'){G.mateCarry=e.c;if(e.c==='kite')KITE.ground=false;}
+  if(e.c==='drop')G.mateCarry=null;
+  if(typeof hmEvent2==='function')hmEvent2(e);}
+function hmSync(arr){for(const k of arr)if(typeof k==='string'&&HM_FLAGS.indexOf(k)>=0)hmSet(k,true,true);}
+function hmApply(){for(const k of HM_FLAGS)if(S[k]){S[k]=false;hmSet(k,true,true);}}
+function wakeVillager(id,remote,instant){const o=NPC[id];if(!o||!o.sleep)return;wakeNPC(o,instant);
+  if(instant)return;const near=d2(PL.x,PL.z,o.x,o.z)<14;
+  if(near){burst(o.x,o.y0+1.4,o.z,30,0xffd27a,{spd:3,up:3,size:.2,life:1.1,grav:-.5});SFX.shrine(Math.min(2,hmAwakeCount()-1),null);G.trauma=Math.max(G.trauma,.22);vib(20);
+    after(.5,()=>{if(d2(PL.x,PL.z,o.x,o.z)<10&&!TALK.who)talk(o,HV_LINES[id].wake);});}
+  else{SFX.shrine(1,spat(o.x,o.z,70));toast('<span class="d f"></span><span>'+esc(o.name)+' woke up'+(remote?' · '+esc(mateName()):'')+'</span>',3000);}
+  after(near?6.5:3.5,()=>{const n=hmAwakeCount();if(n<4)toast('<span class="d"></span><span>Villagers awake · '+n+' of 4</span>',2600);
+    else if(!S.h_clap&&!G.hmToldClap){G.hmToldClap=1;zone('The villagers are whispering','Something about the well',true);}});}
+const HMFX={
+  h_seen:(r,i)=>{},
+  h_tobin:(r,i)=>{bloom(12,HP.bakery[0]-2,HP.bakery[1],7,1,i);wakeVillager('tobin',r,i);if(!i)ringFx(OVEN.x,OVEN.y-.6,OVEN.z,6,0xffa04a);},
+  h_l1:(r,i)=>{LETTERS[0].g.visible=false;if(!i)letterGot(0,r);},h_l2:(r,i)=>{LETTERS[1].g.visible=false;if(!i)letterGot(1,r);},h_l3:(r,i)=>{LETTERS[2].g.visible=false;if(!i)letterGot(2,r);},
+  h_pell:(r,i)=>{bloom(13,HP.post[0]+1,HP.post[1],7,1,i);wakeVillager('pell',r,i);},
+  h_kite:(r,i)=>{if(i){KITE.fall=1;KITE.ground=true;placeKiteGround();}else{KITE.fall=0;SFX.ghost();}},
+  h_wren:(r,i)=>{bloom(14,HP.tree[0]-1,HP.tree[1]+1,7.5,1,i);if(G.carry==='kite')G.carry=null;if(G.mateCarry==='kite')G.mateCarry=null;KITE.ground=false;KITE.held='wren';wakeVillager('wren',r,i);},
+  h_sol:(r,i)=>{MIST.k=0;bloom(15,HP.apo[0]+1.5,HP.apo[1],7.5,1,i);wakeVillager('sol',r,i);},
+  h_clap:(r,i)=>{if(i){CLAPPER.rise=1;CLAPPER.g.visible=true;CLAPPER.g.position.y=gy(HP.well[0],HP.well[1])+2.2;return;}CLAPPER.rise=0;CLAPPER.g.visible=true;SFX.stones(r?spat(HP.well[0],HP.well[1],40):null);if(r)G.mateCarry='clapper';},
+  h_mara:(r,i)=>{if(G.carry==='clapper')G.carry=null;if(G.mateCarry==='clapper')G.mateCarry=null;CLAPPER.g.visible=false;TOWER.clap.visible=true;wakeVillager('mara',r,i);},
+  h_bell:(r,i)=>{if(i){hmAwakenInstant();return;}hmAwaken(r);},
+  h_end:(r,i)=>{}};
+function letterGot(i,remote){const L=LETTERS[i];burst(L.x,L.g.position.y,L.z,18,0xf1e3c2,{spd:2,up:2,size:.14,life:.9});SFX.page();
+  const n=lettersCount();toast('<span class="d f"></span><span>Letter '+n+' of 3'+(remote?' · '+esc(mateName()):'')+(n===3?' · back to the post office':'')+'</span>',2800);}
+function placeKiteGround(){KITE.g.position.set(HP.tree[0]+2.2,gy(HP.tree[0]+2.2,HP.tree[1]-1.8)+.25,HP.tree[1]-1.8);KITE.g.rotation.set(-1.35,.4,0);}
+
+/* --- flares in the village (called from doFlare) --- */
+function hmFlare(x,z){if(!inHMish(x,z))return;
+  if(!S.h_tobin&&d2(x,z,OVEN.x,OVEN.z)<3.6*flareReach()){hmSet('h_tobin');return;}
+  if(!S.h_kite&&d2(x,z,HP.tree[0],HP.tree[1])<4.2*flareReach()){hmSet('h_kite');return;}
+  if(!S.h_sol&&d2(x,z,MIST.x,MIST.z)<4.6*flareReach()){MIST.hits++;MIST.k=Math.max(0,1-MIST.hits/3);burst(MIST.x,gy(MIST.x,MIST.z)+1.2,MIST.z,24,0xc9b5ff,{spd:5,up:1,size:.3,life:1});
+    if(MIST.hits>=3)hmSet('h_sol');else toast('<span class="d"></span><span>The sleepy mist thins'+(MIST.hits===1?'. Again!':'. Once more!')+'</span>',1800);return;}
+  if(!S.h_clap&&d2(x,z,HP.well[0],HP.well[1])<3.4){if(hmAwakeCount()>=4){hmSet('h_clap');G.carryPending=1;}else toast('<span class="d"></span><span>Something heavy lies at the bottom of the well</span>',2600);return;}
+  if(typeof hmFlare2==='function')hmFlare2(x,z);}
+
+/* --- ringing the bell: hold at the tower, faster together --- */
+function mateRinging(){return MATE.vis&&!MATE.away&&!!(MATE.flags&1)&&d2(MATE.x,MATE.z,HP.mara[0],HP.mara[1])<7;}
+function startRing(){G.mode='story';G.hring={p:0,ready:false,done:false};PL.faceT=Math.atan2(HP.tower[0]-PL.x,HP.tower[1]-PL.z);
+  storyOn(new THREE.Vector3(HP.tower[0],7,HP.tower[1]+1),.25);
+  after(.7,()=>caption('Mara takes the rope. The tower is dark inside.'));
+  after(3.2,()=>{caption('Hold your lantern high.');G.hring.ready=true;});}
+function ringUpdate(dt){const r=G.hring;if(!r||r.done||!r.ready)return;
+  const me=isHolding(),them=mateRinging();const rate=(me?1:0)+(them?1:0)+(me&&them?.6:0);
+  if(rate>0){if(!charge)chargeStart();r.p=Math.min(1,r.p+dt/2.4*rate);TOWER.swing=r.p*.25;G.trauma=Math.max(G.trauma,r.p*.15);
+    if(me&&Math.random()<dt*30){const tx=HP.tower[0],ty=TOWER.b+8,tz=HP.tower[1];emit(_lp.x,_lp.y,_lp.z,{vx:(tx-_lp.x)*.9,vy:(ty-_lp.y)*.9,vz:(tz-_lp.z)*.9,life:1,size:.16,c:[1,.8,.45],grav:0});}
+    if(me&&them&&!r.duo){r.duo=true;emote(meAnchor,'✦','#ffd36b');emote(mateAnchor,'✦',mate.pal.ui);toast('<span class="d f"></span><span>Together</span>',1800);}}
+  else r.p=Math.max(0,r.p-dt*.6);
+  chargeSet(r.p,them);if(r.p>=1)hmSet('h_bell');}
+
+/* --- the bell rings and Hollowmere wakes --- */
+function hmBellSound(d){SFX.bell(midi(45),1.6,d);after(.05,()=>SFX.bell(midi(57),.7,d));}
+function hmAwaken(remote){if(G.hring)G.hring.done=true;chargeStop();if(G.journal)closeJournal();if(TALK.who)endTalk(false);if(memOn)hideCard();
+  const near=inHMish(PL.x,PL.z);TOWER.clap.visible=true;
+  if(near){caption('');storyOff();G.mode='cine';CAM.mode='reveal';CAM.rc=[HP.tower[0]-1,HP.tower[1]+12];CAM.t=0;CAM.tr=1.2;CAM.pr=1;G.hp=.09;flash();G.trauma=.9;vib([40,30,90]);}
+  TOWER.swing=1;TOWER.ring=1;hmBellSound(near?null:spat(HP.tower[0],HP.tower[1],120));after(1.6,()=>hmBellSound(near?null:spat(HP.tower[0],HP.tower[1],120)));after(3.2,()=>hmBellSound(near?null:spat(HP.tower[0],HP.tower[1],120)));
+  G.hwave={t:0};ringFx(HP.tower[0],TOWER.b+.3,HP.tower[1]+3,18,0xffe2a0);burst(HP.tower[0],TOWER.b+10,HP.tower[1],70,0xffd27a,{spd:8,up:4,size:.3,life:1.8,grav:-1});
+  if(near){after(2.6,()=>zone('Hollowmere has awakened',MATE.vis?'Together · Chapter II':'Chapter II'));
+    after(8.4,()=>{CAM.mode='explore';CAM.rc=[0,-4];CAM.tr=1.2;CAM.pr=1.1;G.mode='play';G.hring=null;PL.faceT=null;emote(NPC.mara.anchor,'!','#ffd36b');});
+    after(10.6,()=>{if(!S.h_m7)toast('<span class="d f"></span><span>Mara has something for you</span>',3400);});}
+  else toast('<span class="d f"></span><span>The town bell rings across the valley'+(remote?' · '+esc(mateName()):'')+'</span>',4200);}
+function hmAwakenInstant(){U.uWake2.value.z=42;TOWER.clap.visible=true;for(const id in HV){const o=NPC[id];if(o.sleep)wakeNPC(o,true);}MIST.k=0;}
+function hmWaveUpdate(dt){const w=G.hwave;if(!w)return;w.t+=dt;const k=easeInOut(clamp(w.t/6.5,0,1));const R=k*42;U.uWake2.value.z=R;U.uRim.value=1-ss(.65,1,k);
+  if(inHMish(PL.x,PL.z))G.envK=Math.max(G.envK,clamp(w.t/5.5,0,1));
+  for(const id in HV){const o=NPC[id];if(o.sleep&&d2(o.x,o.z,HP.tower[0],HP.tower[1])<R)wakeNPC(o);}
+  if(w.t>7.5){G.hwave=null;U.uWake2.value.z=42;U.uRim.value=0;}}
+
+/* --- every frame --- */
+function hmCarryPos(it){return it==='kite'?KITE.g:it==='clapper'?CLAPPER.g:null;}
+function hmUpdate(dt){const t=G.time,inV=inHMish(PL.x,PL.z);hmCull();
+  if(inV!==G.inHM){G.inHM=inV;setLayers();}
+  if(G.mode!=='title'&&G.wave==null&&G.hwave==null&&G.envOverride==null)G.envK=damp(G.envK,regionAwake()?1:0,.8,dt);
+  hmWaveUpdate(dt);
+  /* oven */
+  OVEN.glow=damp(OVEN.glow,S.h_tobin?1:0,1.5,dt);if(OVEN.glow>.02){halo(OVEN.x-.5,OVEN.y,OVEN.z,1.4*OVEN.glow,0xff8a3a,.6*OVEN.glow);if(Math.random()<dt*3)emit(OVEN.x+.3,OVEN.y+1.2,OVEN.z+.2,{vy:rr(.6,1.1),life:2,size:.22,c:[.55,.5,.5],wob:.5});}
+  else if(inV){const b=.5+.5*Math.sin(t*1.7);halo(OVEN.x-.5,OVEN.y,OVEN.z,.8+.2*b,0x9fb4ff,.12+.08*b);}
+  /* letters spin where the wind left them */
+  for(const L of LETTERS){if(!L.g.visible)continue;L.g.rotation.y+=dt*1.6;L.g.position.y=gy(L.x,L.z)+.6+Math.sin(t*2+L.i)*.12;halo(L.x,L.g.position.y,L.z,.7,0xf1e3c2,.25+.1*Math.sin(t*3+L.i));}
+  /* kite: stuck, falling, on the ground, carried, or flying above Wren */
+  if(KITE.fall>=0&&KITE.fall<1){KITE.fall=Math.min(1,KITE.fall+dt/1.6);const k=easeOut(KITE.fall);KITE.g.position.x=lerp(HP.tree[0]-.6,HP.tree[0]+2.2,k);KITE.g.position.z=lerp(HP.tree[1]+1.2,HP.tree[1]-1.8,k);
+    KITE.g.position.y=lerp(gy(HP.tree[0],HP.tree[1])+5.6,gy(HP.tree[0]+2.2,HP.tree[1]-1.8)+.25,k)+Math.sin(KITE.fall*12)*.25*(1-k);KITE.g.rotation.z+=dt*3*(1-k);if(KITE.fall>=1){KITE.ground=true;placeKiteGround();}}
+  else if(KITE.held==='wren'){const o=NPC.wren;KITE.g.position.set(o.x+1.4+Math.sin(t*.9)*.6,o.y0+4.2+Math.sin(t*1.3)*.4,o.z+1.6);KITE.g.rotation.set(Math.sin(t*1.1)*.2,.6,Math.sin(t*1.7)*.3);}
+  else if(!S.h_kite)KITE.g.rotation.z=.2+Math.sin(t*2.3)*.12;
+  /* clapper rises out of the well */
+  if(CLAPPER.rise>=0&&CLAPPER.rise<1){CLAPPER.rise=Math.min(1,CLAPPER.rise+dt/1.4);CLAPPER.g.position.y=lerp(gy(HP.well[0],HP.well[1])-1,gy(HP.well[0],HP.well[1])+2.2,easeBack(CLAPPER.rise));
+    if(CLAPPER.rise>=1&&G.carryPending){G.carryPending=0;hmPick('clapper');}}
+  /* carried things float above their keeper */
+  const cm=hmCarryPos(G.carry);if(cm){cm.visible=true;cm.position.set(PL.x,PL.y+2.75+Math.sin(t*3)*.08,PL.z);cm.rotation.y+=dt*2;}
+  const mm=hmCarryPos(G.mateCarry);if(mm&&MATE.vis){mm.visible=true;mm.position.set(MATE.x,MATE.y+2.75+Math.sin(t*3)*.08,MATE.z);mm.rotation.y+=dt*2;}
+  /* Sol's sleepy mist */
+  if(MIST.k>.01){for(let i=0;i<5;i++){const a=t*.4+i*1.26;halo(MIST.x+Math.cos(a)*1.6*MIST.k,gy(MIST.x,MIST.z)+.8+Math.sin(t+i)*.3,MIST.z+Math.sin(a)*1.6*MIST.k,2.4*MIST.k,0xb48cff,.18*MIST.k);}
+    if(Math.random()<dt*8*MIST.k)emit(MIST.x+rr(-2,2),gy(MIST.x,MIST.z)+rr(.3,1.6),MIST.z+rr(-2,2),{vx:rr(-.2,.2),vy:rr(-.05,.15),life:rr(2,3),size:.32,c:[.6,.5,.85],wob:.6});}
+  /* bell swings */
+  TOWER.swing=damp(TOWER.swing,0,G.hring&&!G.hring.done?6:.5,dt);TOWER.bell.rotation.z=Math.sin(t*3.4)*TOWER.swing*.5;
+  if(S.h_bell){for(const h of HOUSES)if(d2(PL.x,PL.z,h.x,h.z)<30)halo(h.x+(h.id==='bakery'?-2.25:0),h.b+1.6,h.z+(h.id==='bakery'?0:2),1.2,0xffc46a,.35);}
+  ringUpdate(dt);hmTriggers(dt);hmSecretsUpdate(dt);}
+function hmPick(it){G.carry=it;share({t:'hm',c:it});SFX.bellPick(null);toast('<span class="d f"></span><span>'+(it==='kite'?'Wren’s kite':'The bell’s clapper')+'</span>',2000);}
+function hmTriggers(dt){if(G.mode!=='play')return;const x=PL.x,z=PL.z;if(!inHMish(x,z))return;
+  if(!S.h_seen&&z<-60&&d2(x,z,HM.x,HM.z)<HM.r)hmSet('h_seen');
+  for(const L of LETTERS)if(L.g.visible&&!S[L.k]&&d2(x,z,L.x,L.z)<1.5)hmSet(L.k);
+  if(lettersCount()===3&&!S.h_pell&&d2(x,z,HP.pell[0],HP.pell[1])<2.8)hmSet('h_pell');
+  if(KITE.ground&&!S.h_wren&&!G.carry&&d2(x,z,KITE.g.position.x,KITE.g.position.z)<1.6){KITE.ground=false;hmPick('kite');}
+  if(G.carry==='kite'&&d2(x,z,HP.wren[0],HP.wren[1])<2.8)hmSet('h_wren');
+  if(G.carry==='clapper'&&d2(x,z,HP.mara[0],HP.mara[1])<3)hmSet('h_mara');
+  if(S.h_clap&&!S.h_mara&&!G.carry&&!G.mateCarry&&CLAPPER.rise>=1&&d2(x,z,HP.well[0],HP.well[1])<2.4)hmPick('clapper');
+  if(S.h_mara&&!S.h_bell&&!G.hring&&d2(x,z,HP.mara[0],HP.mara[1])<3.4)startRing();
+  if(S.h_bell&&!S.h_end&&!G.endShown&&d2(x,z,HP.road[0],HP.road[1])<3.6){hmSet('h_end');showEnd(2);}
+  if(!S.h_bell&&!G.mistTold&&d2(x,z,HP.road[0],HP.road[1])<4){G.mistTold=1;toast('<span class="d"></span><span>Mist hides the lake road. The village must wake first.</span>',3200);}
+  G.roadT=(G.roadT||0)-dt;if(S.h_end&&d2(x,z,HP.road[0],HP.road[1])<3&&G.roadT<=0){G.roadT=8;toast('<span class="d"></span><span>Mirror Lake waits beyond the mist · Chapter III</span>',3200);}}
+/* if a partner leaves while carrying something, it falls where they stood */
+function hmMateGone(){if(!G.mateCarry)return;const it=G.mateCarry;G.mateCarry=null;const m=hmCarryPos(it);if(!m)return;
+  if(it==='kite'){KITE.ground=true;KITE.g.position.set(MATE.x,gy(MATE.x,MATE.z)+.25,MATE.z);KITE.g.rotation.set(-1.35,.4,0);}
+  else{CLAPPER.g.position.set(HP.well[0],gy(HP.well[0],HP.well[1])+2.2,HP.well[1]);}}
+
+/* --- the journal's Now line and the hint wisp --- */
+function hmNearestFavour(){const c=[];
+  if(!S.h_tobin)c.push({p:HP.oven,t:'Tobin’s bread oven by the road has gone cold. Flare beside it.'});
+  if(!S.h_pell){if(lettersCount()<3){for(const L of LETTERS)if(!S[L.k])c.push({p:[L.x,L.z],t:'The wind took three of Pell’s letters ('+lettersCount()+' of 3 found). Pick them up.'});}
+    else c.push({p:HP.pell,t:'Bring the three letters back to Pell at the post office.'});}
+  if(!S.h_wren){if(G.carry==='kite')c.push({p:HP.wren,t:'Bring the kite to Wren in the green.'});else if(!S.h_kite)c.push({p:HP.tree,t:'Wren’s kite is stuck in the big tree in the green. Flare beneath it.'});else c.push({p:[KITE.g.position.x,KITE.g.position.z],t:'Wren’s kite fell under the big tree. Pick it up.'});}
+  if(!S.h_sol)c.push({p:[MIST.x,MIST.z],t:'A sleepy mist curls around the apothecary. Flare to blow it away.'});
+  let best=null,bd=1e9;for(const o of c){const d=d2(PL.x,PL.z,o.p[0],o.p[1]);if(d<bd){bd=d;best=o;}}return best;}
+function hmGoalText(){if(!S.h_seen)return'Follow the old road north to Hollowmere.';
+  const n=hmAwakeCount();if(n<4){const f=hmNearestFavour();return'Wake the villagers with small kindnesses ('+n+' of 4). '+(f?f.t:'');}
+  if(!S.h_clap)return'The villagers hid the bell’s clapper in the well. Flare at the well in the square to raise it.';
+  if(!S.h_mara)return G.carry==='clapper'?'Bring the clapper to Mara at the bell tower.':(G.mateCarry==='clapper'?esc(mateName())+' has the clapper. Meet at the bell tower.':'Take the clapper from the well to Mara at the bell tower.');
+  if(!S.h_bell)return'Stand by Mara at the tower door and hold your lantern high to ring the bell.';
+  if(!S.h_m7)return'Mara has something for you, by the bell tower.';
+  return'Hollowmere is awake. The lake road waits in the mist, north-east of the tower.';}
+function hmGoalPos(){if(!S.h_seen)return HP.arch;if(hmAwakeCount()<4){const f=hmNearestFavour();return f?f.p:HP.well;}
+  if(!S.h_clap)return HP.well;if(!S.h_mara)return HP.mara;if(!S.h_bell||!S.h_m7)return HP.mara;return HP.road;}
+POIS.push({p:HP.oven,ok:()=>!S.h_tobin},{p:HP.tree,ok:()=>!S.h_kite},{p:[MIST.x,MIST.z],ok:()=>!S.h_sol},{p:HP.well,ok:()=>hmAwakeCount()>=4&&!S.h_clap},{p:HP.tower,ok:()=>!S.h_bell&&!!S.h_mara});
+
+/* --- the village map in the journal --- */
+function drawMapHM(c){const g=c.getContext('2d');const N=c.width,K=N/56,ox=N/2,oy=N/2;const X=x=>ox+(x-HM.x)*K,Y=z=>oy+(z-HM.z)*K;const aw=S.h_bell;
+  g.fillStyle='#14132a';g.fillRect(0,0,N,N);g.fillStyle=aw?'#2f6b45':'#2f3850';g.beginPath();g.arc(ox,oy,HM.r*K,0,TAU);g.fill();
+  g.fillStyle=aw?'#245a3b':'#283048';g.fillRect(X(-3.2),Y(-62),6.4*K,8*K);
+  g.lineCap='round';g.strokeStyle=aw?'#c99a63':'#6e6c82';g.lineWidth=2.4;for(const p of HPATHS){g.beginPath();p.forEach((q,i)=>i?g.lineTo(X(q[0]),Y(q[1])):g.moveTo(X(q[0]),Y(q[1])));g.stroke();}
+  g.fillStyle=aw?'#d8c8a8':'#7a7890';g.beginPath();g.arc(X(4),Y(-80),7*K*.75,0,TAU);g.fill();
+  for(const h of HOUSES){g.fillStyle=aw?'#ff8f6a':'#5d6077';g.fillRect(Math.round(X(h.x))-3,Math.round(Y(h.z))-3,6,6);}
+  g.fillStyle=aw?'#ffd36b':'#a8a2b8';g.fillRect(Math.round(X(HP.tower[0]))-4,Math.round(Y(HP.tower[1]))-4,8,8);
+  g.fillStyle='#4b6488';g.beginPath();g.arc(X(HP.well[0]),Y(HP.well[1]),2.2,0,TAU);g.fill();
+  g.fillStyle=aw?'#5fe0b0':'#56607a';g.beginPath();g.arc(X(HP.tree[0]),Y(HP.tree[1]),3,0,TAU);g.fill();
+  for(const id in HV){const o=NPC[id];g.fillStyle=o.sleep?'#8c93b3':'#ffd36b';g.fillRect(Math.round(X(o.x))-1,Math.round(Y(o.z))-1,3,3);}
+  g.fillStyle='#9fd8ff';g.fillRect(Math.round(X(HP.road[0]))-2,Math.round(Y(HP.road[1]))-2,4,4);
+  for(const p of PINGS){g.strokeStyle='#ffffff';g.globalAlpha=Math.max(0,1-p.t/3.6);g.lineWidth=1;g.beginPath();g.arc(X(p.x),Y(p.z),2+p.t*3,0,TAU);g.stroke();g.globalAlpha=1;}
+  const flag=(x,z,col,ph)=>{const bx=Math.round(X(x)),by=Math.round(Y(z));g.fillStyle='#f1e3c2';g.fillRect(bx,by-9,1,9);const w=Math.sin(G.time*5+ph)>0?1:0;g.fillStyle=col;g.beginPath();g.moveTo(bx+1,by-9);g.lineTo(bx+7,by-7+w);g.lineTo(bx+1,by-5);g.closePath();g.fill();};
+  if(MATE.vis&&inHMish(MATE.x,MATE.z))flag(MATE.x,MATE.z,mate.pal.ui,1.7);flag(PL.x,PL.z,wick.pal.ui,0);}
+
+/* --- Chapter II in the journal --- */
+const HM_MEM_T=[
+  {t:'The Sleepwell Night',x:'A quiet line of villagers at the apothecary door, cups in hand. No one speaks. Above them the bell tower is silent.'},
+  {t:'Ash Climbs',x:'A boy with a small lantern on the mountain road. He looks back at the village once, then keeps climbing.'},
+  {t:'The Keeper’s Request',x:'“Sleep,” the Keeper tells them in the square, his great lantern dimmed. “Just for a while. I’ll wake you when it’s safe.” — K.'}];
+function hmJournalProg(){return'<div class="prog"><span>'+['tobin','pell','wren','sol'].map(id=>'<i class="'+(NPC[id].sleep?'':'f')+'"></i>').join('')+' Villagers</span><span><i class="'+(S.h_bell?'f':'')+'"></i> The bell</span></div>';}
+function hmJournalMem(){let h='<div class="jsec">Hollowmere</div>';HM_MEM_T.forEach((m,i)=>{const g=S['h_m'+(i+5)];h+='<div class="entry '+(g?'got':'lock')+'"><span class="ic"></span><h4>'+(g?esc(m.t):'A memory not yet found')+'</h4><p>'+(g?esc(m.x):'· · ·')+'</p></div>';});return h;}
+function hmJournalSecrets(){const bc=hmBellCount();const sec=[['Lost Bells of Hollowmere',bc+' of '+HM_BELLS+' found.'+(S.h_b1?' One hid among the market crates.':'')+(S.h_cat?' One fell from a rooftop, with help.':'')+(S.h_lamps?' One answered the lamplighter’s route.':'')+(bc<HM_BELLS?' One rings only for two keepers.':''),bc>0],
+  ['The Sleepwell ledger',S.h_ledger?'“Forty-one cups, the Night of Lanterns. Paid in full. One more, for the Keeper, on the house.”':'Sol writes everything down. Somewhere, there is a ledger.',S.h_ledger],
+  ['The rooftop cat',S.h_cat?'Pudding, who belongs to nobody, and knows every roof.':'Something small and smug watches from the rooftops.',S.h_cat],
+  ['The Lamplighter’s Route',S.h_lamps?'Four high lamps, lit in the old lamplighter’s order by two keepers: one who saw the way, one who could reach.':'The tall lamps are too high for an ordinary flame. Someone used to light them in a particular order.',S.h_lamps]];
+  return'<div class="jsec">Hollowmere</div>'+sec.map(s=>'<div class="entry '+(s[2]?'got':'lock')+'"><span class="ic"></span><h4>'+esc(s[0])+'</h4><p>'+esc(s[1])+'</p></div>').join('');}
+FRIENDS.push({ch:2,id:'tobin',n:'Tobin',x:'Baker of Hollowmere. Bread first, questions later.',k:()=>!!S.h_tobin},{ch:2,id:'pell',n:'Pell',x:'Postmaster. Has never lost a letter. Well. Three.',k:()=>!!S.h_pell},
+  {ch:2,id:'wren',n:'Wren',x:'Seven and three quarters. Kite pilot. Saw everything.',k:()=>!!S.h_wren},{ch:2,id:'sol',n:'Sol',x:'Apothecary. Brewed the Sleepwell. Wrote it all down.',k:()=>!!S.h_sol},
+  {ch:2,id:'mara',n:'Mara',x:'Bell-ringer. Waiting for her brother Ash to come down the mountain.',k:()=>!!S.h_mara});
+/* ================= Hollowmere: secrets ================= */
+/* memories: one behind the bakery, one only hidden-sight can see, one from Mara after the bell */
+const HMEM=[HP.m5,HP.m6].map(([x,z],i)=>{const m=new THREE.Mesh(new THREE.OctahedronGeometry(.28,0),i?specMat(0xcfe8ff):new THREE.MeshBasicMaterial({color:0xcfe8ff}));m.position.set(x,gy(x,z)+1.2,z);m.scale.set(1,1.5,1);scene.add(m);
+  const o={i,x,z,m,k:'h_m'+(i+5)};if(i){o.spec=addSpec(m,x,1.2,z,1,()=>!S.h_m6,()=>!S.h_m6);}return o;});
+function hmMemCard(i,remote){card('Hollowmere memory '+(i+1)+' of 3'+(remote?' · found by '+mateName():''),HM_MEM_T[i].t,HM_MEM_T[i].x,i===2?11000:9000);SFX.memory();}
+HMFX.h_m5=(r,i)=>{HMEM[0].m.visible=false;if(!i){burst(HMEM[0].x,HMEM[0].m.position.y,HMEM[0].z,30,0xcfe8ff,{spd:2.5,up:2,size:.2,life:1.3,grav:-.4});hmMemCard(0,r);}};
+HMFX.h_m6=(r,i)=>{HMEM[1].m.visible=false;if(!i){burst(HMEM[1].x,HMEM[1].m.position.y,HMEM[1].z,30,0xcfe8ff,{spd:2.5,up:2,size:.2,life:1.3,grav:-.4});hmMemCard(1,r);}};
+HMFX.h_m7=(r,i)=>{if(!i)hmMemCard(2,r);};
+/* the Lost Bell among the market crates */
+const crateBell=(function(){const g=new THREE.Group();const b=new THREE.Mesh(bellM.children[0].geometry,bellM.children[0].material);g.add(b);g.position.set(HP.crate[0]+.3,gy(HP.crate[0],HP.crate[1])+1.45,HP.crate[1]+.15);scene.add(g);return g;})();
+HMFX.h_b1=(r,i)=>{crateBell.visible=false;if(!i){burst(crateBell.position.x,crateBell.position.y,crateBell.position.z,24,0xffc43d,{spd:2,up:2,size:.16});SFX.bellPick(r?spat(HP.crate[0],HP.crate[1],40):null);toast('<span class="d f"></span><span>'+hmBellLine()+(r?' · '+esc(mateName()):'')+'</span>',3200);}};
+/* the Sleepwell ledger by the apothecary */
+IT.push({p:()=>[HP.ledger[0],gy(HP.ledger[0],HP.ledger[1])+2.1,HP.ledger[1]],r:2.6,ok:()=>!TALK.who,act:()=>{const first=!S.h_ledger;hmSet('h_ledger');SFX.page();
+  card('Nailed by the apothecary door','The Sleepwell ledger','“Sleepwell: one cup, one long night. Forty-one cups, the Night of Lanterns. Paid in full. One more, for the Keeper, on the house.” —Sol',12000);
+  if(first)after(1,()=>toast('<span class="d f"></span><span>Secret · The Sleepwell ledger</span>',2600));}});
+/* Pudding, the rooftop cat: flare near it and it hops to another roof; on the last roof it knocks down a Lost Bell */
+function makeCat(){const g=new THREE.Group(),b=new THREE.Group();g.add(b);const o=M(0xff9a3c),w=M(0xfff1d6);
+  part(b,GS.sph,o,[0,.22,0],[.2,.17,.32]);part(b,GS.sph,w,[0,.18,.14],[.13,.1,.12]);const head=new THREE.Group();head.position.set(0,.4,.26);b.add(head);part(head,GS.sph,o,[0,0,0],.16);
+  for(const sx of[-1,1])part(head,GS.cone,o,[sx*.09,.15,0],[.06,.12,.05]);const ey=eyes(head,.03,.13,.06,.028);
+  const tail=new THREE.Group();tail.position.set(0,.26,-.3);b.add(tail);part(tail,GS.cyl,o,[0,.2,-.05],[.04,.45,.04],[-.5,0,0]);return{g,b,head,eyes:ey,tail,bt:1,bl:0};}
+const PUDDING=(function(){const ch=makeCat();scene.add(ch.g);
+  const roofs=[[9.75,-66.8,HOUSES[0].b+3.0,-Math.PI/2],[-4.35,-69,HOUSES[1].b+2.9,Math.PI/2],[14.95,-96,HOUSES[4].b+2.8,-Math.PI/2]];
+  return{ch,roofs,st:0,hop:-1,from:null,toldT:-99,drop:-1,bell:null};})();
+PUDDING.bell=(function(){const g=new THREE.Group();const b=new THREE.Mesh(bellM.children[0].geometry,bellM.children[0].material);g.add(b);g.visible=false;scene.add(g);return g;})();
+function catPlace(i){const r=PUDDING.roofs[i];PUDDING.ch.g.position.set(r[0],r[2],r[1]);PUDDING.ch.g.rotation.y=r[3];}
+catPlace(0);
+function catFlare(x,z){if(S.h_cat||PUDDING.hop>=0||PUDDING.drop>=0)return false;const r=PUDDING.roofs[PUDDING.st];if(d2(x,z,r[0],r[1])>7)return false;
+  SFX.blip({w:'triangle',f:900,r:.5});emote(()=>[PUDDING.ch.g.position.x,PUDDING.ch.g.position.y+.8,PUDDING.ch.g.position.z],'!','#ffb36b');
+  if(PUDDING.st<PUDDING.roofs.length-1){PUDDING.from=r;PUDDING.st++;PUDDING.hop=0;if(nowS()-PUDDING.toldT>20){PUDDING.toldT=nowS();after(.6,()=>toast('<span class="d"></span><span>The cat leaps to another roof</span>',2200));}}
+  else{PUDDING.drop=0;PUDDING.bell.visible=true;PUDDING.bell.position.set(r[0],r[2]+.3,r[1]);}
+  return true;}
+HMFX.h_cat=(r,i)=>{PUDDING.bell.visible=false;PUDDING.drop=-1;PUDDING.st=PUDDING.roofs.length-1;catPlace(PUDDING.st);if(!i){SFX.bellPick(r?spat(14,-95,40):null);toast('<span class="d f"></span><span>'+hmBellLine()+(r?' · '+esc(mateName()):'')+'</span>',3200);after(3.4,()=>toast('<span class="d f"></span><span>Secret · The rooftop cat</span>',2400));}};
+/* the Lamplighter's Route: four high lamps, an old order only Spirit Sight can see, a reach only Long Flame has */
+const LAMP_ORDER=[0,2,1,3];
+const FOOTPRINTS=[];
+const footTex=(function(){const c=document.createElement('canvas');c.width=32;c.height=32;const g=c.getContext('2d');g.fillStyle='#fff';g.beginPath();g.ellipse(10,12,5,8,-.2,0,TAU);g.fill();g.beginPath();g.ellipse(22,20,5,8,.2,0,TAU);g.fill();const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;return t;})();
+(function(){for(let s=0;s<LAMP_ORDER.length-1;s++){const a=LAMPS[LAMP_ORDER[s]],b=LAMPS[LAMP_ORDER[s+1]];const L=d2(a.x,a.z,b.x,b.z),n=Math.max(5,Math.floor(L/2.2)),ang=Math.atan2(b.x-a.x,b.z-a.z);
+  for(let k=1;k<n;k++){const u=k/n,x=lerp(a.x,b.x,u),z=lerp(a.z,b.z,u);const m=new THREE.Mesh(new THREE.PlaneGeometry(.55,.55),specMat(0xffe0a0,footTex));m.rotation.x=-Math.PI/2;m.rotation.z=ang+Math.PI;m.position.set(x,gy(x,z)+.07,z);scene.add(m);
+    const sp=addSpec(m,x,.2,z,.9,()=>!S.h_lamps,()=>false);sp.spirit=true;FOOTPRINTS.push(sp);}}})();
+G.lampSeq=[];
+function lampLight(i,remote){if(S.h_lamps)return;const L=LAMPS[i];if(L.on)return;
+  if(!remote&&NET.peer)share({t:'hm',lmp:i});
+  const exp=LAMP_ORDER[G.lampSeq.length],near=d2(PL.x,PL.z,L.x,L.z)<16;
+  if(i===exp){L.on=true;G.lampSeq.push(i);SFX.chime(4+G.lampSeq.length,near?null:spat(L.x,L.z,60));burst(L.lx,L.ly,L.z,20,0xffc46a,{spd:2,up:1.5,size:.16,life:.9});
+    if(G.lampSeq.length===LAMP_ORDER.length)hmSet('h_lamps',remote);
+    else if(!remote)toast('<span class="d f"></span><span>A lamp catches · '+G.lampSeq.length+' of 4</span>',1800);}
+  else{for(const l of LAMPS)l.on=false;G.lampSeq=[];SFX.fizzle();burst(L.lx,L.ly,L.z,12,0x8a7a6a,{spd:1,up:1,size:.12,life:.5});
+    toast('<span class="d"></span><span>The lamps sigh and go dark. The old lamplighter had a route.</span>',3200);}}
+HMFX.h_lamps=(r,i)=>{for(const l of LAMPS)l.on=true;G.lampSeq=LAMP_ORDER.slice();if(i)return;const d=LAMPS[3];
+  for(const l of LAMPS)ringFx(l.x,l.b+.15,l.z,5,0xffc46a);SFX.twin();after(1,()=>toast('<span class="d f"></span><span>Secret · The Lamplighter’s Route</span>',2800));
+  after(3.6,()=>{burst(d.lx,d.ly,d.z,24,0xffc43d,{spd:2.5,up:2.5,size:.18,life:1.1});SFX.bellPick(null);toast('<span class="d f"></span><span>'+hmBellLine()+'</span>',3200);});};
+function hmEvent2(e){if(Number.isInteger(e.lmp)&&e.lmp>=0&&e.lmp<LAMPS.length)lampLight(e.lmp,true);}
+function hmFlare2(x,z){if(catFlare(x,z))return;
+  for(const L of LAMPS){if(S.h_lamps||d2(x,z,L.x,L.z)>3.4)continue;
+    if(myGift()==='long'){lampLight(L.i,false);return;}
+    if(nowS()-(G.lampHintAt||-99)>15){G.lampHintAt=nowS();toast('<span class="d"></span><span>The lamp hangs too high for an ordinary flame</span>',2800);}return;}}
+/* every frame */
+function hmSecretsUpdate(dt){const t=G.time;if(!inHMish(PL.x,PL.z)&&!G.hwave)return;
+  if(HMEM[0].m.visible){const m=HMEM[0];m.m.rotation.y+=dt*1.4;m.m.position.y=gy(m.x,m.z)+1.2+Math.sin(t*1.8)*.15;halo(m.x,m.m.position.y,m.z,1.3,0xbfdcff,.4+.15*Math.sin(t*3));}
+  if(HMEM[1].m.visible)HMEM[1].m.rotation.y+=dt*1.4;
+  if(crateBell.visible){crateBell.rotation.z=Math.sin(t*3)*.25;halo(crateBell.position.x,crateBell.position.y,crateBell.position.z,.7,0xffc43d,.25);}
+  for(const L of LAMPS){L.k=damp(L.k,L.on?1:0,3,dt);L.glass.material.color.setHex(L.k>.5?0xffc46a:0x4a4658);if(L.k>.02)halo(L.lx,L.ly,L.z,1.5*L.k,0xffb35a,.55*L.k);}
+  /* the cat */
+  const c=PUDDING.ch;c.tail.rotation.y=Math.sin(t*2.2)*.5;c.head.rotation.y=Math.sin(t*.7)*.4;blink(c,dt,false);
+  if(PUDDING.hop>=0){PUDDING.hop=Math.min(1,PUDDING.hop+dt/1.1);const a=PUDDING.from,b=PUDDING.roofs[PUDDING.st],k=easeInOut(PUDDING.hop);c.g.position.set(lerp(a[0],b[0],k),lerp(a[2],b[2],k)+Math.sin(k*Math.PI)*6,lerp(a[1],b[1],k));c.g.rotation.y=Math.atan2(b[0]-a[0],b[1]-a[1]);if(PUDDING.hop>=1){PUDDING.hop=-1;catPlace(PUDDING.st);}}
+  if(PUDDING.drop>=0&&PUDDING.drop<1){PUDDING.drop=Math.min(1,PUDDING.drop+dt/1.2);const r=PUDDING.roofs[PUDDING.st];const tx=r[0]-.9,tz=r[1]+.6;PUDDING.bell.position.set(lerp(r[0],tx,PUDDING.drop),lerp(r[2]+.3,gy(tx,tz)+.45,easeOut(PUDDING.drop))+Math.sin(PUDDING.drop*Math.PI)*.8,lerp(r[1],tz,PUDDING.drop));}
+  if(PUDDING.bell.visible){PUDDING.bell.rotation.z=Math.sin(t*3)*.25;halo(PUDDING.bell.position.x,PUDDING.bell.position.y,PUDDING.bell.position.z,.7,0xffc43d,.25);}
+  if(G.mode!=='play')return;
+  if(HMEM[0].m.visible&&d2(PL.x,PL.z,HMEM[0].x,HMEM[0].z)<1.5)hmSet('h_m5');
+  if(HMEM[1].m.visible&&HMEM[1].spec.rev>.45&&d2(PL.x,PL.z,HMEM[1].x,HMEM[1].z)<1.6)hmSet('h_m6');
+  if(crateBell.visible){const d=d2(PL.x,PL.z,HP.crate[0],HP.crate[1]);G.cbT=(G.cbT||0)-dt;if(d<10&&G.cbT<=0){SFX.tinkle(1-d/10);G.cbT=2.4;}if(d<1.9)hmSet('h_b1');}
+  if(PUDDING.bell.visible&&PUDDING.drop>=1&&d2(PL.x,PL.z,PUDDING.bell.position.x,PUDDING.bell.position.z)<1.5)hmSet('h_cat');}
 /*STUDIO:BEGIN*/
 /* ================= Lanternfall Studio: design test panel + dev toolbox =================
    Sandboxed (own save slot), unlocked on purpose (#studio link or long-press on the logo),
@@ -2233,7 +2709,7 @@ const SX={pending:null,openWhenReady:false,tab:'tour',open:false,tour:false,step
 try{const r=store.get(STUDIO_K);if(r&&typeof r==='object'){SX.res=r.res||{};SX.step=r.step|0;}}catch(e){}
 function sxSave(){store.set(STUDIO_K,{res:SX.res,step:SX.step});}
 const CAT={onb:['Onboarding','#ffd36b'],light:['Light','#ffa548'],pip:['Pip & secrets','#b48cff'],place:['Places & devices','#3fd0c9'],char:['Characters','#ff6fae'],
-  final:['The finale','#ff6a5f'],cam:['Camera & look','#6fb6ff'],coop:['Two Lights','#ff8fb8'],sound:['Sound','#a6e04a'],perf:['Device & performance','#c6cbe0']};
+  final:['The finale','#ff6a5f'],hm:['Hollowmere','#ff8f6a'],cam:['Camera & look','#6fb6ff'],coop:['Two Lights','#ff8fb8'],sound:['Sound','#a6e04a'],perf:['Device & performance','#c6cbe0']};
 
 /* ---- places (stand-beside positions, safe to land on) ---- */
 const PLACES=[
@@ -2244,7 +2720,9 @@ const PLACES=[
   ['hale','Hale','char',[P.hale[0]+1.5,P.hale[1]+1.8]],['nana','Nana Oakum','char',[P.nana[0]-1.5,P.nana[1]+1.5]],['bo','Bo’s mailbox','char',[P.bo[0]-1.6,P.bo[1]+1.2]],
   ['ribbet','Prof. Ribbet','char',[P.ribbet[0]-1.2,P.ribbet[1]+.4]],['fox','Night fox rock','secret',[P.fox[0]+1.8,P.fox[1]+1.5]],['bell','Lost bell','secret',[P.bell[0]-1.2,P.bell[1]+1.6]],
   ['m1','Memory I','secret',[P.m1[0]-1.6,P.m1[1]]],['m2','Memory II','secret',[P.m2[0]+1.6,P.m2[1]]],['m3','Memory III','secret',[P.m3[0]-1.6,P.m3[1]]],
-  ['sisW','Far Sister (west cliff)','coop',[-42.8,0]],['sisE','Hidden Sister (east woods)','coop',[33,-15]]];
+  ['sisW','Far Sister (west cliff)','coop',[-42.8,0]],['sisE','Hidden Sister (east woods)','coop',[33,-15]],
+  ['hm','Hollowmere arch','story',[.6,-57.5]],['hmsq','Market square','story',[2,-76.6]],['oven','Tobin’s oven','story',[6.4,-63.8]],['hmtree','Wren’s tree','story',[15.2,-84.8]],['apo','Apothecary mist','story',[-4.4,-85.6]],
+  ['tower','Bell tower','story',[5.5,-89.4]],['road','Lake road','story',[16.6,-98.4]],['lampA','Lamplighter lamp','coop',[-1.2,-63.6]],['cat','Rooftop cat','secret',[7.4,-69.6]]];
 const PTYPE={story:['Story','#ffd36b'],device:['Device','#3fd0c9'],char:['Character','#ff6fae'],secret:['Secret','#b48cff'],coop:['Co-op','#ff8fb8']};
 const placeById=id=>PLACES.find(p=>p[0]===id);
 function teleport(x,z,quiet){let tx=x,tz=z;for(let k=0;k<12&&blockedWater(tx,tz);k++)tx+=.8;
@@ -2265,6 +2743,9 @@ const GR={
   bell:()=>{if(!S.bell)pickBell(false);},
   mural:()=>{if(!S.mural){S.mural=true;share({t:'mural'});save();}}};
 function grantMany(keys){keys.forEach(k=>GR[k]());setLayers();}
+function sxHm(){if(!S.awake){grantMany(['note','pip','stones','s1','s2','s3']);awakenInstant();share({t:'awaken'});}
+  if(!S.mem[3]){collectMem(3,true);share({t:'mem',i:3});}S.c1end=true;save();if(!S.h_seen)hmSet('h_seen');}
+function sxHmFavours(){['h_tobin','h_l1','h_l2','h_l3','h_pell','h_kite','h_wren','h_sol'].forEach(k=>hmSet(k,false,false));}
 
 /* ---- the test catalogue: what it is, how it works, what to do, what should happen ---- */
 const flaresNow=()=>G.flares,openFlowers=()=>{let n=0;for(const f of FL)if(f.open)n++;return n;};
@@ -2303,6 +2784,13 @@ const STEPS=[
  {id:'duet',cat:'coop',coop:1,t:'The Duet (co-op secret)',how:'Two hum stones by Mirror Pond need two keepers at once.',todo:'Each stand on one stone.',expect:'The pond sings, a lotus rises with a Lost Bell.',setup:()=>tpTo('pond'),check:()=>S.duet},
  {id:'gifts',cat:'coop',coop:1,t:'Lantern gifts',how:'Together, each lantern has a gift. Wick (the host) has Long Flame: flares reach about a third farther. Fen (the guest) has Spirit Sight: hidden things show up close by, without Pip.',todo:'Fen: walk up to the hidden wayshrine before Pip is awake. Wick: flare and compare the ring.',expect:'A “Your gift together” toast for each; Fen sees ghostly things; Wick’s flare ring is wider.',check:()=>!!myGift()},
  {id:'sisters',cat:'coop',coop:1,t:'Sister Lights (co-op secret)',how:'Two Sister Lights stand far apart and must be flared within 5 s of each other. The Far Sister on the west cliff only answers a Long Flame. The Hidden Sister in the east woods only shows itself to Spirit Sight.',todo:'Set up sends each of you to your sister. Ping, count down together, flare.',expect:'Light beams rise from both, “Secret · Sister Lights”, then Lost Bell 3 of 3.',setup:()=>tpTo(myGift()==='spirit'?'sisE':'sisW'),check:()=>S.sisters},
+ {id:'hm_oven',cat:'hm',t:'Tobin’s oven',how:'A cold bread oven by the road. Flaring beside it wakes the baker.',todo:'Flare next to the brick oven.',expect:'The oven glows orange, Tobin jumps awake and talks, “Villagers awake 1 of 4”.',setup:()=>{sxHm();tpTo('oven');},check:()=>!!S.h_tobin},
+ {id:'hm_letters',cat:'hm',t:'Pell’s letters',how:'Three letters blew away. Each spins with a soft glow; walking into one picks it up.',todo:'Find the three letters, then walk to Pell by the post office.',expect:'“Letter n of 3” toasts, then Pell wakes when all three come home.',setup:()=>{sxHm();tpTo('hmsq');},check:()=>!!S.h_pell},
+ {id:'hm_kite',cat:'hm',t:'Wren’s kite',how:'The kite is stuck in the big tree. A flare shakes it loose; walking into it picks it up; it floats above you.',todo:'Flare under the tree, pick up the kite, bring it to Wren.',expect:'Wren wakes and her kite flies above her for good.',setup:()=>{sxHm();tpTo('hmtree');},check:()=>!!S.h_wren},
+ {id:'hm_mist',cat:'hm',t:'Sol’s sleepy mist',how:'A purple mist keeps the apothecary asleep. Each flare thins it; three clear it.',todo:'Flare three times beside Sol.',expect:'“The mist thins” twice, then Sol wakes and confesses about the Sleepwell.',setup:()=>{sxHm();tpTo('apo');},check:()=>!!S.h_sol},
+ {id:'hm_bell',cat:'hm',t:'The town bell',how:'Four villagers awake reveal the clapper in the well. Mara takes it; holding at the tower door rings the bell. Together it rings faster.',todo:'Set up hands you the clapper at the tower. Hold your lantern by Mara.',expect:'The bell rings three times, colour spreads from the tower, “Hollowmere has awakened”.',setup:()=>{sxHm();sxHmFavours();if(!S.h_clap)hmSet('h_clap');G.carry='clapper';tpTo('tower');},check:()=>!!S.h_bell},
+ {id:'hm_lamps',cat:'coop',coop:1,t:'Lamplighter’s Route (co-op secret)',how:'Fen’s Spirit Sight shows ghostly footprints linking four tall lamps in the old order. Only Wick’s Long Flame reaches the lamps. A wrong lamp puts them all out.',todo:'Fen follows the footprints and pings the next lamp; Wick flares under it.',expect:'“A lamp catches · n of 4”, then “Secret · The Lamplighter’s Route” and a Lost Bell.',setup:()=>{sxHm();tpTo('lampA');},check:()=>!!S.h_lamps},
+ {id:'jcode',cat:'perf',t:'Journey code',how:'Your save lives in this browser for this website. A journey code carries it to another phone or link.',todo:'Journal → settings → Copy. On the other device: Journal → settings → paste → Load.',expect:'The other device reloads straight into the same journey.'},
  {id:'together',cat:'coop',coop:1,t:'Rekindle together',how:'Holding together fills the Heart 2.6× faster with a duo harmony.',todo:'Both hold at the Heart.',expect:'“Together” toast, a second voice in the charge tone.'},
  {id:'rejoin',cat:'coop',coop:1,t:'Disconnect and rejoin',how:'If a phone drops, the party waits. Rejoining restores from a snapshot.',todo:'One player closes the page, then opens the invite link again.',expect:'“Lantern drifted away”, then the friend reappears with the same world.'},
  {id:'layers',cat:'sound',t:'Adaptive music',how:'Each lit shrine adds a music layer; the awakening adds the melody.',todo:'Use the Sound tab to solo each layer.',expect:'Pads, arpeggio, bass and sparkle, percussion, melody, duet.'},
@@ -2372,6 +2860,8 @@ function sxRender(){
       '<button class="sxact" data-act="allshrines" style="--cc:#ffd36b"><b>Light all wayshrines</b><small>Pip, stones and all three shrines</small></button>'+
       '<button class="sxact" data-act="heart" style="--cc:#ff6a5f"><b>Go to the ready Heart</b><small>Sets everything up, walks you in</small></button>'+
       '<button class="sxact" data-act="awaken" style="--cc:#ffa548"'+(S.awake?' disabled':'')+'><b>Awaken Emberwood</b><small>The full cinematic, now</small></button>'+
+      '<button class="sxact" data-act="hmgo" style="--cc:#ff8f6a"><b>Go to Hollowmere</b><small>Emberwood done, gate open, walks you in</small></button>'+
+      '<button class="sxact" data-act="hmfav" style="--cc:#ffc23d"><b>Wake four villagers</b><small>Every favour done; the well is next</small></button>'+
       '<button class="sxact" data-act="fox" style="--cc:#9fd8ff"><b>'+(NPC.fox.absent?'Summon':'Dismiss')+' the night fox</b><small>Real night is 8 pm to 6 am</small></button></div>';
     h+='<h5 class="sxh">Look and camera</h5><div class="sxcol">'+tog('preview',G.envOverride!=null,'Preview awakened look','Non-destructive. Daylight and colour over the cursed world')+
       '<button class="sxact" data-act="storydemo" style="--cc:#6fb6ff"><b>Storybook camera demo</b><small>Swing to a storybook page and back</small></button></div>';
@@ -2421,6 +2911,8 @@ sxBody.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b
     case 'allshrines':grantMany(['note','pip','stones','s1','s2','s3']);toast('<span class="d f"></span><span>All wayshrines lit</span>',2000);break;
     case 'heart':grantMany(['note','pip','stones','s1','s2','s3']);teleport(P.heart[0],P.heart[1]+4.6);closeStudio();return;
     case 'awaken':closeStudio();awaken();return;
+    case 'hmgo':sxHm();tpTo('hm');closeStudio();return;
+    case 'hmfav':sxHm();sxHmFavours();toast('<span class="d f"></span><span>Four villagers awake</span>',2000);break;
     case 'fox':setFoxPresent(!!NPC.fox.absent);if(!NPC.fox.absent)tpTo('fox');closeStudio();return;
     case 'preview':if(G.envOverride==null){G.envOverride=1;U.uWake.value.z=220;}else{G.envOverride=null;if(!S.awake)U.uWake.value.z=0;}envLast=-1;break;
     case 'storydemo':sxStoryDemo();return;
@@ -2480,7 +2972,8 @@ $('#tap').addEventListener('click',e=>{e.stopPropagation();titleWake();});
 tEl.addEventListener('click',e=>{if(TITLE.stage===1&&!e.target.closest('button'))titleWake();});
 function titleInit(){const lg=tEl.querySelector('.logo');lg.innerHTML=[...'Lanternfall'].map((ch,i)=>'<span aria-hidden="true" style="--i:'+i+'">'+ch+'</span>').join('');
   const sv=store.get(SAVE);
-  if(!JM&&hasProg(sv)&&sv.awake){TITLE.dawn=true;G.envOverride=1;U.uWake.value.z=220;envLast=-1;$('#tlede').textContent='Emberwood is awake. Hollowmere still sleeps.';}}
+  if(!JM&&hasProg(sv)&&sv.awake){TITLE.dawn=true;G.envOverride=1;U.uWake.value.z=56;envLast=-1;$('#tlede').textContent=sv.h_bell?'Hollowmere is awake. Mist still hides the lake road.':'Emberwood is awake. Hollowmere still sleeps.';}
+  if(!JM&&sv&&sv.h_seen){$('#tkick').textContent='Chapter II · Hollowmere';const f=tEl.querySelector('.tfoot span:last-child');if(f)f.textContent='Chapter II';}}
 function titleUpdate(dt){if(G.mode!=='title')return;TITLE.t+=dt;
   if(TITLE.stage<1&&TITLE.t>.7)titleStage(1);
   TITLE.flT-=dt;if(TITLE.flT<=0){TITLE.flT=.09;tEl.style.setProperty('--fl',clamp(lampL.intensity/1.6,.55,1.3).toFixed(2));}
@@ -2499,7 +2992,8 @@ function applySave(d){S=Object.assign(freshS(),sanitizeSave(d));if(!Array.isArra
   if(wasS1)lightShrine(0,true);if(wasS2)lightShrine(1,true);if(wasS3)lightShrine(2,true);
   if(wasSt){S.stones=false;raiseStones(true);}
   if(wasAw)awakenInstant();
-  G.gateOpen=S.awake?1:0;}
+  G.gateOpen=S.awake?1:0;
+  hmApply();}
 const SAVE_COOP='lanternfall.emberwood.coop.v1';
 function hasProg(d){return!!(d&&typeof d==='object'&&(d.s1||d.pip||Array.isArray(d.mem)&&d.mem.some(Boolean)||d.awake));}
 const saved=store.get(SAVE);
@@ -2510,9 +3004,10 @@ function begin(opt){audioInit();opt=opt||{};G.slot=opt.slot===undefined?SAVE:opt
     else if(opt.cont){const d=store.get(G.slot);if(d)applySave(d);}
     else{S=freshS();if(G.slot)store.del(G.slot);}}
   catch(e){report(e,'begin');S=freshS();}
+  if(S.h_seen&&!opt.snap){PL.x=.6;PL.z=-57;PL.face=Math.PI;movePlayer(0,0);}
   $('#title').classList.add('out');setTimeout(()=>{$('#title').hidden=true;},1300);
   G.mode='intro';CAM.mode='explore';CAM.tr=.75;CAM.pr=.7;G.lock=3;G.lastProg=G.time;G.hintAt=G.time+(S.s1?80:45);keepAwake();
-  after(2.4,()=>zone('Emberwood',opt.snap?'With '+mateName():S.awake?'The forest is awake':'The forest of sleeping light'));
+  after(2.4,()=>{if(inHMish(PL.x,PL.z))zone('Hollowmere',opt.snap?'With '+mateName():S.h_bell?'The village is awake':'The village that chose to sleep');else zone('Emberwood',opt.snap?'With '+mateName():S.awake?'The forest is awake':'The forest of sleeping light');});
   after(3.0,()=>{if(G.mode==='intro')G.mode='play';});setLayers(true);}
 $('#bBegin').addEventListener('click',()=>begin({slot:SAVE,cont:hasProg(saved)}));
 $('#bNew').addEventListener('click',()=>begin({slot:SAVE,cont:false}));
@@ -2522,11 +3017,12 @@ resize();
 wick.g.position.set(PL.x,groundH(PL.x,PL.z),PL.z);
 applyEnv(0);envLast=0;
 PL.z=35.5;titleInit();Object.assign(cc,heroShot(PL.x,groundH(PL.x,PL.z),PL.z,0));{const c=heroCamXZ(cc);hideCorridor(c[0],c[1],PL.x,PL.z);}
+COL_STATIC=COL.length;
 let last=performance.now(),fpsAcc=0,fpsN=0,fpsT=0;
 function frame(now){requestAnimationFrame(frame);let rdt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;let dt=rdt;if(G.hp>0){G.hp-=rdt;dt=0;}G.rawDt=rdt;dt*=G.timeScale;
   HN=0;G.time+=dt;U.uTime.value=G.time;
   timers(dt);if(G.lock>0)G.lock-=dt;
-  run(inputUpdate,rdt);run(playerUpdate,dt);run(mateUpdate,dt,rdt);run(pipUpdate,dt);run(npcUpdate,dt);run(flowersUpdate,dt);run(worldUpdate,dt);run(duetUpdate,dt);run(sisUpdate,dt);run(pingUpdate,dt);run(triggers,dt);run(rekindleUpdate,dt);run(wakeUpdate,dt);run(envUpdate);run(bloomUpdate,dt);
+  run(inputUpdate,rdt);run(playerUpdate,dt);run(mateUpdate,dt,rdt);run(pipUpdate,dt);run(npcUpdate,dt);run(flowersUpdate,dt);run(worldUpdate,dt);run(duetUpdate,dt);run(sisUpdate,dt);run(hmUpdate,dt);run(pingUpdate,dt);run(triggers,dt);run(rekindleUpdate,dt);run(wakeUpdate,dt);run(envUpdate);run(bloomUpdate,dt);
   if(G.mode!=='title')run(ambient,dt);run(hintUpdate,dt);run(talkUpdate,dt);run(partUpdate,dt);run(camUpdate,rdt);run(uiUpdate,rdt);run(audioUpdate,dt);run(netUpdate,rdt);run(titleUpdate,rdt);if(typeof studioUpdate==='function')run(studioUpdate,dt);
   try{renderer.render(scene,camera);}catch(e){report(e,'render');}
   if(G.mode==='play'&&G.quality>.55){fpsT+=rdt;fpsAcc+=rdt;fpsN++;if(fpsT>3){const avg=fpsAcc/fpsN;if(avg>1/34){G.quality*=.8;resize();}fpsT=fpsAcc=fpsN=0;}}}
